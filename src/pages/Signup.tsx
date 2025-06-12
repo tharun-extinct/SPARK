@@ -5,9 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { createAccount } from "@/lib/firebase";
+import { useToast } from "@/components/ui/use-toast";
+import { doc, setDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 const Signup = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -15,6 +20,8 @@ const Signup = () => {
     password: "",
     confirmPassword: ""
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -23,15 +30,47 @@ const Signup = () => {
     });
   };
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords don't match!");
+      setError("Passwords don't match!");
+      setIsLoading(false);
       return;
     }
-    // In a real app, this would handle user registration
-    console.log("Signup attempt:", formData);
-    navigate("/onboarding");
+
+    try {
+      // Create new user with email and password
+      const userCredential = await createAccount(formData.email, formData.password);
+      const user = userCredential.user;
+        // Store additional user data in Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        createdAt: new Date().toISOString(),
+        onboardingCompleted: false // Explicitly mark onboarding as not completed
+      });
+      
+      toast({
+        title: "Account created!",
+        description: "Welcome to SPARK. Let's set up your preferences.",
+      });
+      
+      navigate("/onboarding");
+    } catch (error: any) {
+      console.error("Signup error:", error);
+      setError(error.message || "Failed to create account. Please try again.");
+      toast({
+        title: "Signup failed",
+        description: error.message || "Failed to create account. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -110,9 +149,11 @@ const Signup = () => {
                 onChange={handleInputChange}
                 required
               />
-            </div>
-            <Button type="submit" className="w-full">
-              Create Account
+            </div>            {error && (
+              <div className="text-red-500 text-sm mt-2">{error}</div>
+            )}
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Creating Account..." : "Create Account"}
             </Button>
           </form>
           
