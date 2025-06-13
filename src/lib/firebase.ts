@@ -7,7 +7,9 @@ import {
   signInWithEmailAndPassword, 
   signOut as firebaseSignOut,
   setPersistence,
-  browserLocalPersistence
+  browserLocalPersistence,
+  GoogleAuthProvider,
+  signInWithPopup
 } from 'firebase/auth';
 import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
 
@@ -100,6 +102,32 @@ export const updateUserOnboardingStatus = async (userId: string, completed: bool
     await setDoc(doc(db, "users", userId), { onboardingCompleted: completed }, { merge: true });
   } catch (error: any) {
     console.error("Error updating onboarding status:", error.code, error.message);
+    throw error;
+  }
+};
+
+// Google Authentication
+export const signInWithGoogle = async () => {
+  try {
+    const provider = new GoogleAuthProvider();
+    const result = await signInWithPopup(auth, provider);
+      // Google doesn't directly expose isNewUser in the type, but we can check if the user already exists
+    const userExists = await getDoc(doc(db, "users", result.user.uid));
+    const isNewUser = !userExists.exists();
+    
+    // If it's a new user, create a profile
+    if (isNewUser && result.user) {
+      await createUserProfile(result.user.uid, {
+        email: result.user.email,
+        displayName: result.user.displayName,
+        photoURL: result.user.photoURL,
+        onboardingCompleted: true, // Skip onboarding
+      });
+    }
+    
+    return result;
+  } catch (error: any) {
+    console.error("Error signing in with Google:", error.code, error.message);
     throw error;
   }
 };
