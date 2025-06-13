@@ -245,8 +245,7 @@ const Onboarding = () => {
       default:
         return true;
     }
-  };
-  const handleNext = async () => {
+  };  const handleNext = async () => {
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
@@ -255,12 +254,35 @@ const Onboarding = () => {
       
       if (currentUser) {
         try {
-          await updateUserOnboardingStatus(currentUser.uid, true);
-          toast({
-            title: "Onboarding complete!",
-            description: "Your profile has been set up successfully.",
-          });
-          navigate("/dashboard");
+          console.log("Starting onboarding completion process for user:", currentUser.uid);
+          
+          // Attempt to update onboarding status with retries
+          const updateSuccess = await updateUserOnboardingStatus(currentUser.uid, true);
+          
+          if (updateSuccess) {
+            console.log("Onboarding status updated successfully");
+            
+            toast({
+              title: "Onboarding complete!",
+              description: "Your profile has been set up successfully.",
+            });
+            
+            // Navigate to dashboard with a state flag to indicate successful onboarding
+            navigate("/dashboard", { state: { fromOnboarding: true } });
+          } else {
+            // Handle the case where the update didn't succeed but don't block the user
+            console.error("Failed to update onboarding status");
+            
+            toast({
+              title: "Update in progress",
+              description: "Your profile is being updated. Redirecting to dashboard...",
+            });
+            
+            // Even if the update failed, navigate to dashboard where they can try again
+            setTimeout(() => {
+              navigate("/dashboard", { state: { fromOnboarding: true } });
+            }, 2000);
+          }
         } catch (error) {
           console.error("Error completing onboarding:", error);
           toast({
@@ -268,7 +290,6 @@ const Onboarding = () => {
             description: "There was a problem completing your setup. Please try again.",
             variant: "destructive",
           });
-        } finally {
           setIsSubmitting(false);
         }
       } else {

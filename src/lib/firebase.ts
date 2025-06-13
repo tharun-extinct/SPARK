@@ -17,7 +17,12 @@ import {
   setDoc, 
   getDoc,
   connectFirestoreEmulator,
-  enableIndexedDbPersistence
+  enableIndexedDbPersistence,
+  collection,
+  getDocs,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentSingleTabManager
 } from 'firebase/firestore';
 
 // Firebase configuration - directly from Firebase console
@@ -32,28 +37,24 @@ const firebaseConfig = {
 };
 
 
-// Initialize Firebase with simplified approach
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-// Enable offline persistence for Firestore
-const db = getFirestore(app);
 
-// Enable Firestore persistence - only needs to be called once
-enableIndexedDbPersistence(db)
-  .catch((err) => {
-    if (err.code === 'failed-precondition') {
-      // Multiple tabs open, persistence can only be enabled in one tab
-      console.warn('Firestore persistence not enabled: multiple tabs open');
-    } else if (err.code === 'unimplemented') {
-      // Current browser doesn't support persistence
-      console.warn('Firestore persistence not supported in this browser');
-    }
-  });
+// Use more reliable Firestore initialization with explicit cache settings
+// We use persistentLocalCache for better offline support
+const db = initializeFirestore(app, {
+  localCache: persistentLocalCache()
+});
 
-// Set persistence to LOCAL by default for persistent sessions
+// Set auth persistence to LOCAL by default for persistent sessions
 setPersistence(auth, browserLocalPersistence).catch((error) => {
   console.error("Error setting auth persistence:", error);
 });
+
+// We don't need to manually call enableIndexedDbPersistence when using initializeFirestore with persistentLocalCache
+// This avoids potential conflicts and duplicate initialization errors
+console.log("Firestore initialized with persistent local cache");
 
 export { app, auth, db };
 
@@ -93,11 +94,28 @@ export const onAuthChange = (callback: (user: User | null) => void) => {
 // User data functions
 export const createUserProfile = async (userId: string, userData: any) => {
   try {
-    await setDoc(doc(db, "users", userId), {
-      ...userData,
-      createdAt: new Date().toISOString(),
-      onboardingCompleted: false, // Setting this to false to show onboarding
-    });
+    // Create a reference to the user document
+    const userDocRef = doc(db, "users", userId);
+    
+    // Check if the document already exists
+    const userDoc = await getDoc(userDocRef);
+    
+    if (!userDoc.exists()) {
+      // Only create if it doesn't exist already
+      const userDataWithDefaults = {
+        ...userData,
+        createdAt: new Date().toISOString(),
+        onboardingCompleted: false, // Setting this to false to show onboarding
+        lastUpdated: new Date().toISOString()
+      };
+      
+      await setDoc(userDocRef, userDataWithDefaults);
+      console.log("User profile created successfully");
+    } else {
+      console.log("User profile already exists, not creating a new one");
+    }
+    
+    return true;
   } catch (error: any) {
     console.error("Error creating user profile:", error.code, error.message);
     throw error;
@@ -106,24 +124,73 @@ export const createUserProfile = async (userId: string, userData: any) => {
 
 export const getUserOnboardingStatus = async (userId: string) => {
   try {
-    const userDoc = await getDoc(doc(db, "users", userId));
+    console.log("Fetching onboarding status for user:", userId);
+    const userDocRef = doc(db, "users", userId);
+    const userDoc = await getDoc(userDocRef);
+    
     if (userDoc.exists()) {
-      return userDoc.data().onboardingCompleted || false;
+      const userData = userDoc.data();
+      console.log("User data retrieved:", userData);
+      // If onboardingCompleted field exists, return its value, otherwise false
+      return userData.onboardingCompleted === true;
     }
+    
+    console.log("User document doesn't exist yet");
     return false;
   } catch (error: any) {
     console.error("Error getting user onboarding status:", error.code, error.message);
+    // Return false on error instead of throwing, to prevent cascading failures
     return false;
   }
 };
 
 export const updateUserOnboardingStatus = async (userId: string, completed: boolean) => {
-  try {
-    await setDoc(doc(db, "users", userId), { onboardingCompleted: completed }, { merge: true });
-  } catch (error: any) {
-    console.error("Error updating onboarding status:", error.code, error.message);
-    throw error;
-  }
+  let retryCount = 0;
+  const maxRetries = 3;
+  
+  const attemptUpdate = async () => {
+    try {
+      console.log(`Attempt ${retryCount + 1} to update onboarding status for user:`, userId);
+      
+      // First check if the Firestore connection is working
+      if (!(await validateFirestoreConnection())) {
+        console.error("Firestore connection not available");
+        throw new Error("Firestore connection not available");
+      }
+      
+      // Get a fresh reference to the user document
+      const userDocRef = doc(db, "users", userId);
+      
+      // Prepare minimal data to update
+      const updateData = { 
+        onboardingCompleted: completed,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      // Always use setDoc with merge option for more reliable updates
+      await setDoc(userDocRef, updateData, { merge: true });
+      console.log("Successfully updated user document with onboarding status:", completed);
+      
+      return true;
+    } catch (error: any) {
+      console.error(`Attempt ${retryCount + 1} failed:`, error.code, error.message);
+      
+      if (retryCount < maxRetries) {
+        retryCount++;
+        console.log(`Retrying update (${retryCount}/${maxRetries})...`);
+        // Exponential backoff: 1s, 2s, 4s, etc.
+        const backoffTime = Math.pow(2, retryCount - 1) * 1000;
+        await new Promise(resolve => setTimeout(resolve, backoffTime));
+        return attemptUpdate();
+      }
+      
+      // If we've run out of retries, return false instead of throwing
+      console.error("Maximum retries reached, giving up");
+      return false;
+    }
+  };
+  
+  return attemptUpdate();
 };
 
 // Google Authentication
@@ -149,4 +216,45 @@ export const signInWithGoogle = async () => {
     console.error("Error signing in with Google:", error.code, error.message);
     throw error;
   }
+};
+
+// Utility function to test Firestore connection and initialize properly
+export const validateFirestoreConnection = async () => {
+  try {
+    // Try a simple read operation to verify connection
+    const usersRef = collection(db, "users");
+    await getDocs(usersRef);
+    console.log("Firestore connection verified successfully");
+    return true;
+  } catch (error) {
+    console.error("Firestore connection test failed:", error);
+    return false;
+  }
+};
+
+// Export a function to handle reconnection attempts
+export const ensureFirestoreConnection = async (maxRetries = 3) => {
+  let attempts = 0;
+  
+  const attempt = async () => {
+    attempts++;
+    console.log(`Attempting to connect to Firestore (${attempts}/${maxRetries})`);
+    
+    const isConnected = await validateFirestoreConnection();
+    
+    if (isConnected) {
+      return true;
+    } else if (attempts < maxRetries) {
+      // Wait with exponential backoff
+      const delay = Math.pow(2, attempts - 1) * 1000;
+      console.log(`Retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return attempt();
+    } else {
+      console.error("Failed to connect to Firestore after maximum retries");
+      return false;
+    }
+  };
+  
+  return attempt();
 };

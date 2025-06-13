@@ -29,15 +29,19 @@ const AuthContext = createContext<AuthContextType>({
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean>(false);    useEffect(() => {
+  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean>(false);  useEffect(() => {
     // Subscribe to auth state changes
     const unsubscribe = onAuthChange((user) => {
+      console.log("Auth state changed, user:", user?.uid);
       setCurrentUser(user);
       
       // If user is authenticated, check onboarding status
       if (user) {
         // Use immediately available user ID instead of relying on state
-        checkUserOnboardingStatus(user.uid);
+        checkUserOnboardingStatus(user.uid).catch(err => {
+          console.error("Error in auth state change handler:", err);
+          setIsLoading(false);
+        });
       } else {
         setOnboardingCompleted(false);
         setIsLoading(false);
@@ -47,15 +51,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // Cleanup subscription on unmount
     return () => unsubscribe();
   }, []);
-
   const checkUserOnboardingStatus = async (userId: string): Promise<boolean> => {
     try {
+      console.log("Checking onboarding status for user ID:", userId);
       const status = await getUserOnboardingStatus(userId);
+      console.log("Retrieved onboarding status:", status);
       setOnboardingCompleted(status);
       setIsLoading(false);
       return status;
     } catch (error) {
       console.error('Error checking onboarding status:', error);
+      // Don't set onboardingCompleted to false if there was an error
+      // This prevents redirecting to onboarding if there's just a temporary issue
       setIsLoading(false);
       return false;
     }
@@ -115,25 +122,35 @@ export const withCompletedOnboarding = (Component: React.ComponentType) => {
     const { isAuthenticated, isLoading, currentUser, onboardingCompleted, checkOnboardingStatus } = useAuth();
     const navigate = useNavigate();
     const [checking, setChecking] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
       const checkStatus = async () => {
-        // First check if user is authenticated
-        if (!isLoading) {
-          if (!isAuthenticated) {
-            navigate('/login');
-            return;
-          }
-          
-          // Force a fresh check of onboarding status
-          if (currentUser) {
-            const isCompleted = await checkOnboardingStatus();
-            if (!isCompleted) {
-              navigate('/onboarding');
+        try {
+          // First check if user is authenticated
+          if (!isLoading) {
+            if (!isAuthenticated) {
+              navigate('/login');
               return;
             }
+            
+            // Force a fresh check of onboarding status
+            if (currentUser) {
+              console.log("Checking onboarding status for user:", currentUser.uid);
+              const isCompleted = await checkOnboardingStatus();
+              console.log("Onboarding completed:", isCompleted);
+              
+              if (!isCompleted) {
+                navigate('/onboarding');
+                return;
+              }
+            }
+            
+            setChecking(false);
           }
-          
+        } catch (err) {
+          console.error("Error in withCompletedOnboarding:", err);
+          setError("Error loading dashboard. Please try again.");
           setChecking(false);
         }
       };
@@ -146,6 +163,22 @@ export const withCompletedOnboarding = (Component: React.ComponentType) => {
         <div className="flex flex-col items-center space-y-4">
           <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
           <p className="text-gray-600">Loading your dashboard...</p>
+        </div>
+      </div>;
+    }
+    
+    if (error) {
+      return <div className="flex items-center justify-center min-h-screen">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="p-4 bg-red-50 text-red-800 rounded-lg border border-red-200">
+            <p>{error}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              Reload
+            </button>
+          </div>
         </div>
       </div>;
     }
