@@ -96,7 +96,7 @@ export const createUserProfile = async (userId: string, userData: any) => {
     await setDoc(doc(db, "users", userId), {
       ...userData,
       createdAt: new Date().toISOString(),
-      onboardingCompleted: true, // Setting this to true to skip onboarding
+      onboardingCompleted: false, // Setting this to false to show onboarding
     });
   } catch (error: any) {
     console.error("Error creating user profile:", error.code, error.message);
@@ -136,12 +136,11 @@ export const signInWithGoogle = async () => {
     const isNewUser = !userExists.exists();
     
     // If it's a new user, create a profile
-    if (isNewUser && result.user) {
-      await createUserProfile(result.user.uid, {
+    if (isNewUser && result.user) {      await createUserProfile(result.user.uid, {
         email: result.user.email,
         displayName: result.user.displayName,
         photoURL: result.user.photoURL,
-        onboardingCompleted: true, // Skip onboarding
+        onboardingCompleted: false, // Show onboarding for new users
       });
     }
     

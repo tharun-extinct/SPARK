@@ -287,9 +287,13 @@ const Onboarding = () => {
       setCurrentStep(currentStep - 1);
     }
   };
-
   if (isLoading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+    return <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="flex flex-col items-center space-y-4">
+        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-gray-600">Preparing your onboarding experience...</p>
+      </div>
+    </div>;
   }
 
   return (
