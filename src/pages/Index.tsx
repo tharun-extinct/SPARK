@@ -65,7 +65,8 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/50 to-background">
-      {/* Navigation */}
+ 
+      {/* Navigation *}
       <nav className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -84,8 +85,8 @@ const Index = () => {
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
         </div>
-      </nav>
-      
+      </nav> */} 
+
       {/* Section links */}
       <div className="container mx-auto px-4 py-4 mt-16 flex items-center justify-center">
         <div className="flex items-center gap-6">
