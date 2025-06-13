@@ -1,62 +1,27 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
-import { AuthProvider, withAuth, withCompletedOnboarding } from "./services/firebaseAuth";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
-// import Landing from "./pages/Landing";
-import Login from "./pages/Login";
-import Signup from "./pages/Signup";
-import Conversation from "./pages/Conversation";
-import Dashboard from "./pages/Dashboard";
-import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
-import Navigation from "./pages/Navigation";
 
 const queryClient = new QueryClient();
 
-// Protect routes that require authentication
-const ProtectedConversation = withAuth(Conversation);
-const ProtectedDashboard = withCompletedOnboarding(Dashboard);
-const ProtectedOnboarding = withAuth(Onboarding);
-
-// Component to handle conditional navigation rendering
-const AppContent = () => {
-  const location = useLocation();
-  const hideNavigation = ['/login', '/signup'].includes(location.pathname);
-
-  return (
-    <>
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
       <Toaster />
       <Sonner />
-      {!hideNavigation && <Navigation />}
-      <Routes>
-        <Route path="/" element={<Index />} />
-        {/*<Route path="/landing" element={<Landing />} />*/}
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/conversation/:agentType" element={<ProtectedConversation />} />
-        <Route path="/dashboard" element={<ProtectedDashboard />} />
-        <Route path="/onboarding" element={<ProtectedOnboarding />} />
-        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </>
-  );
-};
-
-const App = () => (
-  <BrowserRouter>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
-  </BrowserRouter>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
 );
 
 export default App;
