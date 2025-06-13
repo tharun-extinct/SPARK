@@ -30,19 +30,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean>(false);
-  
-  useEffect(() => {
-    // Failsafe: ensure we don't stay in loading state indefinitely
-    const timeoutId = setTimeout(() => {
-      if (isLoading) {
-        console.warn('Auth loading timed out - forcing state update');
-        setIsLoading(false);
-      }
-    }, 5000); // 5 second timeout as fallback
-    
+    useEffect(() => {
     // Subscribe to auth state changes
     const unsubscribe = onAuthChange((user) => {
-      console.log('Auth state changed', user ? 'User logged in' : 'No user');
       setCurrentUser(user);
       
       // If user is authenticated, check onboarding status
@@ -54,44 +44,29 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
     });
 
-    // Cleanup subscription and timeout on unmount
-    return () => {
-      unsubscribe();
-      clearTimeout(timeoutId);
-    };
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
   }, []);
+
   const checkOnboardingStatus = async (): Promise<boolean> => {
-    if (!currentUser) {
-      setIsLoading(false);
-      return false;
-    }
+    if (!currentUser) return false;
     
     try {
-      console.log('Checking onboarding status for', currentUser.uid);
-      // Perform onboarding check with timeout protection
-      const timeoutPromise = new Promise<boolean>((resolve) => {
-        setTimeout(() => {
-          console.warn('Onboarding status check timed out');
-          resolve(true); // Default to completed if timeout
-        }, 3000);
-      });
+      // Only check onboarding status if we haven't already loaded it
+      if (onboardingCompleted === false) {
+        const status = await getUserOnboardingStatus(currentUser.uid);
+        setOnboardingCompleted(status);
+        setIsLoading(false);
+        return status;
+      }
       
-      // Race between actual check and timeout
-      const status = await Promise.race([
-        getUserOnboardingStatus(currentUser.uid),
-        timeoutPromise
-      ]);
-      
-      console.log('Onboarding status:', status);
-      setOnboardingCompleted(status);
+      // Return cached value if we already have it
       setIsLoading(false);
-      return status;
+      return onboardingCompleted;
     } catch (error) {
       console.error('Error checking onboarding status:', error);
-      // Default to completed on error to prevent blocking
-      setOnboardingCompleted(true);
       setIsLoading(false);
-      return true;
+      return false;
     }
   };
 
@@ -120,38 +95,15 @@ export const withAuth = (Component: React.ComponentType) => {
   return function ProtectedRoute(props: any) {
     const { isAuthenticated, isLoading, currentUser } = useAuth();
     const navigate = useNavigate();
-    const [loadingTimeout, setLoadingTimeout] = useState(false);
 
     useEffect(() => {
-      // Handle loading timeout
-      const timeoutId = setTimeout(() => {
-        if (isLoading) {
-          console.warn('Auth protection loading timed out');
-          setLoadingTimeout(true);
-        }
-      }, 3000);
-
-      // Check authentication
       if (!isLoading && !isAuthenticated) {
         navigate('/login');
       }
-      
-      return () => clearTimeout(timeoutId);
     }, [isAuthenticated, isLoading, navigate]);
 
-    // Force render the component if loading takes too long
-    if (isLoading && !loadingTimeout) {
-      return (
-        <div className="flex flex-col items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary mb-3"></div>
-          <p>Loading...</p>
-        </div>
-      );
-    }
-
-    // If loading timed out but we have a user, render the component anyway
-    if (loadingTimeout && currentUser) {
-      return <Component {...props} />;
+    if (isLoading) {
+      return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
     }
 
     return isAuthenticated ? <Component {...props} /> : null;
@@ -166,15 +118,6 @@ export const withCompletedOnboarding = (Component: React.ComponentType) => {
     const [checking, setChecking] = useState(true);
 
     useEffect(() => {
-      // Run this effect only once per component mount
-      const timeoutId = setTimeout(() => {
-        // Force render the dashboard if it's taking too long
-        if (isAuthenticated && checking) {
-          console.log('Force rendering dashboard after timeout');
-          setChecking(false);
-        }
-      }, 2000); // 2 second timeout as fallback
-
       // First check if user is authenticated
       if (!isLoading) {
         if (!isAuthenticated) {
@@ -187,20 +130,14 @@ export const withCompletedOnboarding = (Component: React.ComponentType) => {
           navigate('/onboarding');
         }
         
-        // Ensure we set checking to false when ready
         setChecking(false);
       }
-      
-      return () => clearTimeout(timeoutId);
     }, [isAuthenticated, isLoading, navigate, onboardingCompleted]);
 
     if (isLoading || checking) {
-      return (
-        <div className="flex flex-col items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary mb-3"></div>
-          <p>Loading your dashboard...</p>
-        </div>
-      );
-    }    return <Component {...props} />;
+      return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+    }
+
+    return isAuthenticated ? <Component {...props} /> : null;
   };
-}
+};

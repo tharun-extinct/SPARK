@@ -87,11 +87,7 @@ export const signOut = async () => {
 
 // Observer for auth state changes
 export const onAuthChange = (callback: (user: User | null) => void) => {
-  console.log('Setting up auth state observer');
-  return onAuthStateChanged(auth, (user) => {
-    console.log('Auth state changed:', user ? `User ${user.uid} logged in` : 'No user');
-    callback(user);
-  });
+  return onAuthStateChanged(auth, callback);
 };
 
 // User data functions
@@ -110,28 +106,14 @@ export const createUserProfile = async (userId: string, userData: any) => {
 
 export const getUserOnboardingStatus = async (userId: string) => {
   try {
-    console.time('getUserOnboardingStatus');
     const userDoc = await getDoc(doc(db, "users", userId));
-    
-    // If the user doc doesn't exist, create it with onboarding completed = true
-    // This prevents the dashboard from getting stuck if there's no user profile
-    if (!userDoc.exists()) {
-      console.log('Creating missing user profile for', userId);
-      await createUserProfile(userId, {
-        createdAt: new Date().toISOString(),
-        onboardingCompleted: true,
-      });
-      console.timeEnd('getUserOnboardingStatus');
-      return true;
+    if (userDoc.exists()) {
+      return userDoc.data().onboardingCompleted || false;
     }
-    
-    const status = userDoc.data().onboardingCompleted || false;
-    console.timeEnd('getUserOnboardingStatus');
-    return status;
+    return false;
   } catch (error: any) {
     console.error("Error getting user onboarding status:", error.code, error.message);
-    // Default to completed on error to prevent blocking
-    return true;
+    return false;
   }
 };
 
