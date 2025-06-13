@@ -1,11 +1,16 @@
 ---
 applyTo: '**'
+
 ---
 
 # SPARK AI Development Instructions
 
 ## Project Overview
 SPARK (Social Perceptual AI Real-time Knowledge Assistant) is an AI-powered video agent for mental wellness support using Tavus's Conversational Video Interface (CVI).
+
+## Work flow
+- **New user**: SignUp -> Dashboard (onboarding is optional)
+- **Returning user**: Login -> Dashboard (always)
 
 ## Core Technology Stack
 - **Frontend**: Vite + React + TypeScript
@@ -29,10 +34,13 @@ SPARK (Social Perceptual AI Real-time Knowledge Assistant) is an AI-powered vide
 ### File Structure
 ```
 src/
-├── components/ui/     # shadcn/ui components
-├── pages/            # Main application pages
-├── hooks/            # Custom React hooks
-└── lib/              # Utilities and configurations
+├── components/        # UI components including Navigation
+│   └── ui/            # shadcn/ui components
+├── pages/             # Main application pages
+├── hooks/             # Custom React hooks
+├── services/          # Service files like firebaseAuth
+├── contexts/          # Context providers (if needed)
+└── lib/               # Utilities and configurations
 ```
 
 ### Coding Conventions
@@ -99,6 +107,9 @@ export default ComponentName;
 ### Security & Privacy
 - GDPR/COPPA compliance
 - End-to-end encryption for sensitive data
+- Firebase Authentication for secure user management
+- Protected routes for authenticated content
+- Firestore security rules to control data access
 - Explicit user consent for data collection
 - Anonymous usage options
 - Secure crisis intervention protocols
@@ -137,6 +148,62 @@ export default ComponentName;
 3. Never replace human intervention
 4. Maintain supportive presence during handoff
 
+### Authentication Implementation
+- Firebase Authentication for user management
+- Persistent sessions using browserLocalPersistence
+- Protected routes using Higher-Order Components (HOCs)
+- User profiles stored in Firestore
+- Error handling and loading states for auth operations
+
+### Route Protection Patterns
+```tsx
+// In App.tsx
+import { AuthProvider, withAuth, withCompletedOnboarding } from "./services/firebaseAuth";
+
+// Protect routes that require authentication
+const ProtectedConversation = withAuth(Conversation);
+const ProtectedDashboard = withCompletedOnboarding(Dashboard);
+const ProtectedOnboarding = withAuth(Onboarding);
+
+// Route setup
+<BrowserRouter>
+  <AuthProvider>
+    <Routes>
+      <Route path="/dashboard" element={<ProtectedDashboard />} />
+      {/* Other routes */}
+    </Routes>
+  </AuthProvider>
+</BrowserRouter>
+```
+
+### Import Path Conventions
+- Use `@/` prefix for imports from the src directory
+- Correct import paths:
+  - UI components: `import { Button } from "@/components/ui/button";`
+  - Pages: `import Dashboard from "@/pages/Dashboard";`
+  - Services: `import { useAuth } from "@/services/firebaseAuth";`
+  - Lib utilities: `import { signIn } from "@/lib/firebase";`
+
+## Firebase Configuration
+
+### Authentication Setup
+- Use Email/Password authentication
+- Enable persistent sessions (browserLocalPersistence)
+- Implement proper error handling for auth operations
+
+### Firestore Collections
+- `users`: User profiles and preferences
+  - Contains onboarding status, profile info
+  - Used to control access to various features
+- `conversations`: History of user interactions
+  - Tracks engagement with different AI personas
+  - Useful for continuing conversations
+
+### Firestore Security Rules
+- Use the provided `firestore.rules` file as a template
+- Ensure users can only access their own data
+- Implement role-based access if needed for admin features
+
 ## Domain-Specific Knowledge
 - Mental health is primary focus, not medical diagnosis
 - AI transparency is crucial - users must know they're talking to AI
@@ -148,7 +215,6 @@ export default ComponentName;
 - Don't implement medical diagnosis features
 - Don't store sensitive personal data unnecessarily
 - Don't create addictive interaction patterns
-- Don't use manipulative language or dark patterns
 - Don't bypass crisis intervention protocols
 
 ## External Integrations

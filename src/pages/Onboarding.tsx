@@ -1,20 +1,50 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { CheckCircle, Shield, Video, Heart, ArrowRight, ArrowLeft } from "lucide-react";
+import { useAuth } from "@/services/firebaseAuth";
+import { updateUserOnboardingStatus, getUserOnboardingStatus } from "@/lib/firebase";
+import { useToast } from "@/components/ui/use-toast";
 
 const Onboarding = () => {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
+  const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [consent, setConsent] = useState({
     aiDisclosure: false,
     dataPrivacy: false,
     crisisIntervention: false,
     emergencyContact: false
   });
+
+  // Check if the user has already completed onboarding
+  useEffect(() => {
+    const checkOnboardingStatus = async () => {
+      if (currentUser) {
+        try {
+          const status = await getUserOnboardingStatus(currentUser.uid);
+          if (status) {
+            toast({
+              title: "Already completed",
+              description: "You have already completed the onboarding process.",
+            });
+            navigate("/dashboard");
+            return;
+          }
+        } catch (error) {
+          console.error("Error checking onboarding status:", error);
+        }
+      }
+      setIsLoading(false);
+    };
+
+    checkOnboardingStatus();
+  }, [currentUser, navigate, toast]);
 
   const steps = [
     {
@@ -216,12 +246,39 @@ const Onboarding = () => {
         return true;
     }
   };
-
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      navigate("/dashboard");
+      // Final step completed, mark onboarding as complete
+      setIsSubmitting(true);
+      
+      if (currentUser) {
+        try {
+          await updateUserOnboardingStatus(currentUser.uid, true);
+          toast({
+            title: "Onboarding complete!",
+            description: "Your profile has been set up successfully.",
+          });
+          navigate("/dashboard");
+        } catch (error) {
+          console.error("Error completing onboarding:", error);
+          toast({
+            title: "Error",
+            description: "There was a problem completing your setup. Please try again.",
+            variant: "destructive",
+          });
+        } finally {
+          setIsSubmitting(false);
+        }
+      } else {
+        toast({
+          title: "Authentication error",
+          description: "You need to be logged in to complete onboarding.",
+          variant: "destructive",
+        });
+        navigate("/login");
+      }
     }
   };
 
@@ -230,6 +287,10 @@ const Onboarding = () => {
       setCurrentStep(currentStep - 1);
     }
   };
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4">
@@ -267,13 +328,17 @@ const Onboarding = () => {
               <ArrowLeft className="w-4 h-4 mr-2" />
               Previous
             </Button>
-            
-            <Button
+              <Button
               onClick={handleNext}
-              disabled={!canProceed()}
+              disabled={!canProceed() || isSubmitting}
             >
-              {currentStep === steps.length - 1 ? "Get Started" : "Next"}
-              <ArrowRight className="w-4 h-4 ml-2" />
+              {isSubmitting 
+                ? "Saving..." 
+                : currentStep === steps.length - 1 
+                  ? "Get Started" 
+                  : "Next"
+              }
+              {!isSubmitting && <ArrowRight className="w-4 h-4 ml-2" />}
             </Button>
           </div>
         </CardContent>

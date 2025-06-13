@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ArrowRight, BookOpen, Heart, Stethoscope, Sparkles, Users, Shield, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
 const Index = () => {
+  const navigate = useNavigate();
   const [activeRole, setActiveRole] = useState(0);
   
   const roles = [
@@ -63,26 +65,14 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/50 to-background">
-      {/* Navigation */}
-      <nav className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/70 rounded-lg flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold">SPARK</span>
-          </div>
-          <div className="hidden md:flex items-center gap-6">
-            <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Features</a>
-            <a href="#roles" className="text-muted-foreground hover:text-foreground transition-colors">Roles</a>
-            <a href="#about" className="text-muted-foreground hover:text-foreground transition-colors">About</a>
-          </div>
-          <Button className="bg-gradient-to-r from-primary to-primary/80 hover:scale-105 transition-transform">
-            Get Started
-            <ArrowRight className="w-4 h-4 ml-2" />
-          </Button>
+      {/* Section links */}
+      <div className="container mx-auto px-4 py-4 mt-16 flex items-center justify-center">
+        <div className="flex items-center gap-6">
+          <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Features</a>
+          <a href="#roles" className="text-muted-foreground hover:text-foreground transition-colors">Roles</a>
+          <a href="#about" className="text-muted-foreground hover:text-foreground transition-colors">About</a>
         </div>
-      </nav>
+      </div>
 
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-20 text-center">
@@ -104,13 +94,21 @@ const Index = () => {
             Meet SPARK, your AI companion that revolutionizes human connection through real-time video interaction, 
             emotional perception, and adaptive support across education, healthcare, and mental wellness.
           </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-            <Button size="lg" className="bg-gradient-to-r from-primary to-primary/80 hover:scale-105 transition-transform text-lg px-8 py-6">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+            <Button 
+              size="lg" 
+              className="bg-gradient-to-r from-primary to-primary/80 hover:scale-105 transition-transform text-lg px-8 py-6"
+              onClick={() => navigate('/login')}
+            >
               Start Your Journey
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
-            <Button variant="outline" size="lg" className="text-lg px-8 py-6 hover:scale-105 transition-transform">
+            <Button 
+              variant="outline" 
+              size="lg" 
+              className="text-lg px-8 py-6 hover:scale-105 transition-transform"
+              onClick={() => window.open('#', '_blank')} // Replace with actual demo URL when available
+            >
               Watch Demo
             </Button>
           </div>
@@ -212,13 +210,21 @@ const Index = () => {
             <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to Transform Your Experience?</h2>
             <p className="text-xl text-muted-foreground mb-8">
               Join thousands of users who are already experiencing the future of AI-powered support and learning.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" className="bg-gradient-to-r from-primary to-primary/80 hover:scale-105 transition-transform text-lg px-8 py-6">
+            </p>            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button 
+                size="lg" 
+                className="bg-gradient-to-r from-primary to-primary/80 hover:scale-105 transition-transform text-lg px-8 py-6"
+                onClick={() => navigate('/login')}
+              >
                 Get Started Free
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
-              <Button variant="outline" size="lg" className="text-lg px-8 py-6 hover:scale-105 transition-transform">
+              <Button 
+                variant="outline" 
+                size="lg" 
+                className="text-lg px-8 py-6 hover:scale-105 transition-transform"
+                onClick={() => navigate('/signup')}
+              >
                 Schedule Demo
               </Button>
             </div>
