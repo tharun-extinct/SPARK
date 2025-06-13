@@ -11,7 +11,14 @@ import {
   GoogleAuthProvider,
   signInWithPopup
 } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
+import { 
+  getFirestore, 
+  doc, 
+  setDoc, 
+  getDoc,
+  connectFirestoreEmulator,
+  enableIndexedDbPersistence
+} from 'firebase/firestore';
 
 // Firebase configuration - directly from Firebase console
 const firebaseConfig = {
@@ -28,7 +35,20 @@ const firebaseConfig = {
 // Initialize Firebase with simplified approach
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+// Enable offline persistence for Firestore
 const db = getFirestore(app);
+
+// Enable Firestore persistence - only needs to be called once
+enableIndexedDbPersistence(db)
+  .catch((err) => {
+    if (err.code === 'failed-precondition') {
+      // Multiple tabs open, persistence can only be enabled in one tab
+      console.warn('Firestore persistence not enabled: multiple tabs open');
+    } else if (err.code === 'unimplemented') {
+      // Current browser doesn't support persistence
+      console.warn('Firestore persistence not supported in this browser');
+    }
+  });
 
 // Set persistence to LOCAL by default for persistent sessions
 setPersistence(auth, browserLocalPersistence).catch((error) => {

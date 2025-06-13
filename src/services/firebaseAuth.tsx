@@ -30,18 +30,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean>(false);
-  
-  useEffect(() => {
+    useEffect(() => {
     // Subscribe to auth state changes
     const unsubscribe = onAuthChange((user) => {
       setCurrentUser(user);
-      setIsLoading(false);
       
       // If user is authenticated, check onboarding status
       if (user) {
         checkOnboardingStatus();
       } else {
         setOnboardingCompleted(false);
+        setIsLoading(false);
       }
     });
 
@@ -53,11 +52,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (!currentUser) return false;
     
     try {
-      const status = await getUserOnboardingStatus(currentUser.uid);
-      setOnboardingCompleted(status);
-      return status;
+      // Only check onboarding status if we haven't already loaded it
+      if (onboardingCompleted === false) {
+        const status = await getUserOnboardingStatus(currentUser.uid);
+        setOnboardingCompleted(status);
+        setIsLoading(false);
+        return status;
+      }
+      
+      // Return cached value if we already have it
+      setIsLoading(false);
+      return onboardingCompleted;
     } catch (error) {
       console.error('Error checking onboarding status:', error);
+      setIsLoading(false);
       return false;
     }
   };
@@ -105,31 +113,26 @@ export const withAuth = (Component: React.ComponentType) => {
 // HOC specifically for the dashboard that checks onboarding status
 export const withCompletedOnboarding = (Component: React.ComponentType) => {
   return function ProtectedDashboardRoute(props: any) {
-    const { isAuthenticated, isLoading, checkOnboardingStatus } = useAuth();
+    const { isAuthenticated, isLoading, currentUser, onboardingCompleted } = useAuth();
     const navigate = useNavigate();
     const [checking, setChecking] = useState(true);
 
     useEffect(() => {
       // First check if user is authenticated
-      if (!isLoading && !isAuthenticated) {
-        navigate('/login');
-        return;
-      }
-
-      // Then check if onboarding is completed
-      if (isAuthenticated) {
-        const checkStatus = async () => {
-          const isCompleted = await checkOnboardingStatus();
-          setChecking(false);
-          
-          if (!isCompleted) {
-            navigate('/onboarding');
-          }
-        };
+      if (!isLoading) {
+        if (!isAuthenticated) {
+          navigate('/login');
+          return;
+        }
         
-        checkStatus();
+        // Use the already loaded onboardingCompleted state instead of making a new request
+        if (!onboardingCompleted) {
+          navigate('/onboarding');
+        }
+        
+        setChecking(false);
       }
-    }, [isAuthenticated, isLoading, navigate, checkOnboardingStatus]);
+    }, [isAuthenticated, isLoading, navigate, onboardingCompleted]);
 
     if (isLoading || checking) {
       return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
