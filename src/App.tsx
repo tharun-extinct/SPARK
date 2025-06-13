@@ -13,7 +13,7 @@ import Conversation from "./pages/Conversation";
 import Dashboard from "./pages/Dashboard";
 import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
-import Navigation from "./components/Navigation";
+import Navigation from "./pages/Navigation";
 
 const queryClient = new QueryClient();
 
