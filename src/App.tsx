@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider, withAuth, withCompletedOnboarding } from "./services/firebaseAuth";
 import Index from "./pages/Index";
 // import Landing from "./pages/Landing";
 import Login from "./pages/Login";
@@ -12,12 +13,13 @@ import Conversation from "./pages/Conversation";
 import Dashboard from "./pages/Dashboard";
 import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
+import Navigation from "./components/Navigation";
 
 const queryClient = new QueryClient();
 
 // Protect routes that require authentication
-const ProtectedDashboard = withAuth(Dashboard);
 const ProtectedConversation = withAuth(Conversation);
+const ProtectedDashboard = withCompletedOnboarding(Dashboard);
 const ProtectedOnboarding = withAuth(Onboarding);
 
 const App = () => (

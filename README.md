@@ -5,11 +5,17 @@
 [![Powered by Tavus](https://img.shields.io/badge/Powered%20by-Tavus-blue)](https://tavus.io)
 [![Built with React](https://img.shields.io/badge/Built%20with-React-61DAFB)](https://reactjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Ready-3178C6)](https://typescriptjs.org)
+[![Firebase](https://img.shields.io/badge/Firebase-Authentication-FFCA28)](https://firebase.google.com)
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Node.js & npm installed ([install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating))
+- Firebase project with Authentication and Firestore enabled
+
+### Environment Setup
+1. Copy `.env.example` to `.env.local`
+2. Fill in your Firebase credentials and API keys
 
 ### Installation
 
@@ -22,9 +28,13 @@ cd connectai-empathy-agent
 
 # Install dependencies
 npm install
+# or with Bun (preferred)
+bun install
 
 # Start development server
 npm run dev
+# or
+bun dev
 ```
 
 ### Development Options
@@ -158,6 +168,33 @@ For questions, support, or collaboration opportunities:
 - 🌐 [Project Website](#)
 - 📧 [Contact Team](#)
 - 💬 [Community Discord](#)
+
+## 🏗️ Project Structure
+
+```
+src/
+├── components/        # UI components including Navigation
+│   └── ui/            # shadcn/ui components
+├── pages/             # Main application pages
+├── hooks/             # Custom React hooks
+├── services/          # Service files like firebaseAuth
+├── contexts/          # Context providers (if needed)
+└── lib/               # Utilities and configurations
+```
+
+## 🔐 Authentication Flow
+
+- **New Users**: Sign up → Dashboard (onboarding is optional)
+- **Returning Users**: Login → Dashboard (always)
+
+Authentication is implemented using Firebase Authentication with persistent sessions, protecting routes that require user login.
+
+```tsx
+// Protected route example
+const ProtectedDashboard = withCompletedOnboarding(Dashboard);
+
+<Route path="/dashboard" element={<ProtectedDashboard />} />
+```
 
 ---
 

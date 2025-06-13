@@ -1,18 +1,20 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { createAccount } from "@/lib/firebase";
+import { createAccount, createUserProfile } from "@/lib/firebase";
 import { useToast } from "@/components/ui/use-toast";
-import { doc, setDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { useAuth } from "@/services/firebaseAuth";
 
 const Signup = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isAuthenticated } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -20,8 +22,13 @@ const Signup = () => {
     password: "",
     confirmPassword: ""
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+
+  // Redirect to dashboard if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -46,20 +53,21 @@ const Signup = () => {
       const userCredential = await createAccount(formData.email, formData.password);
       const user = userCredential.user;
       
-      // Store additional user data in Firestore
-      await setDoc(doc(db, "users", user.uid), {
+      // Store additional user data in Firestore with onboardingCompleted set to true
+      await createUserProfile(user.uid, {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
-        createdAt: new Date().toISOString(),
+        onboardingCompleted: true // Skip onboarding
       });
       
       toast({
         title: "Account created!",
-        description: "Welcome to SPARK. Let's set up your preferences.",
+        description: "Welcome to SPARK.",
       });
       
-      navigate("/onboarding");
+      // Navigate directly to dashboard instead of onboarding
+      navigate("/dashboard");
     } catch (error: any) {
       console.error("Signup error:", error);
       setError(error.message || "Failed to create account. Please try again.");
@@ -148,8 +156,8 @@ const Signup = () => {
                 value={formData.confirmPassword}
                 onChange={handleInputChange}
                 required
-              />
-            </div>            {error && (
+              />            </div>
+            {error && (
               <div className="text-red-500 text-sm mt-2">{error}</div>
             )}
             <Button type="submit" className="w-full" disabled={isLoading}>
