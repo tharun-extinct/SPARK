@@ -1,10 +1,9 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "./services/firebaseAuth";
-import { withAuth, withCompletedOnboarding } from "./services/firebaseAuth";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 // import Landing from "./pages/Landing";
 import Login from "./pages/Login";
@@ -13,12 +12,11 @@ import Conversation from "./pages/Conversation";
 import Dashboard from "./pages/Dashboard";
 import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
-import Navigation from "./components/cmp/Navigation";
 
 const queryClient = new QueryClient();
 
 // Protect routes that require authentication
-const ProtectedDashboard = withCompletedOnboarding(Dashboard);
+const ProtectedDashboard = withAuth(Dashboard);
 const ProtectedConversation = withAuth(Conversation);
 const ProtectedOnboarding = withAuth(Onboarding);
 

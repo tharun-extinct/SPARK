@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { 
@@ -10,10 +10,9 @@ import {
   Home,
   MessageSquare,
   BarChart,
-  Settings
-} from 'lucide-react';
+  Settings } from 'lucide-react';
 import { useAuth } from '@/services/firebaseAuth';
-import { signOut, getUserOnboardingStatus } from '@/lib/firebase';
+import { signOut } from '@/lib/firebase';
 import { useToast } from '@/components/ui/use-toast';
 import {
   DropdownMenu,
@@ -21,39 +20,22 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  DropdownMenuTrigger,} from "@/components/ui/dropdown-menu";
 
 const Navigation = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [onboardingCompleted, setOnboardingCompleted] = useState(true);
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const location = useLocation();
 
-  useEffect(() => {
-    const checkOnboardingStatus = async () => {
-      if (currentUser) {
-        try {
-          const status = await getUserOnboardingStatus(currentUser.uid);
-          setOnboardingCompleted(status);
-        } catch (error) {
-          console.error("Error checking onboarding status:", error);
-        }
-      }
-    };
-    
-    checkOnboardingStatus();
-  }, [currentUser]);
-
   const isActive = (path: string) => {
     return location.pathname === path;
   };
+
   const handleSignOut = async () => {
     try {
       await signOut();
-      setOnboardingCompleted(false);
       toast({
         title: "Signed out successfully",
       });
@@ -65,8 +47,9 @@ const Navigation = () => {
       });
     }
   };
+
   const menuItems = [
-    ...(onboardingCompleted ? [{ name: 'Home', path: '/dashboard', icon: <Home className="w-5 h-5" /> }] : []),
+    { name: 'Home', path: '/dashboard', icon: <Home className="w-5 h-5" /> },
     { name: 'Chat', path: '/conversation/default', icon: <MessageSquare className="w-5 h-5" /> },
     { name: 'Analytics', path: '/analytics', icon: <BarChart className="w-5 h-5" /> },
     { name: 'Settings', path: '/settings', icon: <Settings className="w-5 h-5" /> },

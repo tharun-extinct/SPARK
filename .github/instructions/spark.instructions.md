@@ -7,6 +7,10 @@ applyTo: '**'
 ## Project Overview
 SPARK (Social Perceptual AI Real-time Knowledge Assistant) is an AI-powered video agent for mental wellness support using Tavus's Conversational Video Interface (CVI).
 
+## Work flow
+- **New user**: SignUp -> Onboarding -> Dashboard
+- **Returning user**: Login -> Dashboard (always)
+
 ## Core Technology Stack
 - **Frontend**: Vite + React + TypeScript
 - **UI Components**: shadcn/ui + Tailwind CSS

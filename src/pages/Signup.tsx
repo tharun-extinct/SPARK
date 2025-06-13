@@ -45,13 +45,13 @@ const Signup = () => {
       // Create new user with email and password
       const userCredential = await createAccount(formData.email, formData.password);
       const user = userCredential.user;
-        // Store additional user data in Firestore
+      
+      // Store additional user data in Firestore
       await setDoc(doc(db, "users", user.uid), {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
         createdAt: new Date().toISOString(),
-        onboardingCompleted: false // Explicitly mark onboarding as not completed
       });
       
       toast({

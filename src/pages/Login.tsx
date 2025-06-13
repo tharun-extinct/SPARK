@@ -1,17 +1,16 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { signIn, getUserOnboardingStatus } from "@/lib/firebase";
+import { signIn } from "@/lib/firebase";
 import { useToast } from "@/components/ui/use-toast";
-import { useAuth } from "@/services/firebaseAuth";
 
 const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { checkOnboardingStatus } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -23,23 +22,12 @@ const Login = () => {
     setError("");
     
     try {
-      const userCredential = await signIn(email, password);
-      const user = userCredential.user;
-      
-      // Check if the user has completed onboarding
-      const hasCompletedOnboarding = await getUserOnboardingStatus(user.uid);
-      
+      await signIn(email, password);
       toast({
         title: "Login successful!",
         description: "Welcome back to SPARK",
       });
-      
-      // Redirect based on onboarding status
-      if (hasCompletedOnboarding) {
-        navigate("/dashboard");
-      } else {
-        navigate("/onboarding");
-      }
+      navigate("/dashboard");
     } catch (error: any) {
       console.error("Login error:", error);
       setError(error.message || "Failed to log in. Please check your credentials.");

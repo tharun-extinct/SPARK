@@ -1,8 +1,8 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/UI-Components/ui/button";
+import { Card, CardContent } from "@/UI-Components/ui/card";
 import { Mic, MicOff, Video, VideoOff, Phone, Settings, Home } from "lucide-react";
 
 const Conversation = () => {
