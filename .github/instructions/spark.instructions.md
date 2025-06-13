@@ -215,7 +215,6 @@ const ProtectedOnboarding = withAuth(Onboarding);
 - Don't implement medical diagnosis features
 - Don't store sensitive personal data unnecessarily
 - Don't create addictive interaction patterns
-- Don't use manipulative language or dark patterns
 - Don't bypass crisis intervention protocols
 
 ## External Integrations
