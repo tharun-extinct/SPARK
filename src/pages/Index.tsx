@@ -65,6 +65,27 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/50 to-background">
+      {/* Navigation */}
+      <nav className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/70 rounded-lg flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <span className="text-xl font-bold">SPARK</span>
+          </div>
+          <div className="hidden md:flex items-center gap-6">
+            <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Features</a>
+            <a href="#roles" className="text-muted-foreground hover:text-foreground transition-colors">Roles</a>
+            <a href="#about" className="text-muted-foreground hover:text-foreground transition-colors">About</a>
+          </div>
+          <Button className="bg-gradient-to-r from-primary to-primary/80 hover:scale-105 transition-transform">
+            Get Started
+            <ArrowRight className="w-4 h-4 ml-2" />
+          </Button>
+        </div>
+      </nav>
+      
       {/* Section links */}
       <div className="container mx-auto px-4 py-4 mt-16 flex items-center justify-center">
         <div className="flex items-center gap-6">
