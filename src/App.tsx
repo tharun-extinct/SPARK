@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -33,8 +32,6 @@ const AppContent = () => {
       <Sonner />
       {!hideNavigation && <Navigation />}
       <Routes>
-        <Route path="/" element={<Index />} />
-        {/*<Route path="/landing" element={<Landing />} />*/}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/conversation/:agentType" element={<ProtectedConversation />} />
@@ -48,15 +45,22 @@ const AppContent = () => {
 };
 
 const App = () => (
-  <BrowserRouter>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
-  </BrowserRouter>
+	<BrowserRouter>
+		<QueryClientProvider client={queryClient}>
+			<TooltipProvider>
+				<Routes>
+					{/* Public landing page at root */}
+					<Route path="/" element={<Index />} />
+					{/* Authenticated app routes */}
+					<Route path="/*" element={
+						<AuthProvider>
+							<AppContent />
+						</AuthProvider>
+					} />
+				</Routes>
+			</TooltipProvider>
+		</QueryClientProvider>
+	</BrowserRouter>
 );
 
 export default App;
