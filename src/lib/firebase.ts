@@ -48,9 +48,9 @@ const auth = getAuth(app);
 const firestoreSettings = {
   // Use persistent cache with multi-tab support
   localCache: persistentLocalCache({
-    // Explicitly set cache size limits to prevent memory issues
-    cacheSizeBytes: 40 * 1024 * 1024, // 40MB cache size
+    // Use the tabManager for multi-tab support
     tabManager: persistentMultipleTabManager()
+    // Cache size is set automatically - explicit size setting removed to fix the error
   })
 };
 
