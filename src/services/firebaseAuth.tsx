@@ -69,10 +69,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       console.error("Error resetting Firestore connection:", error);
     }
   };
-
   useEffect(() => {
+    // Set up a timeout to prevent indefinite loading state
+    const loadingTimeout = setTimeout(() => {
+      if (isLoading) {
+        console.log("Auth loading timeout reached - forcing completion");
+        setIsLoading(false);
+      }
+    }, 5000); // Force loading to complete after 5 seconds max
+    
     // Proactively ensure Firestore connection is established once at startup
-    ensureFirestoreConnection(3).catch(err => {
+    // Run in background to not block UI
+    ensureFirestoreConnection(2).catch(err => {
       console.error("Failed to establish initial Firestore connection:", err);
     });
     
@@ -97,7 +105,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // Cleanup subscription on unmount
     return () => {
       unsubscribe();
-      // No need to disable network on unmount as it could affect other components
+      clearTimeout(loadingTimeout);
     };
   }, []);
 
@@ -112,28 +120,61 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       return () => clearTimeout(timer);
     }
   }, [connectionAttempts]);
-
   const checkUserOnboardingStatus = async (userId: string): Promise<boolean> => {
     try {
       console.log("Checking onboarding status for user ID:", userId);
       
-      // First ensure we have a valid connection before attempting to read
-      const connectionEstablished = await ensureFirestoreConnection(2);
-      if (!connectionEstablished) {
-        console.warn("Firestore connection not established, using fallback for onboarding status");
-        // Check session storage for fallback value
-        const fallbackValue = sessionStorage.getItem(`onboarding_complete_${userId}`);
-        if (fallbackValue) {
-          const status = fallbackValue === 'true';
-          setOnboardingCompleted(status);
-          setIsLoading(false);
-          return status;
-        }
-        throw new Error("Firestore connection failed");
+      // Try session storage first for the fastest possible response
+      const cachedStatus = sessionStorage.getItem(`onboarding_complete_${userId}`);
+      if (cachedStatus) {
+        console.log("Using cached onboarding status from sessionStorage");
+        const status = cachedStatus === 'true';
+        setOnboardingCompleted(status);
+        setIsLoading(false);
+        
+        // In the background, still verify with Firestore but don't block UI
+        setTimeout(async () => {
+          try {
+            const firestoreStatus = await getUserOnboardingStatus(userId);
+            if (firestoreStatus !== status) {
+              console.log("Updating cached status with Firestore value");
+              setOnboardingCompleted(firestoreStatus);
+              sessionStorage.setItem(`onboarding_complete_${userId}`, firestoreStatus ? 'true' : 'false');
+            }
+          } catch (e) {
+            console.error("Background Firestore status check failed:", e);
+          }
+        }, 0);
+        
+        return status;
       }
       
-      const status = await getUserOnboardingStatus(userId);
+      // No cached value, set a short timeout for Firestore connection
+      const timeoutPromise = new Promise<boolean>((resolve) => {
+        setTimeout(() => {
+          console.log("Firestore connection timeout for onboarding status");
+          resolve(false);
+        }, 2000); // 2 second timeout
+      });
+      
+      // Attempt to get the status from Firestore
+      const statusPromise = (async () => {
+        // First ensure we have a valid connection before attempting to read
+        const connectionEstablished = await ensureFirestoreConnection(1); // Reduced retries for faster response
+        if (!connectionEstablished) {
+          console.warn("Firestore connection not established, using fallback");
+          return false;
+        }
+        
+        return getUserOnboardingStatus(userId);
+      })();
+      
+      // Race the Firestore call against the timeout
+      const status = await Promise.race([statusPromise, timeoutPromise]);
       console.log("Retrieved onboarding status:", status);
+      
+      // Cache the result
+      sessionStorage.setItem(`onboarding_complete_${userId}`, status ? 'true' : 'false');
       setOnboardingCompleted(status);
       setIsLoading(false);
       return status;
@@ -175,22 +216,45 @@ export const useAuth = () => {
 // Higher-order component to protect routes
 export const withAuth = (Component: React.ComponentType) => {
   return function ProtectedRoute(props: any) {
-    const { isAuthenticated, isLoading, currentUser } = useAuth();
+    const { isAuthenticated, isLoading } = useAuth();
     const navigate = useNavigate();
+    const [showLoading, setShowLoading] = useState(false);
+    
+    // Only show loading indicator after a delay to prevent flashing
+    useEffect(() => {
+      if (isLoading) {
+        const timer = setTimeout(() => setShowLoading(true), 500);
+        return () => clearTimeout(timer);
+      } else {
+        setShowLoading(false);
+      }
+    }, [isLoading]);
 
     useEffect(() => {
+      // Set a timeout to prevent indefinite loading
+      const timeout = setTimeout(() => {
+        if (isLoading) {
+          console.log("Auth protection timeout reached, redirecting to login");
+          navigate('/login');
+        }
+      }, 5000);
+      
       if (!isLoading && !isAuthenticated) {
         navigate('/login');
       }
+      
+      return () => clearTimeout(timeout);
     }, [isAuthenticated, isLoading, navigate]);
     
     if (isLoading) {
-      return <div className="flex items-center justify-center min-h-screen">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-gray-600">Loading...</p>
+      return showLoading ? (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="flex flex-col items-center space-y-4">
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-gray-600">Loading...</p>
+          </div>
         </div>
-      </div>;
+      ) : null; // Show nothing briefly to avoid flash
     }
 
     return isAuthenticated ? <Component {...props} /> : null;
@@ -209,30 +273,60 @@ export const withCompletedOnboarding = (Component: React.ComponentType) => {
       resetFirestoreConnection
     } = useAuth();
     const navigate = useNavigate();
-    const [checking, setChecking] = useState(true);
+    const [checking, setChecking] = useState(false); // Start with false to reduce extra loading state
     const [error, setError] = useState<string | null>(null);
     const [retryCount, setRetryCount] = useState(0);
 
     useEffect(() => {
+      // Set a max timeout for checking status to prevent indefinite loading
+      const checkTimeout = setTimeout(() => {
+        if (checking) {
+          console.log("Dashboard check timeout reached - showing dashboard anyway");
+          setChecking(false);
+        }
+      }, 3000); // Show dashboard after 3 seconds max wait
+      
       const checkStatus = async () => {
         try {
-          // First check if user is authenticated
-          if (!isLoading) {
-            if (!isAuthenticated) {
-              navigate('/login');
+          // If still loading auth state, don't do anything yet
+          if (isLoading) {
+            return;
+          }
+          
+          // If not authenticated, redirect to login immediately
+          if (!isAuthenticated) {
+            navigate('/login');
+            return;
+          }
+          
+          // If onboarding status is already known and completed, show dashboard immediately
+          if (onboardingCompleted) {
+            setChecking(false);
+            return;
+          }
+          
+          // Only set checking to true if we actually need to check
+          setChecking(true);
+          
+          // Check onboarding status only if we don't already know it
+          if (currentUser) {
+            console.log("Checking onboarding status for user:", currentUser.uid);
+            
+            // First check sessionStorage for faster response
+            const cachedStatus = sessionStorage.getItem(`onboarding_complete_${currentUser.uid}`);
+            if (cachedStatus === 'true') {
+              console.log("Using cached onboarding completed status");
+              setChecking(false);
               return;
             }
             
-            // Force a fresh check of onboarding status
-            if (currentUser) {
-              console.log("Checking onboarding status for user:", currentUser.uid);
-              const isCompleted = await checkOnboardingStatus();
-              console.log("Onboarding completed:", isCompleted);
-              
-              if (!isCompleted) {
-                navigate('/onboarding');
-                return;
-              }
+            // If not complete in cache or no cache, check with server
+            const isCompleted = await checkOnboardingStatus();
+            console.log("Onboarding completed:", isCompleted);
+            
+            if (!isCompleted) {
+              navigate('/onboarding');
+              return;
             }
             
             setChecking(false);
@@ -240,63 +334,77 @@ export const withCompletedOnboarding = (Component: React.ComponentType) => {
         } catch (err) {
           console.error("Error in withCompletedOnboarding:", err);
           
-          // If we have fewer than 3 retries, try to reset connection and retry
-          if (retryCount < 3) {
+          // If we have fewer than 2 retries, try to reset connection and retry
+          if (retryCount < 2) {
             setRetryCount(prevCount => prevCount + 1);
-            console.log(`Retry attempt ${retryCount + 1}/3`);
+            console.log(`Retry attempt ${retryCount + 1}/2`);
             
             // Try to reset the Firestore connection
-            await resetFirestoreConnection();
+            resetFirestoreConnection().catch(console.error);
             
-            // Wait a moment then retry
+            // Wait a moment then retry, but shorter wait
             setTimeout(() => {
               checkStatus();
-            }, 2000);
+            }, 1000);
           } else {
-            setError("Error loading dashboard. Please try again.");
+            // After retries, just show dashboard instead of error
+            // This is a better user experience than showing an error
+            console.log("Proceeding to dashboard despite errors after retries");
             setChecking(false);
           }
         }
       };
       
       checkStatus();
-    }, [isAuthenticated, isLoading, navigate, currentUser, checkOnboardingStatus, retryCount]);
+      
+      return () => clearTimeout(checkTimeout);
+    }, [isAuthenticated, isLoading, navigate, currentUser, checkOnboardingStatus, retryCount, onboardingCompleted]);
 
     if (isLoading || checking) {
       return <div className="flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center space-y-4">
           <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-gray-600">Loading your dashboard{retryCount > 0 ? ` (retry ${retryCount}/3)` : ''}...</p>
+          <p className="text-gray-600">Loading your dashboard{retryCount > 0 ? ` (retry ${retryCount}/2)` : ''}...</p>
         </div>
-      </div>;    }
+      </div>;
+    }
     
     if (error) {
       return <div className="flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center space-y-4">
           <div className="p-4 bg-red-50 text-red-800 rounded-lg border border-red-200">
             <p>{error}</p>
-            <button 
-              onClick={() => {
-                resetFirestoreConnection().then(() => {
-                  setError(null);
-                  setRetryCount(0);
-                  setChecking(true);
-                });
-              }}
-              className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-            >
-              Retry Connection
-            </button>            <button 
-              onClick={() => window.location.reload()}
-              className="mt-4 ml-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
-            >
-              Reload Page
-            </button>
+            <div className="flex space-x-2 mt-4">
+              <button 
+                onClick={() => {
+                  resetFirestoreConnection().then(() => {
+                    setError(null);
+                    setRetryCount(0);
+                    setChecking(true);
+                  });
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              >
+                Retry Connection
+              </button>
+              <button 
+                onClick={() => navigate('/dashboard', { replace: true })}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Continue Anyway
+              </button>
+              <button 
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+              >
+                Reload Page
+              </button>
+            </div>
           </div>
         </div>
       </div>;
     }
 
-    return isAuthenticated && onboardingCompleted ? <Component {...props} /> : null;
+    return <Component {...props} />;
   };
 };
