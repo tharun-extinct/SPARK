@@ -70,9 +70,9 @@ setPersistence(auth, browserLocalPersistence).catch((error) => {
 console.log("Firestore initialized with optimized settings");
 
 // Track Firestore connection state
-let isFirestoreConnected = true; // Assume connected initially as SDK handles it
+let isFirestoreConnected = false; // Assume not connected until validated
 let connectionRetryCount = 0;
-const MAX_CONNECTION_RETRIES = 5;
+const MAX_CONNECTION_RETRIES = 3; // Reduced max retries for ensureConnection
 let lastNetworkResetTime = Date.now();
 let pendingOperations = 0;
 let networkResetInProgress = false;
@@ -179,6 +179,7 @@ export const updateUserOnboardingStatus = async (userId: string, completed: bool
   
   // Always save to sessionStorage as a fallback
   
+
   const attemptUpdate = async () => {
     try {
       console.log(`Attempt ${retryCount + 1} to update onboarding status for user:`, userId);
@@ -211,6 +212,14 @@ export const updateUserOnboardingStatus = async (userId: string, completed: bool
         await setDoc(userDocRef, updateData, { merge: true });
       }
       isFirestoreConnected = true; // Mark connection as verified on successful write
+
+      // Save to sessionStorage on successful update as well
+      try {
+        sessionStorage.setItem(`onboarding_complete_${userId}`, completed ? 'true' : 'false');
+        console.log("Stored onboarding status in sessionStorage on successful update");
+      } catch (storageError) {
+        console.error("Failed to store in sessionStorage after successful update:", storageError);
+      }
       
       return true;
     } catch (error: any) {
@@ -229,28 +238,16 @@ export const updateUserOnboardingStatus = async (userId: string, completed: bool
       }
       
       // If it's a network-related or transient error, let withWriteRetry handle it
-      if (errorMessage.includes('network') || errorMessage.includes('timeout') || isWebChannelError) {
-              await resetNetworkConnection();
-              console.log("Network reset during retry");
-            } catch (netError) {
-              console.error("Failed to reset network:", netError);
-            }
-          }
-        }
-        
-        return attemptUpdate();
-      }
+      // The withWriteRetry wrapper will handle the retry logic including network reset.
+      // Just re-throw for withWriteRetry to catch.
 
       // If we reach here, it's an error that withWriteRetry or this handler
       // couldn't resolve, re-throw it.
       throw error;
     }
   };
-  
-  try {
-    sessionStorage.setItem(`onboarding_complete_${userId}`, completed ? 'true' : 'false');
-    console.log("Stored onboarding status in sessionStorage as fallback");
-  } catch (storageError) { console.error("Failed to store in sessionStorage:", storageError); }  
+
+  // Use withWriteRetry to wrap the core update logic
   return attemptUpdate();
 };
 
@@ -283,6 +280,7 @@ export const signInWithGoogle = async () => {
 export const validateFirestoreConnection = async () => {
   try {
     if (isFirestoreConnected) {
+ return true; // Return immediately if we believe we are connected
     const timeoutPromise = new Promise((_, reject) => 
       setTimeout(() => reject(new Error("Firestore connection timeout")), 10000)
     );
@@ -342,6 +340,7 @@ export const validateFirestoreConnection = async () => {
     const result = await Promise.race([connectionPromise, timeoutPromise]);
     
     console.log("Firestore connection verified successfully");
+ isFirestoreConnected = true; // Mark as connected on successful validation
     isFirestoreConnected = true;
     connectionRetryCount = 0; // Reset retry counter on success
     return result;
@@ -350,15 +349,13 @@ export const validateFirestoreConnection = async () => {
     console.error(`Firestore connection test failed (attempt ${connectionRetryCount + 1}):`, 
       error.name, error.code, error.message);
     
+    // Check for WebChannel errors specifically and attempt network reset
+    const isWebChannelError = error.message && (
+      error.message.includes('WebChannelConnection') || error.message.includes('transport errored') ||
+      error.message.includes('Connection failed') || error.message.includes('WebChannel') ||
+      error.message.includes('RPC') || error.message.includes('write stream'));
     
-    connectionRetryCount++;
     isFirestoreConnected = false;
-    return false;
-  }
-};
-
-// Enhanced function to handle reconnection attempts with circuit breaker pattern
-export const ensureFirestoreConnection = async (maxRetries = MAX_CONNECTION_RETRIES) => {
   // Circuit breaker pattern
   if (connectionRetryCount > maxRetries * 2) {
     console.log("Circuit breaker activated: Resetting Firestore connection state");
@@ -366,10 +363,11 @@ export const ensureFirestoreConnection = async (maxRetries = MAX_CONNECTION_RETR
     isFirestoreConnected = false;
     // Only attempt network reset if not already in progress and sufficient time has passed
     if (!networkResetInProgress && Date.now() - lastNetworkResetTime > 15000) {
-          console.error("Error during network reset:", error);
-        }
-    } catch (error) {
-      console.error("Error during network reset:", error);
+ try {
+ resetNetworkConnection().catch(err => console.error("Error during circuit breaker network reset:", err));
+      } catch (error) {
+        console.error("Error during network reset:", error);
+      }
     }
   }
   
