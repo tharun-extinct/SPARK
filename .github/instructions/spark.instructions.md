@@ -1,5 +1,6 @@
 ---
 applyTo: '**'
+title: SPARK AI Development Instructions
 
 ---
 
@@ -8,9 +9,17 @@ applyTo: '**'
 ## Project Overview
 SPARK (Social Perceptual AI Real-time Knowledge Assistant) is an AI-powered video agent for mental wellness support using Tavus's Conversational Video Interface (CVI).
 
+## Rules & Guidelines
+- Always use tabs for indentation.
+- Don't create any files for debugging, until I told you to do so.
+- For all designs I ask you to make, have them be beautiful, not cookie cutter. Make webpages that are fully featured and worthy for production.
+- Do not install other packages for UI themes, icons, etc unless absolutely necessary or I request them.
+
+
 ## Work flow
-- **New user**: SignUp -> Dashboard (onboarding is optional)
-- **Returning user**: Login -> Dashboard (always)
+- **New user**: SignUp -> Onboarding (necessary) -> Dashboard
+- **Returning user**: Login -> Dashboard
+
 
 ## Core Technology Stack
 - **Frontend**: Vite + React + TypeScript
@@ -44,43 +53,21 @@ src/
 ```
 
 ### Coding Conventions
-- Use TypeScript for all new code
 - Follow React functional components with hooks
-- Use Tailwind CSS for styling
 - Implement responsive design (mobile-first)
 - Use lucide-react for icons
 - Prefer arrow functions and const declarations
+- Include loading states and error handling
 
 ### Component Patterns
-```tsx
-// Preferred component structure
-import { useState, useEffect } from 'react';
-import { ComponentIcon } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
-const ComponentName = () => {
-  const [state, setState] = useState(initialValue);
-  
-  useEffect(() => {
-    // Side effects
-  }, []);
-
-  return (
-    <div className="responsive-classes">
-      {/* Component content */}
-    </div>
-  );
-};
-
-export default ComponentName;
-```
 
 ### UI/UX Guidelines
 - Use gradient backgrounds for visual appeal
 - Implement hover animations and transitions
 - Maintain consistent spacing (Tailwind spacing scale)
 - Use primary/secondary color scheme from theme
-- Include loading states and error handling
+
 - Ensure accessibility (ARIA labels, keyboard navigation)
 
 ### Mental Health Context
@@ -155,26 +142,7 @@ export default ComponentName;
 - User profiles stored in Firestore
 - Error handling and loading states for auth operations
 
-### Route Protection Patterns
-```tsx
-// In App.tsx
-import { AuthProvider, withAuth, withCompletedOnboarding } from "./services/firebaseAuth";
 
-// Protect routes that require authentication
-const ProtectedConversation = withAuth(Conversation);
-const ProtectedDashboard = withCompletedOnboarding(Dashboard);
-const ProtectedOnboarding = withAuth(Onboarding);
-
-// Route setup
-<BrowserRouter>
-  <AuthProvider>
-    <Routes>
-      <Route path="/dashboard" element={<ProtectedDashboard />} />
-      {/* Other routes */}
-    </Routes>
-  </AuthProvider>
-</BrowserRouter>
-```
 
 ### Import Path Conventions
 - Use `@/` prefix for imports from the src directory
@@ -217,9 +185,3 @@ const ProtectedOnboarding = withAuth(Onboarding);
 - Don't create addictive interaction patterns
 - Don't bypass crisis intervention protocols
 
-## External Integrations
-- Tavus API for AI video agents
-- Daily.co/LiveKit for WebRTC
-- Crisis hotline APIs (with user consent)
-- Health monitoring devices (future)
-- EHR systems (future roadmap)

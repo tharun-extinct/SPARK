@@ -256,11 +256,25 @@ const Onboarding = () => {
         try {
           console.log("Starting onboarding completion process for user:", currentUser.uid);
           
-          // Attempt to update onboarding status with retries
+          // Store the onboarding status in sessionStorage before attempting Firestore
+          // This ensures we have a fallback even if the network request fails
+          try {
+            sessionStorage.setItem(`onboarding_complete_${currentUser.uid}`, 'true');
+            console.log("Stored onboarding status in sessionStorage as fallback");
+          } catch (storageError) {
+            console.error("Failed to store in sessionStorage:", storageError);
+          }
+          
+          // Attempt to update onboarding status with enhanced retry logic
           const updateSuccess = await updateUserOnboardingStatus(currentUser.uid, true);
           
           if (updateSuccess) {
-            console.log("Onboarding status updated successfully");
+            console.log("Onboarding status updated successfully in Firestore");
+            
+            // Clean up sessionStorage if Firestore update succeeded
+            try {
+              sessionStorage.removeItem(`onboarding_complete_${currentUser.uid}`);
+            } catch (e) {}
             
             toast({
               title: "Onboarding complete!",
@@ -271,26 +285,41 @@ const Onboarding = () => {
             navigate("/dashboard", { state: { fromOnboarding: true } });
           } else {
             // Handle the case where the update didn't succeed but don't block the user
-            console.error("Failed to update onboarding status");
+            console.error("Failed to update onboarding status after multiple attempts");
             
             toast({
-              title: "Update in progress",
-              description: "Your profile is being updated. Redirecting to dashboard...",
+              title: "Limited Connectivity",
+              description: "Your profile will be updated when connection is restored. Redirecting to dashboard...",
+              variant: "destructive", 
             });
             
-            // Even if the update failed, navigate to dashboard where they can try again
+            // Add a longer timeout before redirecting to ensure the toast is seen
             setTimeout(() => {
-              navigate("/dashboard", { state: { fromOnboarding: true } });
-            }, 2000);
+              navigate("/dashboard", { state: { fromOnboarding: true, offlineCompletion: true } });
+            }, 3000);
           }
         } catch (error) {
           console.error("Error completing onboarding:", error);
-          toast({
-            title: "Error",
-            description: "There was a problem completing your setup. Please try again.",
-            variant: "destructive",
-          });
-          setIsSubmitting(false);
+          
+          // Even if there's an error, we can still use the sessionStorage fallback
+          if (sessionStorage.getItem(`onboarding_complete_${currentUser.uid}`) === 'true') {
+            toast({
+              title: "Network Error",
+              description: "Your profile will be updated when connection is restored. Continuing to dashboard...",
+              variant: "destructive",
+            });
+            
+            setTimeout(() => {
+              navigate("/dashboard", { state: { fromOnboarding: true, offlineCompletion: true } });
+            }, 3000);
+          } else {
+            toast({
+              title: "Error",
+              description: "There was a problem completing your setup. Please try again.",
+              variant: "destructive",
+            });
+            setIsSubmitting(false);
+          }
         }
       } else {
         toast({

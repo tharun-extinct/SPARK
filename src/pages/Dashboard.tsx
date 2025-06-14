@@ -18,7 +18,11 @@ import {
   User
 } from "lucide-react";
 import { useAuth } from "@/services/firebaseAuth";
-import { ensureFirestoreConnection } from "@/lib/firebase";
+import { 
+  ensureFirestoreConnection, 
+  validateFirestoreConnection, 
+  updateUserOnboardingStatus 
+} from "@/lib/firebase";
 import { useToast } from "@/components/ui/use-toast";
 
 const Dashboard = () => {
@@ -28,27 +32,86 @@ const Dashboard = () => {
   const { toast } = useToast();
   const [selectedPeriod, setSelectedPeriod] = useState("week");
   const [isLoading, setIsLoading] = useState(true);
-  const [connectionError, setConnectionError] = useState(false);
-
-  // Check if we're coming directly from onboarding and ensure Firestore connection
+  const [connectionError, setConnectionError] = useState(false);  // Check if we're coming directly from onboarding and ensure Firestore connection
   useEffect(() => {
     const fromOnboarding = location.state?.fromOnboarding === true;
+    const offlineCompletion = location.state?.offlineCompletion === true;
     console.log("Dashboard loaded, from onboarding:", fromOnboarding);
     console.log("Current user:", currentUser?.uid);
     
     const initializeDashboard = async () => {
       try {
-        // Ensure Firestore connection is working before loading dashboard
-        const isConnected = await ensureFirestoreConnection(3);
+        // Check if we have a fallback completion status in sessionStorage
+        let fallbackOnboardingStatus = false;
+        if (currentUser) {
+          try {
+            fallbackOnboardingStatus = sessionStorage.getItem(`onboarding_complete_${currentUser.uid}`) === 'true';
+          } catch (storageError) {
+            console.error("Failed to read from sessionStorage:", storageError);
+          }
+        }
+        
+        // If we have offline completion or fallback status, handle specially
+        if (offlineCompletion || fallbackOnboardingStatus) {
+          console.log("Using offline/fallback onboarding completion status");
+          
+          // Attempt to update the status in the background
+          updateUserOnboardingStatus(currentUser?.uid || '', true)
+            .then(success => {
+              if (success) {
+                console.log("Successfully synchronized offline onboarding status");
+                try {
+                  sessionStorage.removeItem(`onboarding_complete_${currentUser?.uid}`);
+                } catch (e) {}
+              } else {
+                console.error("Failed to synchronize offline onboarding status");
+                // We'll keep the sessionStorage entry to try again later
+              }
+            })
+            .catch(err => console.error("Error syncing onboarding status:", err));
+          
+          // Continue loading the dashboard regardless of synchronization status
+          setIsLoading(false);
+          return;
+        }
+        
+        // Standard initialization - try to establish Firestore connection with shorter timeout
+        const connectionPromise = ensureFirestoreConnection(2);
+        const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(false), 5000));
+        
+        const isConnected = await Promise.race([connectionPromise, timeoutPromise]);
         
         if (!isConnected) {
-          console.error("Failed to connect to Firestore");
-          setConnectionError(true);
-          toast({
-            title: "Connection Error",
-            description: "Could not connect to the database. Please check your internet connection and try again.",
-            variant: "destructive",
-          });
+          console.warn("Could not establish reliable Firestore connection");
+          
+          // Check if there's a cached onboarding status
+          try {
+            const cachedStatus = sessionStorage.getItem(`onboarding_complete_${currentUser?.uid}`);
+            if (cachedStatus === 'true') {
+              console.log("Using cached onboarding status due to connection issues");
+              setConnectionError(true);
+              
+              // Show toast to inform the user
+              toast({
+                title: "Limited Connectivity",
+                description: "Using cached data while we try to restore connection. Some features may be unavailable.",
+                variant: "destructive",
+              });
+            } else {
+              setConnectionError(true);
+              
+              // Only show a toast if connection completely failed
+              if (await validateFirestoreConnection() === false) {
+                toast({
+                  title: "Connection Issues",
+                  description: "Having trouble connecting to our servers. Some features may be limited.",
+                  variant: "destructive",
+                });
+              }
+            }
+          } catch (e) {
+            setConnectionError(true);
+          }
         }
         
         if (fromOnboarding) {
@@ -60,9 +123,40 @@ const Dashboard = () => {
       } catch (error) {
         console.error("Error initializing dashboard:", error);
         setConnectionError(true);
+        
+        toast({
+          title: "Connection Error",
+          description: "We're having trouble connecting to our servers. Try again in a moment.",
+          variant: "destructive",
+        });
       } finally {
-        // Show dashboard even if there are connection issues
+        // Show dashboard regardless of connection state
         setIsLoading(false);
+        
+        // Set up a background reconnection attempt
+        if (connectionError) {
+          setTimeout(() => {
+            validateFirestoreConnection()
+              .then(connected => {
+                if (connected) {
+                  console.log("Background connection attempt succeeded");
+                  setConnectionError(false);
+                  // Attempt to sync any pending onboarding status
+                  if (currentUser && sessionStorage.getItem(`onboarding_complete_${currentUser.uid}`) === 'true') {
+                    updateUserOnboardingStatus(currentUser.uid, true)
+                      .then(success => {
+                        if (success) {
+                          try {
+                            sessionStorage.removeItem(`onboarding_complete_${currentUser.uid}`);
+                          } catch (e) {}
+                        }
+                      });
+                  }
+                }
+              })
+              .catch(() => {}); // Ignore errors in background reconnection
+          }, 10000); // Try to reconnect after 10 seconds
+        }
       }
     };
     
@@ -71,7 +165,7 @@ const Dashboard = () => {
       initializeDashboard();
     }, 1000);
       return () => clearTimeout(timer);
-  }, [location, currentUser, toast]);
+  }, [location, currentUser, toast, connectionError]);
 
   const metrics = {
     moodScore: 7.2,

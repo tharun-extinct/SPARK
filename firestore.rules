@@ -9,26 +9,39 @@ service cloud.firestore {
     
     // User profiles - users can read/write only their own data
     match /users/{userId} {
+      // Allow read if the user is authenticated and the document ID matches their UID
       allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null && request.auth.uid == userId;
       
-      // Admin access for user management (optional)
-      // allow read, write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Allow write if the user is authenticated and the document ID matches their UID
+      // This ensures users can only modify their own documents
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
     
     // Conversation history - users can only access their own conversations
     match /conversations/{conversationId} {
+      // Allow read if the user is authenticated and owns the conversation
       allow read: if request.auth != null && 
-                  request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null;
+                 (resource.data.userId == request.auth.uid || 
+                  resource == null); // Handle the case when document doesn't exist yet
+      
+      // Allow creation of new conversations
+      allow create: if request.auth != null && 
+                   request.resource.data.userId == request.auth.uid;
+      
+      // Allow updates/deletes only to the owner
       allow update, delete: if request.auth != null && 
-                  request.auth.uid == resource.data.userId;
+                           resource.data.userId == request.auth.uid;
     }
     
     // Shared content accessible to all authenticated users
     match /content/{contentId} {
       allow read: if request.auth != null;
       allow write: if false;  // Only allow writes through admin functions
+    }
+    
+    // System collection for connection testing
+    match /system/connection-test {
+      allow read: if request.auth != null;
     }
   }
 }
