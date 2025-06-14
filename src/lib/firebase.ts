@@ -53,11 +53,10 @@ const firestoreSettings = {
   }),
   // Add experimental settings to improve connection reliability
   experimentalForceLongPolling: true, // Use long polling instead of WebSockets
-  experimentalAutoDetectLongPolling: true,
   // Configure a longer timeout for operations
   experimentalLongPollingOptions: {
-    timeoutSeconds: 60, // Increase from 30 seconds for better reliability
-    longPollingTimeout: 5 * 60 * 1000 // 5 minutes for very slow connections
+    timeoutSeconds: 30, // Set to maximum allowed value (30 seconds)
+    longPollingTimeout: 30000 // 30 seconds in milliseconds
   }
 };
 
