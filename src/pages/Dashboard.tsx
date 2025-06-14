@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -15,24 +14,28 @@ import {
   Target,
   Home,
   Settings,
-  User
+  User,
+  RefreshCw
 } from "lucide-react";
 import { useAuth } from "@/services/firebaseAuth";
 import { 
   ensureFirestoreConnection, 
   validateFirestoreConnection, 
-  updateUserOnboardingStatus 
+  updateUserOnboardingStatus,
+  checkFirestoreHealth
 } from "@/lib/firebase";
 import { useToast } from "@/components/ui/use-toast";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentUser } = useAuth();
+  const { currentUser, resetFirestoreConnection, checkConnection } = useAuth();
   const { toast } = useToast();
   const [selectedPeriod, setSelectedPeriod] = useState("week");
   const [isLoading, setIsLoading] = useState(true);
-  const [connectionError, setConnectionError] = useState(false);  // Check if we're coming directly from onboarding and ensure Firestore connection
+  const [connectionError, setConnectionError] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState("unknown"); // "connected", "reconnecting", "offline"
+  const [connectionCheckTime, setConnectionCheckTime] = useState(0);// Check if we're coming directly from onboarding and ensure Firestore connection
   useEffect(() => {
     const fromOnboarding = location.state?.fromOnboarding === true;
     const offlineCompletion = location.state?.offlineCompletion === true;
@@ -167,6 +170,83 @@ const Dashboard = () => {
       return () => clearTimeout(timer);
   }, [location, currentUser, toast, connectionError]);
 
+  // Function to check and monitor Firestore connection health
+  const checkConnectionHealth = async () => {
+    // Don't check too frequently to avoid spamming the server
+    const now = Date.now();
+    if (now - connectionCheckTime < 10000) {  // Only check every 10 seconds at most
+      return;
+    }
+    
+    setConnectionCheckTime(now);
+    
+    try {
+      // Update connection status to "checking"
+      setConnectionStatus("checking");
+      
+      // Check connection health
+      const isConnected = await checkConnection();
+      
+      // Update connection status based on result
+      if (isConnected) {
+        if (connectionStatus !== "connected") {
+          setConnectionStatus("connected");
+          toast({
+            title: "Connection Restored",
+            description: "Your connection to SPARK has been restored.",
+            variant: "default",
+          });
+        }
+        setConnectionError(false);
+      } else {
+        // If not connected, try to reconnect
+        setConnectionStatus("reconnecting");
+        
+        // Attempt to reset the connection
+        await resetFirestoreConnection();
+        
+        // Check again after reset
+        const reconnected = await checkConnection();
+        
+        if (reconnected) {
+          setConnectionStatus("connected");
+          toast({
+            title: "Connection Restored",
+            description: "Your connection to SPARK has been restored.",
+            variant: "default",
+          });
+          setConnectionError(false);
+        } else {
+          setConnectionStatus("offline");
+          setConnectionError(true);
+          toast({
+            title: "Connection Lost",
+            description: "You appear to be offline. Some features may be limited.",
+            variant: "destructive",
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error checking connection health:", error);
+      setConnectionStatus("offline");
+      setConnectionError(true);
+    }
+  };
+
+  // Periodically check connection health
+  useEffect(() => {
+    // Check connection immediately when component mounts
+    checkConnectionHealth();
+    
+    // Then set up a periodic check every 30 seconds
+    const intervalId = setInterval(() => {
+      checkConnectionHealth();
+    }, 30000);
+    
+    // Clean up on unmount
+    return () => clearInterval(intervalId);
+  }, [connectionStatus]);
+
   const metrics = {
     moodScore: 7.2,
     sessionsThisWeek: 4,
@@ -221,8 +301,38 @@ const Dashboard = () => {
                   <Home className="w-4 h-4" />
                 </Button>
                 <h1 className="text-2xl font-bold text-gray-900">Wellness Dashboard</h1>
-              </div>
-              <div className="flex items-center space-x-4">
+              </div>              <div className="flex items-center space-x-4">
+                {/* Connection Status Indicator */}
+                <div className="flex items-center space-x-2 mr-4">
+                  {connectionStatus === "connected" && (
+                    <div className="flex items-center text-green-500 text-sm">
+                      <div className="h-2 w-2 rounded-full bg-green-500 mr-2"></div>
+                      Connected
+                    </div>
+                  )}
+                  {connectionStatus === "reconnecting" && (
+                    <div className="flex items-center text-amber-500 text-sm">
+                      <RefreshCw className="h-3 w-3 animate-spin mr-2" />
+                      Reconnecting...
+                    </div>
+                  )}
+                  {connectionStatus === "offline" && (
+                    <div className="flex items-center text-red-500 text-sm">
+                      <div className="h-2 w-2 rounded-full bg-red-500 mr-2"></div>
+                      Offline
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="ml-2 h-6 text-xs"
+                        onClick={checkConnectionHealth}
+                      >
+                        <RefreshCw className="h-3 w-3 mr-1" />
+                        Retry
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
                 <Button variant="outline" size="sm">
                   <Settings className="w-4 h-4 mr-2" />
                   Settings

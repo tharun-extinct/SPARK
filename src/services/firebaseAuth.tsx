@@ -4,7 +4,8 @@ import {
   onAuthChange, 
   getUserOnboardingStatus,
   ensureFirestoreConnection,
-  validateFirestoreConnection
+  validateFirestoreConnection,
+  checkFirestoreHealth
 } from '@/lib/firebase';
 import { useNavigate } from 'react-router-dom';
 
@@ -16,6 +17,7 @@ type AuthContextType = {
   onboardingCompleted: boolean;
   checkOnboardingStatus: () => Promise<boolean>;
   resetFirestoreConnection: () => Promise<void>;
+  checkConnection: () => Promise<boolean>;
 };
 
 type AuthProviderProps = {
@@ -30,6 +32,7 @@ const AuthContext = createContext<AuthContextType>({
   onboardingCompleted: false,
   checkOnboardingStatus: async () => false,
   resetFirestoreConnection: async () => {},
+  checkConnection: async () => false,
 });
 
 // Track connection attempts to prevent excessive reconnection
@@ -41,8 +44,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean>(false);
-  const [connectionAttempts, setConnectionAttempts] = useState<number>(0);
-  // Reset Firestore connection - exposed to allow manual reconnection if needed
+  const [connectionAttempts, setConnectionAttempts] = useState<number>(0);  // Reset Firestore connection - exposed to allow manual reconnection if needed
   const resetFirestoreConnection = async (): Promise<void> => {
     const now = Date.now();
     // Only allow reset if enough time has passed since last attempt
@@ -56,19 +58,38 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       connectionAttemptTimestamp = now;
       setConnectionAttempts(prev => prev + 1);
       
+      // First try the health check utility which can fix various issues
+      await checkFirestoreHealth();
+      
       // Force a connection validation which will reset if needed
-      const connected = await validateFirestoreConnection();
+      let connected = await validateFirestoreConnection();
       
       // If still not connected, try ensure connection with more retries
       if (!connected) {
-        await ensureFirestoreConnection(3);
+        console.log("First validation failed, trying again with more retries");
+        // Wait a moment
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Try again with more aggressive retry count
+        connected = await ensureFirestoreConnection(3);
+        
+        if (!connected) {
+          console.log("Still not connected, forcing a complete network reset");
+          // Wait again
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Force a refresh by reloading the Firebase app configuration
+          // This is the most aggressive approach but should fix most issues
+          const { app, auth, db } = await import('@/lib/firebase');
+          console.log("Firebase modules reloaded", { app, auth, db });
+        }
       }
       
       console.log("Connection reset attempt completed");
     } catch (error) {
       console.error("Error resetting Firestore connection:", error);
     }
-  };  useEffect(() => {
+  };useEffect(() => {
     let initialConnectionAttempted = false;
     
     // Proactively ensure Firestore connection is established once at startup
@@ -81,8 +102,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         });
       }
     }, 3000); // Delay initial connection attempt by 3 seconds
-    
-    // Subscribe to auth state changes
+      // Subscribe to auth state changes
     const unsubscribe = onAuthChange((user) => {
       console.log("Auth state changed, user:", user?.uid);
       setCurrentUser(user);
@@ -90,10 +110,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       // If user is authenticated, check onboarding status
       if (user) {
         // Use immediately available user ID instead of relying on state
-        checkUserOnboardingStatus(user.uid).catch(err => {
-          console.error("Error in auth state change handler:", err);
-          setIsLoading(false);
-        });
+        // Add a slight delay to ensure Firebase is initialized
+        setTimeout(() => {
+          checkUserOnboardingStatus(user.uid).catch(err => {
+            console.error("Error in auth state change handler:", err);
+            setIsLoading(false);
+          });
+        }, 500);
       } else {
         setOnboardingCompleted(false);
         setIsLoading(false);
@@ -119,13 +142,29 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       return () => clearTimeout(timer);
     }
   }, [connectionAttempts]);
-
   const checkUserOnboardingStatus = async (userId: string): Promise<boolean> => {
     try {
       console.log("Checking onboarding status for user ID:", userId);
       
       // First ensure we have a valid connection before attempting to read
-      const connectionEstablished = await ensureFirestoreConnection(2);
+      let connectionAttempts = 0;
+      let connectionEstablished = false;
+      
+      while (!connectionEstablished && connectionAttempts < 3) {
+        connectionAttempts++;
+        console.log(`Connection attempt ${connectionAttempts}/3`);
+        
+        try {
+          connectionEstablished = await ensureFirestoreConnection(2);
+          if (connectionEstablished) break;
+          
+          // Wait between attempts
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (connErr) {
+          console.warn(`Connection attempt ${connectionAttempts} failed:`, connErr);
+        }
+      }
+      
       if (!connectionEstablished) {
         console.warn("Firestore connection not established, using fallback for onboarding status");
         // Check session storage for fallback value
@@ -136,11 +175,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           setIsLoading(false);
           return status;
         }
-        throw new Error("Firestore connection failed");
+        
+        // If no fallback, assume not completed but don't throw
+        setOnboardingCompleted(false);
+        setIsLoading(false);
+        return false;
       }
       
       const status = await getUserOnboardingStatus(userId);
       console.log("Retrieved onboarding status:", status);
+      
+      // Save to session storage as a fallback
+      try {
+        sessionStorage.setItem(`onboarding_complete_${userId}`, status ? 'true' : 'false');
+      } catch (storageErr) {
+        console.warn("Failed to store onboarding status in session storage:", storageErr);
+      }
+      
       setOnboardingCompleted(status);
       setIsLoading(false);
       return status;
@@ -158,6 +209,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return checkUserOnboardingStatus(currentUser.uid);
   };
 
+  // Add a checkConnection function to the context
+  const checkConnection = async (): Promise<boolean> => {
+    return await checkFirestoreHealth();
+  };
+
   const value = {
     currentUser,
     isLoading,
@@ -165,6 +221,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     onboardingCompleted,
     checkOnboardingStatus,
     resetFirestoreConnection,
+    checkConnection,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

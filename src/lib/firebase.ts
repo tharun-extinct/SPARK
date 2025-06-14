@@ -64,6 +64,32 @@ setPersistence(auth, browserLocalPersistence).catch((error) => {
   console.error("Error setting auth persistence:", error);
 });
 
+// Create the system/connection-test document if it doesn't exist
+const ensureConnectionTestDocument = async () => {
+  try {
+    const testDocRef = doc(db, "system", "connection-test");
+    const testDoc = await getDoc(testDocRef);
+    
+    if (!testDoc.exists()) {
+      console.log("Creating system/connection-test document");
+      await setDoc(testDocRef, {
+        created: new Date().toISOString(),
+        purpose: "connection testing",
+        status: "active"
+      });
+      console.log("Created system/connection-test document successfully");
+    }
+  } catch (error) {
+    console.warn("Could not create connection test document:", error);
+    // Non-fatal error, we can try again later
+  }
+};
+
+// Try to create the test document, but don't block initialization
+ensureConnectionTestDocument().catch(err => {
+  console.error("Failed to create connection test document:", err);
+});
+
 console.log("Firestore initialized with optimized settings");
 
 // Track Firestore connection state
@@ -144,7 +170,9 @@ export const getUserOnboardingStatus = async (userId: string) => {
   try {
     console.log("Fetching onboarding status for user:", userId);
     const userDocRef = doc(db, "users", userId);
-    const userDoc = await getDoc(userDocRef);
+    
+    // Use trackOperation to count this as a pending operation
+    const userDoc = await trackOperation(getDoc(userDocRef));
     
     if (userDoc.exists()) {
       const userData = userDoc.data();
@@ -345,19 +373,18 @@ export const validateFirestoreConnection = async () => {
     const timeoutPromise = new Promise((_, reject) => 
       setTimeout(() => reject(new Error("Firestore connection timeout")), 10000) // Increased timeout
     );
-    
-    const connectionPromise = (async () => {
+      const connectionPromise = (async () => {
       try {
         // First try a simple system document that should be accessible to anyone
         const testDocRef = doc(db, "system", "connection-test");
-        await getDoc(testDocRef);
+        await trackOperation(getDoc(testDocRef));
         return true;
       } catch (e) {
         // If that fails, try to read the user's own document if authenticated
         if (auth.currentUser) {
           try {
             const userDocRef = doc(db, "users", auth.currentUser.uid);
-            await getDoc(userDocRef);
+            await trackOperation(getDoc(userDocRef));
             return true;
           } catch (userError) {
             console.warn("Failed to read user document:", userError);
@@ -473,15 +500,14 @@ export const resetNetworkConnection = async (): Promise<boolean> => {
         console.warn("Proceeding with network reset despite pending operations");
       }
     }
-    
-    // Disable network
-    await disableFirestoreNetwork(db);
+      // Disable network
+    await trackOperation(disableFirestoreNetwork(db));
     
     // Short delay to ensure clean disconnect
     await new Promise(resolve => setTimeout(resolve, 2000)); // Increased to 2 seconds
     
     // Re-enable network
-    await enableFirestoreNetwork(db);
+    await trackOperation(enableFirestoreNetwork(db));
     
     // Another short delay to let connection establish
     await new Promise(resolve => setTimeout(resolve, 2000)); // Increased to 2 seconds
@@ -499,7 +525,7 @@ export const resetNetworkConnection = async (): Promise<boolean> => {
 // Exported for use in firebaseAuth.tsx
 export const disableNetwork = async (): Promise<void> => {
   try {
-    await disableFirestoreNetwork(db);
+    await trackOperation(disableFirestoreNetwork(db));
   } catch (error) {
     console.error("Error disabling network:", error);
   }
@@ -508,8 +534,52 @@ export const disableNetwork = async (): Promise<void> => {
 // Exported for use in firebaseAuth.tsx
 export const enableNetwork = async (): Promise<void> => {
   try {
-    await enableFirestoreNetwork(db);
+    await trackOperation(enableFirestoreNetwork(db));
   } catch (error) {
     console.error("Error enabling network:", error);
+  }
+};
+
+// Helper function to track pending operations
+export const trackOperation = async <T>(operation: Promise<T>): Promise<T> => {
+  pendingOperations++;
+  try {
+    return await operation;
+  } finally {
+    pendingOperations--;
+  }
+};
+
+// Utility to check the health of Firestore and fix any issues
+export const checkFirestoreHealth = async (): Promise<boolean> => {
+  console.log("Checking Firestore health...");
+  
+  // Reset counters if they're in a bad state
+  if (pendingOperations < 0) {
+    console.warn("Fixing negative pending operations counter");
+    pendingOperations = 0;
+  }
+  
+  // Reset network reset in progress if it's been too long
+  if (networkResetInProgress) {
+    const now = Date.now();
+    if (now - lastNetworkResetTime > 60000) {
+      console.warn("Fixing stuck network reset in progress state");
+      networkResetInProgress = false;
+    }
+  }
+  
+  // Check connection
+  try {
+    const connected = await validateFirestoreConnection();
+    if (!connected) {
+      console.log("Firestore connection validation failed, attempting reset");
+      await resetNetworkConnection();
+      return (await validateFirestoreConnection()) === true;
+    }
+    return true;
+  } catch (error) {
+    console.error("Error checking Firestore health:", error);
+    return false;
   }
 };
