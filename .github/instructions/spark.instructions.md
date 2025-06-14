@@ -1,7 +1,5 @@
 ---
 applyTo: '**'
-title: SPARK AI Development Instructions
-
 ---
 
 # SPARK AI Development Instructions
@@ -38,8 +36,8 @@ SPARK (Social Perceptual AI Real-time Knowledge Assistant) is an AI-powered vide
 - **Crisis intervention** with human-in-the-loop escalation
 - **Multilingual support** with cultural adaptation
 
-## Development Standards
 
+## Development Standards
 ### File Structure
 ```
 src/
@@ -52,6 +50,13 @@ src/
 └── lib/               # Utilities and configurations
 ```
 
+
+
+
+--
+applyTo: '**/src/pages/**'
+--
+
 ### Coding Conventions
 - Follow React functional components with hooks
 - Implement responsive design (mobile-first)
@@ -59,15 +64,12 @@ src/
 - Prefer arrow functions and const declarations
 - Include loading states and error handling
 
-### Component Patterns
-
 
 ### UI/UX Guidelines
 - Use gradient backgrounds for visual appeal
 - Implement hover animations and transitions
 - Maintain consistent spacing (Tailwind spacing scale)
 - Use primary/secondary color scheme from theme
-
 - Ensure accessibility (ARIA labels, keyboard navigation)
 
 ### Mental Health Context
@@ -85,7 +87,6 @@ src/
 5. **Personalization**: Adaptive content and conversation flow
 
 ### Performance Requirements
-- Sub-1-second response times for conversations
 - Support thousands of simultaneous users
 - Optimized bundle sizes
 - Efficient state management
@@ -115,8 +116,8 @@ src/
 - Environment-specific configurations
 - Monitoring and analytics integration
 
-## Common Tasks
 
+## Common Tasks
 ### Adding New UI Components
 1. Use shadcn/ui CLI: `npx shadcn-ui@latest add [component]`
 2. Customize with Tailwind classes
@@ -129,13 +130,10 @@ src/
 3. Implement error handling for connection issues
 4. Add proper cleanup on component unmount
 
-### Crisis Safety Features
-1. Always include crisis hotline information
-2. Implement clear escalation paths
-3. Never replace human intervention
-4. Maintain supportive presence during handoff
+
 
 ### Authentication Implementation
+- Google and Email/Password authentication
 - Firebase Authentication for user management
 - Persistent sessions using browserLocalPersistence
 - Protected routes using Higher-Order Components (HOCs)
@@ -144,44 +142,4 @@ src/
 
 
 
-### Import Path Conventions
-- Use `@/` prefix for imports from the src directory
-- Correct import paths:
-  - UI components: `import { Button } from "@/components/ui/button";`
-  - Pages: `import Dashboard from "@/pages/Dashboard";`
-  - Services: `import { useAuth } from "@/services/firebaseAuth";`
-  - Lib utilities: `import { signIn } from "@/lib/firebase";`
-
-## Firebase Configuration
-
-### Authentication Setup
-- Use Email/Password authentication
-- Enable persistent sessions (browserLocalPersistence)
-- Implement proper error handling for auth operations
-
-### Firestore Collections
-- `users`: User profiles and preferences
-  - Contains onboarding status, profile info
-  - Used to control access to various features
-- `conversations`: History of user interactions
-  - Tracks engagement with different AI personas
-  - Useful for continuing conversations
-
-### Firestore Security Rules
-- Use the provided `firestore.rules` file as a template
-- Ensure users can only access their own data
-- Implement role-based access if needed for admin features
-
-## Domain-Specific Knowledge
-- Mental health is primary focus, not medical diagnosis
-- AI transparency is crucial - users must know they're talking to AI
-- Cultural sensitivity matters - support diverse backgrounds
-- Privacy is paramount - minimize data collection
-- Scalability is key - design for global reach
-
-## Common Pitfalls to Avoid
-- Don't implement medical diagnosis features
-- Don't store sensitive personal data unnecessarily
-- Don't create addictive interaction patterns
-- Don't bypass crisis intervention protocols
 

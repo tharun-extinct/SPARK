@@ -1,0 +1,45 @@
+--
+applyTo: '**.js'
+--
+
+
+### Import Path Conventions
+- Use `@/` prefix for imports from the src directory
+- Correct import paths:
+  - UI components: `import { Button } from "@/components/ui/button";`
+  - Pages: `import Dashboard from "@/pages/Dashboard";`
+  - Services: `import { useAuth } from "@/services/firebaseAuth";`
+  - Lib utilities: `import { signIn } from "@/lib/firebase";`
+
+## Firebase Configuration
+
+### Authentication Setup
+- Use Email/Password authentication
+- Enable persistent sessions (browserLocalPersistence)
+- Implement proper error handling for auth operations
+
+### Firestore Collections
+- `users`: User profiles and preferences
+  - Contains onboarding status, profile info
+  - Used to control access to various features
+- `conversations`: History of user interactions
+  - Tracks engagement with different AI personas
+  - Useful for continuing conversations
+
+### Firestore Security Rules
+- Use the provided `firestore.rules` file as a template
+- Ensure users can only access their own data
+- Implement role-based access if needed for admin features
+
+## Domain-Specific Knowledge
+- Mental health is primary focus, not medical diagnosis
+- AI transparency is crucial - users must know they're talking to AI
+- Cultural sensitivity matters - support diverse backgrounds
+- Privacy is paramount - minimize data collection
+- Scalability is key - design for global reach
+
+## Common Pitfalls to Avoid
+- Don't implement medical diagnosis features
+- Don't store sensitive personal data unnecessarily
+- Don't create addictive interaction patterns
+- Don't bypass crisis intervention protocols
