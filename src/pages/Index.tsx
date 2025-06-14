@@ -89,14 +89,6 @@ const Index = () => {
         </div>
       </nav> 
 
-      {/* Section links */}
-      <div className="container mx-auto px-4 py-4 mt-16 flex items-center justify-center">
-        <div className="flex items-center gap-6">
-          <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Features</a>
-          <a href="#roles" className="text-muted-foreground hover:text-foreground transition-colors">Roles</a>
-          <a href="#about" className="text-muted-foreground hover:text-foreground transition-colors">About</a>
-        </div>
-      </div>
 
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-20 text-center">

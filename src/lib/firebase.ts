@@ -50,12 +50,40 @@ const firestoreSettings = {
   localCache: persistentLocalCache({
     // Use the tabManager for multi-tab support
     tabManager: persistentMultipleTabManager()
-    // Cache size is set automatically - explicit size setting removed to fix the error
-  })
+  }),
+  // Add experimental settings to improve connection reliability
+  experimentalForceLongPolling: true, // Use long polling instead of WebSockets
+  experimentalAutoDetectLongPolling: true,
+  // Configure a longer timeout for operations
+  experimentalLongPollingOptions: {
+    timeoutSeconds: 60, // Increase from 30 seconds for better reliability
+    longPollingTimeout: 5 * 60 * 1000 // 5 minutes for very slow connections
+  }
 };
 
 // Create Firestore instance with optimized settings
 const db = initializeFirestore(app, firestoreSettings);
+
+// Explicitly enable network connections to ensure we're not in offline mode
+enableFirestoreNetwork(db).catch(error => {
+  console.error("Error enabling Firestore network:", error);
+  
+  // If we see a WebChannel error at initialization, try again after a delay
+  if (error.message && (
+      error.message.includes('WebChannelConnection') || 
+      error.message.includes('transport errored') ||
+      error.message.includes('Connection failed') ||
+      error.message.includes('WebChannel') ||
+      error.message.includes('RPC')
+    )) {
+    console.log("WebChannel error during initialization, retrying after delay");
+    setTimeout(() => {
+      enableFirestoreNetwork(db).catch(retryError => {
+        console.error("Failed to enable network on retry:", retryError);
+      });
+    }, 3000);
+  }
+});
 
 // Set auth persistence to LOCAL by default for persistent sessions
 setPersistence(auth, browserLocalPersistence).catch((error) => {
@@ -113,25 +141,28 @@ export const createUserProfile = async (userId: string, userData: any) => {
     // Create a reference to the user document
     const userDocRef = doc(db, "users", userId);
     
-    // Check if the document already exists
-    const userDoc = await getDoc(userDocRef);
-    
-    if (!userDoc.exists()) {
-      // Only create if it doesn't exist already
-      const userDataWithDefaults = {
-        ...userData,
-        createdAt: new Date().toISOString(),
-        onboardingCompleted: false, // Setting this to false to show onboarding
-        lastUpdated: new Date().toISOString()
-      };
+    // Use our retry wrapper for WebChannel errors
+    return await withWriteRetry(async () => {
+      // Check if the document already exists
+      const userDoc = await getDoc(userDocRef);
       
-      await setDoc(userDocRef, userDataWithDefaults);
-      console.log("User profile created successfully");
-    } else {
-      console.log("User profile already exists, not creating a new one");
-    }
-    
-    return true;
+      if (!userDoc.exists()) {
+        // Only create if it doesn't exist already
+        const userDataWithDefaults = {
+          ...userData,
+          createdAt: new Date().toISOString(),
+          onboardingCompleted: false, // Setting this to false to show onboarding
+          lastUpdated: new Date().toISOString()
+        };
+        
+        await setDoc(userDocRef, userDataWithDefaults);
+        console.log("User profile created successfully");
+      } else {
+        console.log("User profile already exists, not creating a new one");
+      }
+      
+      return true;
+    });
   } catch (error: any) {
     console.error("Error creating user profile:", error.code, error.message);
     throw error;
@@ -174,13 +205,21 @@ export const updateUserOnboardingStatus = async (userId: string, completed: bool
     console.log("Resetting Firestore connection state before updating user status");
     isFirestoreConnected = false;
     connectionRetryCount = 0;
-      // Force a network reset
+    // Force a network reset
     try {
       await resetNetworkConnection();
       console.log("Network connection reset completed");
     } catch (error) {
       console.error("Error during network reset:", error);
     }
+  }
+  
+  // Always save to sessionStorage as a fallback
+  try {
+    sessionStorage.setItem(`onboarding_complete_${userId}`, completed ? 'true' : 'false');
+    console.log("Stored onboarding status in sessionStorage as fallback");
+  } catch (storageError) {
+    console.error("Failed to store in sessionStorage:", storageError);
   }
   
   const attemptUpdate = async () => {
@@ -192,13 +231,8 @@ export const updateUserOnboardingStatus = async (userId: string, completed: bool
       
       if (!connectionEstablished) {
         console.error("Failed to establish Firestore connection for update");
-          // Save to sessionStorage as a fallback if Firestore is unreachable
-        try {
-          sessionStorage.setItem(`onboarding_complete_${userId}`, completed ? 'true' : 'false');
-          console.log("Stored onboarding status in sessionStorage as fallback");
-        } catch (storageError) {
-          console.error("Failed to store in sessionStorage:", storageError);
-        }
+        // We already saved to sessionStorage as fallback above
+        return false;
       }
       
       // Prepare minimal data to update - keep it as small as possible
@@ -207,25 +241,58 @@ export const updateUserOnboardingStatus = async (userId: string, completed: bool
         lastUpdated: new Date().toISOString()
       };
       
-      // Get a fresh reference to the user document
+      // Check if user document exists first
       const userDocRef = doc(db, "users", userId);
+      const docSnap = await getDoc(userDocRef);
       
-      // Use a transaction to ensure data consistency or use setDoc with timeout
-      const updatePromise = setDoc(userDocRef, updateData, { merge: true });
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("Update operation timeout")), 10000) // Longer timeout
-      );
-      
-      // Race the update against a timeout
-      await Promise.race([updatePromise, timeoutPromise]);
+      // If document doesn't exist, create it with more complete data
+      if (!docSnap.exists()) {
+        console.log("User document doesn't exist, creating it with onboarding status");
+        const initialUserData = {
+          uid: userId,
+          email: auth.currentUser?.email || '',
+          displayName: auth.currentUser?.displayName || '',
+          onboardingCompleted: completed,
+          createdAt: new Date().toISOString(),
+          lastUpdated: new Date().toISOString()
+        };
+        
+        // Use a simple try-catch to handle permission errors specifically
+        try {
+          await setDoc(userDocRef, initialUserData);
+        } catch (writeError: any) {
+          // If we get a permission error, return false immediately
+          if (
+            writeError.code === 'permission-denied' || 
+            writeError.message?.includes('Permission denied')
+          ) {
+            console.error("Permission denied when writing to Firestore:", writeError);
+            return false;
+          }
+          // For other errors, especially transport errors, throw to be caught by outer handler
+          throw writeError;
+        }
+      } else {
+        // Only update the necessary fields if the document exists
+        // Use a simple try-catch to handle permission errors specifically
+        try {
+          await setDoc(userDocRef, updateData, { merge: true });
+        } catch (writeError: any) {
+          // If we get a permission error, return false immediately
+          if (
+            writeError.code === 'permission-denied' || 
+            writeError.message?.includes('Permission denied')
+          ) {
+            console.error("Permission denied when writing to Firestore:", writeError);
+            return false;
+          }
+          // For other errors, especially transport errors, throw to be caught by outer handler
+          throw writeError;
+        }
+      }
       
       console.log("Successfully updated user document with onboarding status:", completed);
       isFirestoreConnected = true; // Mark connection as verified on successful write
-      
-      // Clean up any fallback status if we succeeded
-      try {
-        sessionStorage.removeItem(`onboarding_complete_${userId}`);
-      } catch (e) {}
       
       return true;
     } catch (error: any) {
@@ -234,6 +301,24 @@ export const updateUserOnboardingStatus = async (userId: string, completed: bool
       const errorMessage = error.message || 'Unknown error';
       
       console.error(`Attempt ${retryCount + 1} failed:`, errorCode, errorMessage);
+      
+      // Check for WebChannel connection errors specifically
+      const isWebChannelError = 
+        errorMessage.includes('WebChannelConnection') || 
+        errorMessage.includes('transport errored') ||
+        errorMessage.includes('Connection failed') ||
+        errorMessage.includes('WebChannel') ||
+        errorMessage.includes('RPC') ||
+        errorMessage.includes('write stream');
+      
+      if (isWebChannelError) {
+        console.log("WebChannel connection error detected, resetting network connection");
+        // Always reset the network for WebChannel errors
+        await resetNetworkConnection();
+        
+        // For WebChannel errors, mark connection as needing verification
+        isFirestoreConnected = false;
+      }
       
       // For specific error codes that indicate retry is pointless, fail fast
       if (
@@ -261,10 +346,12 @@ export const updateUserOnboardingStatus = async (userId: string, completed: bool
           errorCode === 'unavailable' || 
           errorCode === 'network-request-failed' ||
           errorMessage.includes('network') ||
-          errorMessage.includes('timeout')
+          errorMessage.includes('timeout') ||
+          isWebChannelError
         ) {
           isFirestoreConnected = false;
-            // On network errors, try to reset the connection
+          
+          // On network errors, try to reset the connection
           if (retryCount > 1) {
             try {
               await resetNetworkConnection();
@@ -278,17 +365,8 @@ export const updateUserOnboardingStatus = async (userId: string, completed: bool
         return attemptUpdate();
       }
       
-      // If we've run out of retries, save to sessionStorage and return false
+      // If we've run out of retries, we already saved to sessionStorage as a fallback
       console.error("Maximum retries reached, giving up on update");
-      
-      // Save to sessionStorage as a last resort
-      try {
-        sessionStorage.setItem(`onboarding_complete_${userId}`, completed ? 'true' : 'false');
-        console.log("Stored onboarding status in sessionStorage after all retries failed");
-      } catch (storageError) {
-        console.error("Failed to store in sessionStorage:", storageError);
-      }
-      
       return false;
     }
   };
@@ -327,7 +405,8 @@ export const validateFirestoreConnection = async () => {
     if (isFirestoreConnected) {
       return true; // Return immediately if we already have a verified connection
     }
-      // Force network reset if we've been having persistent issues
+    
+    // Force network reset if we've been having persistent issues
     const now = Date.now();
     if (connectionRetryCount > 3 && (now - lastNetworkResetTime > 10000)) {
       console.log("Too many connection failures, resetting network connection");
@@ -340,22 +419,56 @@ export const validateFirestoreConnection = async () => {
     // Try a minimal read operation to verify connection
     // Use timeout to prevent hanging operations
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error("Firestore connection timeout")), 7000)
+      setTimeout(() => reject(new Error("Firestore connection timeout")), 10000)
     );
     
     const connectionPromise = (async () => {
       try {
-        // First try a simple system document that should be accessible to anyone
-        const testDocRef = doc(db, "system", "connection-test");
-        await getDoc(testDocRef);
-        return true;
-      } catch (e) {
-        // If that fails, try to read the user's own document if authenticated
+        // Try to read the user's own document if authenticated
         if (auth.currentUser) {
           const userDocRef = doc(db, "users", auth.currentUser.uid);
-          await getDoc(userDocRef);
+          const docSnap = await getDoc(userDocRef);
+          
+          // If user document doesn't exist, create a minimal one
+          if (!docSnap.exists()) {
+            console.log("User document doesn't exist, creating a minimal one");
+            await setDoc(userDocRef, {
+              uid: auth.currentUser.uid,
+              email: auth.currentUser.email,
+              onboardingCompleted: false,
+              createdAt: new Date().toISOString()
+            });
+          }
+          
+          return true;
+        } else {
+          // If not authenticated, try a simple system document
+          const testDocRef = doc(db, "system", "connection-test");
+          try {
+            const docSnap = await getDoc(testDocRef);
+            
+            // If test document doesn't exist, attempt to create it (may fail due to security rules)
+            if (!docSnap.exists()) {
+              try {
+                await setDoc(testDocRef, { 
+                  timestamp: new Date().toISOString(),
+                  healthy: true 
+                });
+              } catch (writeError) {
+                // It's okay if we can't write due to security rules
+                console.log("Unable to create test document, but read succeeded");
+              }
+            }
+          } catch (readError) {
+            // If we can't read the test document, Firestore is truly unavailable
+            console.error("Failed to read test document:", readError);
+            throw readError;
+          }
+          
           return true;
         }
+      } catch (e) {
+        console.error("Connection test failed:", e);
         throw e;
       }
     })();
@@ -371,6 +484,19 @@ export const validateFirestoreConnection = async () => {
     // Log the specific error type for debugging
     console.error(`Firestore connection test failed (attempt ${connectionRetryCount + 1}):`, 
       error.name, error.code, error.message);
+    
+    // Check for WebChannel errors specifically
+    if (error.message && (
+        error.message.includes('WebChannelConnection') || 
+        error.message.includes('transport errored') ||
+        error.message.includes('Connection failed') ||
+        error.message.includes('WebChannel') ||
+        error.message.includes('RPC')
+      )) {
+      console.log("WebChannel error during connection test, resetting network");
+      // Always reset network for WebChannel errors
+      await resetNetworkConnection();
+    }
     
     connectionRetryCount++;
     isFirestoreConnected = false;
@@ -450,18 +576,23 @@ export const resetNetworkConnection = async (): Promise<boolean> => {
     await disableFirestoreNetwork(db);
     
     // Short delay to ensure clean disconnect
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
     // Re-enable network
     await enableFirestoreNetwork(db);
     
     // Another short delay to let connection establish
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 1500));
     
     console.log("Firestore network connection reset complete");
+    // Reset connection flag to true since we've just re-established the connection
+    isFirestoreConnected = true;
+    connectionRetryCount = 0; // Reset retry counter on successful network reset
     return true;
   } catch (error) {
     console.error("Error resetting network connection:", error);
+    // Still mark connection as needing verification
+    isFirestoreConnected = false;
     return false;
   } finally {
     networkResetInProgress = false;
@@ -484,4 +615,54 @@ export const enableNetwork = async (): Promise<void> => {
   } catch (error) {
     console.error("Error enabling network:", error);
   }
+};
+
+// Helper function to wrap Firestore write operations with automatic retry for WebChannel errors
+export const withWriteRetry = async <T>(
+  operation: () => Promise<T>,
+  maxRetries: number = 3
+): Promise<T> => {
+  let retryCount = 0;
+  
+  const attempt = async (): Promise<T> => {
+    try {
+      return await operation();
+    } catch (error: any) {
+      const errorMessage = error?.message || '';
+      
+      // Check for WebChannel/transport errors specifically
+      const isWebChannelError = 
+        errorMessage.includes('WebChannelConnection') || 
+        errorMessage.includes('transport errored') ||
+        errorMessage.includes('Connection failed') ||
+        errorMessage.includes('WebChannel') ||
+        errorMessage.includes('RPC') ||
+        errorMessage.includes('write stream');
+      
+      // If it's a WebChannel error and we haven't exceeded max retries
+      if (isWebChannelError && retryCount < maxRetries) {
+        retryCount++;
+        console.log(`WebChannel error detected, retry ${retryCount}/${maxRetries}`);
+        
+        // Always try to reset the network connection for WebChannel errors
+        try {
+          await resetNetworkConnection();
+        } catch (resetError) {
+          console.error("Failed to reset network during retry:", resetError);
+        }
+        
+        // Add a delay with exponential backoff
+        const delay = Math.min(Math.pow(2, retryCount) * 1000, 10000);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        // Retry the operation
+        return attempt();
+      }
+      
+      // For other errors or if we've exhausted retries, propagate the error
+      throw error;
+    }
+  };
+  
+  return attempt();
 };
