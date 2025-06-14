@@ -24,8 +24,8 @@ import {
   persistentLocalCache,
   persistentMultipleTabManager,
   CACHE_SIZE_UNLIMITED,
-  disableNetwork,
-  enableNetwork
+  disableNetwork as disableFirestoreNetwork,
+  enableNetwork as enableFirestoreNetwork
 } from 'firebase/firestore';
 
 // Firebase configuration - directly from Firebase console
@@ -69,6 +69,8 @@ let isFirestoreConnected = false;
 let connectionRetryCount = 0;
 const MAX_CONNECTION_RETRIES = 5;
 let lastNetworkResetTime = 0;
+let pendingOperations = 0;
+let networkResetInProgress = false;
 
 export { app, auth, db };
 
@@ -172,12 +174,9 @@ export const updateUserOnboardingStatus = async (userId: string, completed: bool
     console.log("Resetting Firestore connection state before updating user status");
     isFirestoreConnected = false;
     connectionRetryCount = 0;
-    
-    // Force a network reset
+      // Force a network reset
     try {
-      await disableNetwork(db);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      await enableNetwork(db);
+      await resetNetworkConnection();
       console.log("Network connection reset completed");
     } catch (error) {
       console.error("Error during network reset:", error);
@@ -193,16 +192,13 @@ export const updateUserOnboardingStatus = async (userId: string, completed: bool
       
       if (!connectionEstablished) {
         console.error("Failed to establish Firestore connection for update");
-        
-        // Save to sessionStorage as a fallback if Firestore is unreachable
+          // Save to sessionStorage as a fallback if Firestore is unreachable
         try {
           sessionStorage.setItem(`onboarding_complete_${userId}`, completed ? 'true' : 'false');
           console.log("Stored onboarding status in sessionStorage as fallback");
         } catch (storageError) {
           console.error("Failed to store in sessionStorage:", storageError);
         }
-        
-        throw new Error("Firestore connection failed");
       }
       
       // Prepare minimal data to update - keep it as small as possible
@@ -268,13 +264,10 @@ export const updateUserOnboardingStatus = async (userId: string, completed: bool
           errorMessage.includes('timeout')
         ) {
           isFirestoreConnected = false;
-          
-          // On network errors, try to reset the connection
+            // On network errors, try to reset the connection
           if (retryCount > 1) {
             try {
-              await disableNetwork(db);
-              await new Promise(resolve => setTimeout(resolve, 1000));
-              await enableNetwork(db);
+              await resetNetworkConnection();
               console.log("Network reset during retry");
             } catch (netError) {
               console.error("Failed to reset network:", netError);
@@ -334,21 +327,14 @@ export const validateFirestoreConnection = async () => {
     if (isFirestoreConnected) {
       return true; // Return immediately if we already have a verified connection
     }
-    
-    // Force network reset if we've been having persistent issues
+      // Force network reset if we've been having persistent issues
     const now = Date.now();
     if (connectionRetryCount > 3 && (now - lastNetworkResetTime > 10000)) {
       console.log("Too many connection failures, resetting network connection");
       lastNetworkResetTime = now;
       
-      // Disable and re-enable network to force a fresh connection
-      try {
-        await disableNetwork(db);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        await enableNetwork(db);
-      } catch (netError) {
-        console.error("Error resetting network:", netError);
-      }
+      // Reset network connection
+      await resetNetworkConnection();
     }
     
     // Try a minimal read operation to verify connection
@@ -401,11 +387,12 @@ export const ensureFirestoreConnection = async (maxRetries = MAX_CONNECTION_RETR
     isFirestoreConnected = false;
     
     // Force a network reset
-    try {
-      await disableNetwork(db);
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Longer pause for full reset
-      await enableNetwork(db);
-      console.log("Network connection reset completed");
+    try {        try {
+          await resetNetworkConnection();
+          console.log("Network connection reset completed during ensureFirestoreConnection");
+        } catch (error) {
+          console.error("Error during network reset:", error);
+        }
     } catch (error) {
       console.error("Error during network reset:", error);
     }
@@ -437,4 +424,64 @@ export const ensureFirestoreConnection = async (maxRetries = MAX_CONNECTION_RETR
   };
   
   return attempt();
+};
+
+// Helper function to safely reset network connection
+export const resetNetworkConnection = async (): Promise<boolean> => {
+  // Prevent multiple simultaneous resets
+  if (networkResetInProgress) {
+    console.log("Network reset already in progress, skipping");
+    return false;
+  }
+  
+  // Prevent resets if we've recently reset already
+  const now = Date.now();
+  if (now - lastNetworkResetTime < 10000) {
+    console.log("Network reset on cooldown, skipping");
+    return false;
+  }
+  
+  try {
+    networkResetInProgress = true;
+    lastNetworkResetTime = now;
+    console.log("Resetting Firestore network connection");
+    
+    // Disable network
+    await disableFirestoreNetwork(db);
+    
+    // Short delay to ensure clean disconnect
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Re-enable network
+    await enableFirestoreNetwork(db);
+    
+    // Another short delay to let connection establish
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    console.log("Firestore network connection reset complete");
+    return true;
+  } catch (error) {
+    console.error("Error resetting network connection:", error);
+    return false;
+  } finally {
+    networkResetInProgress = false;
+  }
+};
+
+// Exported for use in firebaseAuth.tsx
+export const disableNetwork = async (): Promise<void> => {
+  try {
+    await disableFirestoreNetwork(db);
+  } catch (error) {
+    console.error("Error disabling network:", error);
+  }
+};
+
+// Exported for use in firebaseAuth.tsx
+export const enableNetwork = async (): Promise<void> => {
+  try {
+    await enableFirestoreNetwork(db);
+  } catch (error) {
+    console.error("Error enabling network:", error);
+  }
 };
