@@ -24,7 +24,7 @@ const ProtectedOnboarding = withAuth(Onboarding);
 // Component to handle conditional navigation rendering
 const AppContent = () => {
   const location = useLocation();
-  const hideNavigation = ['/login', '/signup', '/'].includes(location.pathname); // Hide navigation on landing page too
+  const hideNavigation = ['/login', '/signup'].includes(location.pathname);
 
   return (
     <>

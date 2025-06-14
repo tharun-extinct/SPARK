@@ -232,22 +232,20 @@ const Dashboard = () => {
       setConnectionError(true);
     }
   };
+
   // Periodically check connection health
   useEffect(() => {
-    // Only check connection if we're authenticated to avoid blocking landing page
-    if (currentUser) {
-      // Check connection immediately when component mounts
+    // Check connection immediately when component mounts
+    checkConnectionHealth();
+    
+    // Then set up a periodic check every 30 seconds
+    const intervalId = setInterval(() => {
       checkConnectionHealth();
-      
-      // Then set up a periodic check every 30 seconds
-      const intervalId = setInterval(() => {
-        checkConnectionHealth();
-      }, 30000);
-      
-      // Clean up on unmount
-      return () => clearInterval(intervalId);
-    }
-  }, [connectionStatus, currentUser]);
+    }, 30000);
+    
+    // Clean up on unmount
+    return () => clearInterval(intervalId);
+  }, [connectionStatus]);
 
   const metrics = {
     moodScore: 7.2,
