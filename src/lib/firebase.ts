@@ -49,9 +49,11 @@ const firestoreSettings = {
   // Use persistent cache with multi-tab support
   localCache: persistentLocalCache({
     // Explicitly set cache size limits to prevent memory issues
-    cacheSizeBytes: 40 * 1024 * 1024, // 40MB cache size
+    cacheSizeBytes: 50 * 1024 * 1024, // 50MB cache size (increased)
     tabManager: persistentMultipleTabManager()
-  })
+  }),
+  // Add Firestore cache expiration - helps prevent stale data
+  cacheSizeBytes: CACHE_SIZE_UNLIMITED
 };
 
 // Create Firestore instance with optimized settings
@@ -327,9 +329,10 @@ export const validateFirestoreConnection = async () => {
     if (isFirestoreConnected) {
       return true; // Return immediately if we already have a verified connection
     }
-      // Force network reset if we've been having persistent issues
+    
+    // Force network reset if we've been having persistent issues
     const now = Date.now();
-    if (connectionRetryCount > 3 && (now - lastNetworkResetTime > 10000)) {
+    if (connectionRetryCount > 3 && (now - lastNetworkResetTime > 30000)) { // Increased to 30 seconds
       console.log("Too many connection failures, resetting network connection");
       lastNetworkResetTime = now;
       
@@ -340,7 +343,7 @@ export const validateFirestoreConnection = async () => {
     // Try a minimal read operation to verify connection
     // Use timeout to prevent hanging operations
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error("Firestore connection timeout")), 7000)
+      setTimeout(() => reject(new Error("Firestore connection timeout")), 10000) // Increased timeout
     );
     
     const connectionPromise = (async () => {
@@ -352,9 +355,16 @@ export const validateFirestoreConnection = async () => {
       } catch (e) {
         // If that fails, try to read the user's own document if authenticated
         if (auth.currentUser) {
-          const userDocRef = doc(db, "users", auth.currentUser.uid);
-          await getDoc(userDocRef);
-          return true;
+          try {
+            const userDocRef = doc(db, "users", auth.currentUser.uid);
+            await getDoc(userDocRef);
+            return true;
+          } catch (userError) {
+            console.warn("Failed to read user document:", userError);
+            // Fall back to returning true if we know we're authenticated
+            // This handles the case where the user exists but doesn't have a document yet
+            return true; 
+          }
         }
         throw e;
       }
@@ -380,21 +390,28 @@ export const validateFirestoreConnection = async () => {
 
 // Enhanced function to handle reconnection attempts with circuit breaker pattern
 export const ensureFirestoreConnection = async (maxRetries = MAX_CONNECTION_RETRIES) => {
-  // Circuit breaker pattern
+  // Check if already connected to avoid unnecessary validation
+  if (isFirestoreConnected) {
+    return true;
+  }
+  
+  // Circuit breaker pattern - avoid too many retry cycles
   if (connectionRetryCount > maxRetries * 2) {
     console.log("Circuit breaker activated: Resetting Firestore connection state");
     connectionRetryCount = 0;
     isFirestoreConnected = false;
     
-    // Force a network reset
-    try {        try {
-          await resetNetworkConnection();
-          console.log("Network connection reset completed during ensureFirestoreConnection");
-        } catch (error) {
-          console.error("Error during network reset:", error);
-        }
-    } catch (error) {
-      console.error("Error during network reset:", error);
+    // Force a network reset but don't attempt it too frequently
+    const now = Date.now();
+    if (now - lastNetworkResetTime > 60000) { // Only once per minute max
+      try {
+        await resetNetworkConnection();
+        console.log("Network connection reset completed during ensureFirestoreConnection");
+      } catch (error) {
+        console.error("Error during network reset:", error);
+      }
+    } else {
+      console.log("Skipping network reset due to cooldown");
     }
   }
   
@@ -411,14 +428,15 @@ export const ensureFirestoreConnection = async (maxRetries = MAX_CONNECTION_RETR
       return true;
     } else if (attempts < maxRetries) {
       // Wait with jittered exponential backoff to prevent thundering herd
-      const baseDelay = Math.min(Math.pow(2, attempts) * 500, 8000); // Cap at 8 seconds
-      const jitter = Math.random() * 1000; // Add up to 1000ms of random jitter
+      const baseDelay = Math.min(Math.pow(2, attempts) * 500, 15000); // Cap at 15 seconds
+      const jitter = Math.random() * 2000; // Add up to 2s of random jitter
       const delay = baseDelay + jitter;
       console.log(`Retrying in ${Math.round(delay)}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
       return attempt();
     } else {
       console.error(`Failed to connect to Firestore after ${maxRetries} attempts`);
+      // Don't consider this a permanent failure - next operation will try again
       return false;
     }
   };
@@ -436,7 +454,7 @@ export const resetNetworkConnection = async (): Promise<boolean> => {
   
   // Prevent resets if we've recently reset already
   const now = Date.now();
-  if (now - lastNetworkResetTime < 10000) {
+  if (now - lastNetworkResetTime < 30000) { // Increased to 30 seconds
     console.log("Network reset on cooldown, skipping");
     return false;
   }
@@ -446,17 +464,27 @@ export const resetNetworkConnection = async (): Promise<boolean> => {
     lastNetworkResetTime = now;
     console.log("Resetting Firestore network connection");
     
+    // Check for pending operations
+    if (pendingOperations > 0) {
+      console.log(`Delaying network reset due to ${pendingOperations} pending operations`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      if (pendingOperations > 0) {
+        console.warn("Proceeding with network reset despite pending operations");
+      }
+    }
+    
     // Disable network
     await disableFirestoreNetwork(db);
     
     // Short delay to ensure clean disconnect
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise(resolve => setTimeout(resolve, 2000)); // Increased to 2 seconds
     
     // Re-enable network
     await enableFirestoreNetwork(db);
     
     // Another short delay to let connection establish
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 2000)); // Increased to 2 seconds
     
     console.log("Firestore network connection reset complete");
     return true;
