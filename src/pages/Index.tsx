@@ -62,11 +62,10 @@ const Index = () => {
 
   // Fix for dynamic icon component
   const ActiveRoleIcon = roles[activeRole].icon;
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/50 to-background">
  
-      {/* Navigation *}
+      {/* Navigation */}
       <nav className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -80,21 +79,15 @@ const Index = () => {
             <a href="#roles" className="text-muted-foreground hover:text-foreground transition-colors">Roles</a>
             <a href="#about" className="text-muted-foreground hover:text-foreground transition-colors">About</a>
           </div>
-          <Button className="bg-gradient-to-r from-primary to-primary/80 hover:scale-105 transition-transform">
+          <Button 
+            className="bg-gradient-to-r from-primary to-primary/80 hover:scale-105 transition-transform"
+            onClick={() => navigate('/signup')}
+          >
             Get Started
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
         </div>
-      </nav> */} 
-
-      {/* Section links */}
-      <div className="container mx-auto px-4 py-4 mt-16 flex items-center justify-center">
-        <div className="flex items-center gap-6">
-          <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Features</a>
-          <a href="#roles" className="text-muted-foreground hover:text-foreground transition-colors">Roles</a>
-          <a href="#about" className="text-muted-foreground hover:text-foreground transition-colors">About</a>
-        </div>
-      </div>
+      </nav>
 
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-20 text-center">

@@ -84,24 +84,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           console.log("Firebase modules reloaded", { app, auth, db });
         }
       }
-      
-      console.log("Connection reset attempt completed");
+        console.log("Connection reset attempt completed");
     } catch (error) {
       console.error("Error resetting Firestore connection:", error);
     }
-  };useEffect(() => {
+  };
+
+  useEffect(() => {
     let initialConnectionAttempted = false;
     
-    // Proactively ensure Firestore connection is established once at startup
-    // but only after a short delay to let the application stabilize
+    // Only attempt Firestore connection if user is authenticated to avoid blocking landing page
     const connectionTimer = setTimeout(() => {
-      if (!initialConnectionAttempted) {
-        initialConnectionAttempted = true;
-        ensureFirestoreConnection(2).catch(err => {
+      if (!initialConnectionAttempted && currentUser) { // Only if user is authenticated
+        initialConnectionAttempted = true;        ensureFirestoreConnection(2).catch(err => {
           console.error("Failed to establish initial Firestore connection:", err);
         });
       }
-    }, 3000); // Delay initial connection attempt by 3 seconds
+    }, 5000); // Increased delay to 5 seconds
       // Subscribe to auth state changes
     const unsubscribe = onAuthChange((user) => {
       console.log("Auth state changed, user:", user?.uid);
