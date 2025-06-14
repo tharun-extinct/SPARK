@@ -34,7 +34,7 @@ const AuthContext = createContext<AuthContextType>({
 
 // Track connection attempts to prevent excessive reconnection
 let connectionAttemptTimestamp = 0;
-const CONNECTION_COOLDOWN_MS = 60000; // 60 seconds cooldown between connection resets (increased)
+const CONNECTION_COOLDOWN_MS = 30000; // 30 seconds cooldown between connection resets
 
 // Provider component
 export const AuthProvider = ({ children }: AuthProviderProps) => {
@@ -68,19 +68,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     } catch (error) {
       console.error("Error resetting Firestore connection:", error);
     }
-  };  useEffect(() => {
-    let initialConnectionAttempted = false;
-    
+  };
+
+  useEffect(() => {
     // Proactively ensure Firestore connection is established once at startup
-    // but only after a short delay to let the application stabilize
-    const connectionTimer = setTimeout(() => {
-      if (!initialConnectionAttempted) {
-        initialConnectionAttempted = true;
-        ensureFirestoreConnection(2).catch(err => {
-          console.error("Failed to establish initial Firestore connection:", err);
-        });
-      }
-    }, 3000); // Delay initial connection attempt by 3 seconds
+    ensureFirestoreConnection(3).catch(err => {
+      console.error("Failed to establish initial Firestore connection:", err);
+    });
     
     // Subscribe to auth state changes
     const unsubscribe = onAuthChange((user) => {
@@ -103,7 +97,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // Cleanup subscription on unmount
     return () => {
       unsubscribe();
-      clearTimeout(connectionTimer);
       // No need to disable network on unmount as it could affect other components
     };
   }, []);

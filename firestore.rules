@@ -38,9 +38,10 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if false;  // Only allow writes through admin functions
     }
-      // System collection for connection testing - publicly accessible
+    
+    // System collection for connection testing
     match /system/connection-test {
-      allow read: if true; // Allow public access for connection testing
+      allow read: if request.auth != null;
     }
   }
 }
