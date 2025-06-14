@@ -13,12 +13,14 @@ import Dashboard from "./pages/Dashboard";
 import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
 import Navigation from "./pages/Navigation";
-
+import PsyChat from "@/pages/conversation/PsyChat";
+import TutorChat from "@/pages/conversation/TutorChat";
+import DoctorChat from "@/pages/conversation/DoctorChat";
 const queryClient = new QueryClient();
 
 // Protect routes that require authentication
-const ProtectedConversation = withAuth(Conversation);
-const ProtectedDashboard = withCompletedOnboarding(Dashboard);
+const ProtectedConversation = Conversation
+const ProtectedDashboard = Dashboard
 const ProtectedOnboarding = withAuth(Onboarding);
 
 // Component to handle conditional navigation rendering
@@ -34,7 +36,9 @@ const AppContent = () => {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
-        <Route path="/conversation/:agentType" element={<ProtectedConversation />} />
+        <Route path="/conversation/tutor" element={<TutorChat />} />
+        <Route path="/conversation/doctor" element={<DoctorChat />} />
+        <Route path="/conversation/psy" element={<PsyChat />} />
         <Route path="/dashboard" element={<ProtectedDashboard />} />
         <Route path="/onboarding" element={<ProtectedOnboarding />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
