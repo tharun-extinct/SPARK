@@ -62,28 +62,6 @@ const firestoreSettings = {
 
 // Create Firestore instance with optimized settings
 const db = initializeFirestore(app, firestoreSettings);
-
-// Explicitly enable network connections to ensure we're not in offline mode
-enableFirestoreNetwork(db).catch(error => {
-  console.error("Error enabling Firestore network:", error);
-  
-  // If we see a WebChannel error at initialization, try again after a delay
-  if (error.message && (
-      error.message.includes('WebChannelConnection') || 
-      error.message.includes('transport errored') ||
-      error.message.includes('Connection failed') ||
-      error.message.includes('WebChannel') ||
-      error.message.includes('RPC')
-    )) {
-    console.log("WebChannel error during initialization, retrying after delay");
-    setTimeout(() => {
-      enableFirestoreNetwork(db).catch(retryError => {
-        console.error("Failed to enable network on retry:", retryError);
-      });
-    }, 3000);
-  }
-});
-
 // Set auth persistence to LOCAL by default for persistent sessions
 setPersistence(auth, browserLocalPersistence).catch((error) => {
   console.error("Error setting auth persistence:", error);
@@ -92,10 +70,10 @@ setPersistence(auth, browserLocalPersistence).catch((error) => {
 console.log("Firestore initialized with optimized settings");
 
 // Track Firestore connection state
-let isFirestoreConnected = false;
+let isFirestoreConnected = true; // Assume connected initially as SDK handles it
 let connectionRetryCount = 0;
 const MAX_CONNECTION_RETRIES = 5;
-let lastNetworkResetTime = 0;
+let lastNetworkResetTime = Date.now();
 let pendingOperations = 0;
 let networkResetInProgress = false;
 
@@ -199,27 +177,7 @@ export const updateUserOnboardingStatus = async (userId: string, completed: bool
   let retryCount = 0;
   const maxRetries = 5; // Maximum number of retries
   
-  // Reset Firestore connection state if needed before attempting update
-  if (!isFirestoreConnected && connectionRetryCount > 0) {
-    console.log("Resetting Firestore connection state before updating user status");
-    isFirestoreConnected = false;
-    connectionRetryCount = 0;
-    // Force a network reset
-    try {
-      await resetNetworkConnection();
-      console.log("Network connection reset completed");
-    } catch (error) {
-      console.error("Error during network reset:", error);
-    }
-  }
-  
   // Always save to sessionStorage as a fallback
-  try {
-    sessionStorage.setItem(`onboarding_complete_${userId}`, completed ? 'true' : 'false');
-    console.log("Stored onboarding status in sessionStorage as fallback");
-  } catch (storageError) {
-    console.error("Failed to store in sessionStorage:", storageError);
-  }
   
   const attemptUpdate = async () => {
     try {
@@ -227,14 +185,6 @@ export const updateUserOnboardingStatus = async (userId: string, completed: bool
       
       // First ensure Firestore connection is working with dedicated retry logic
       const connectionEstablished = await ensureFirestoreConnection(3);
-      
-      if (!connectionEstablished) {
-        console.error("Failed to establish Firestore connection for update");
-        // We already saved to sessionStorage as fallback above
-        return false;
-      }
-      
-      // Prepare minimal data to update - keep it as small as possible
       const updateData = { 
         onboardingCompleted: completed,
         lastUpdated: new Date().toISOString()
@@ -255,42 +205,11 @@ export const updateUserOnboardingStatus = async (userId: string, completed: bool
           createdAt: new Date().toISOString(),
           lastUpdated: new Date().toISOString()
         };
-        
-        // Use a simple try-catch to handle permission errors specifically
-        try {
-          await setDoc(userDocRef, initialUserData);
-        } catch (writeError: any) {
-          // If we get a permission error, return false immediately
-          if (
-            writeError.code === 'permission-denied' || 
-            writeError.message?.includes('Permission denied')
-          ) {
-            console.error("Permission denied when writing to Firestore:", writeError);
-            return false;
-          }
-          // For other errors, especially transport errors, throw to be caught by outer handler
-          throw writeError;
-        }
+        await setDoc(userDocRef, initialUserData);
       } else {
         // Only update the necessary fields if the document exists
-        // Use a simple try-catch to handle permission errors specifically
-        try {
-          await setDoc(userDocRef, updateData, { merge: true });
-        } catch (writeError: any) {
-          // If we get a permission error, return false immediately
-          if (
-            writeError.code === 'permission-denied' || 
-            writeError.message?.includes('Permission denied')
-          ) {
-            console.error("Permission denied when writing to Firestore:", writeError);
-            return false;
-          }
-          // For other errors, especially transport errors, throw to be caught by outer handler
-          throw writeError;
-        }
+        await setDoc(userDocRef, updateData, { merge: true });
       }
-      
-      console.log("Successfully updated user document with onboarding status:", completed);
       isFirestoreConnected = true; // Mark connection as verified on successful write
       
       return true;
@@ -298,26 +217,6 @@ export const updateUserOnboardingStatus = async (userId: string, completed: bool
       // Check for specific error types and handle accordingly
       const errorCode = error.code || 'unknown';
       const errorMessage = error.message || 'Unknown error';
-      
-      console.error(`Attempt ${retryCount + 1} failed:`, errorCode, errorMessage);
-      
-      // Check for WebChannel connection errors specifically
-      const isWebChannelError = 
-        errorMessage.includes('WebChannelConnection') || 
-        errorMessage.includes('transport errored') ||
-        errorMessage.includes('Connection failed') ||
-        errorMessage.includes('WebChannel') ||
-        errorMessage.includes('RPC') ||
-        errorMessage.includes('write stream');
-      
-      if (isWebChannelError) {
-        console.log("WebChannel connection error detected, resetting network connection");
-        // Always reset the network for WebChannel errors
-        await resetNetworkConnection();
-        
-        // For WebChannel errors, mark connection as needing verification
-        isFirestoreConnected = false;
-      }
       
       // For specific error codes that indicate retry is pointless, fail fast
       if (
@@ -329,30 +228,8 @@ export const updateUserOnboardingStatus = async (userId: string, completed: bool
         return false;
       }
       
-      // For network-related errors or timeouts, try again
-      if (retryCount < maxRetries) {
-        retryCount++;
-        // Use jittered exponential backoff
-        const baseDelay = Math.min(Math.pow(2, retryCount) * 500, 8000); // Cap at 8 seconds
-        const jitter = Math.random() * 1000;
-        const backoffTime = baseDelay + jitter;
-        
-        console.log(`Retrying update (${retryCount}/${maxRetries}) in ${Math.round(backoffTime)}ms...`);
-        await new Promise(resolve => setTimeout(resolve, backoffTime));
-        
-        // For network errors, mark connection as needing verification
-        if (
-          errorCode === 'unavailable' || 
-          errorCode === 'network-request-failed' ||
-          errorMessage.includes('network') ||
-          errorMessage.includes('timeout') ||
-          isWebChannelError
-        ) {
-          isFirestoreConnected = false;
-          
-          // On network errors, try to reset the connection
-          if (retryCount > 1) {
-            try {
+      // If it's a network-related or transient error, let withWriteRetry handle it
+      if (errorMessage.includes('network') || errorMessage.includes('timeout') || isWebChannelError) {
               await resetNetworkConnection();
               console.log("Network reset during retry");
             } catch (netError) {
@@ -363,13 +240,17 @@ export const updateUserOnboardingStatus = async (userId: string, completed: bool
         
         return attemptUpdate();
       }
-      
-      // If we've run out of retries, we already saved to sessionStorage as a fallback
-      console.error("Maximum retries reached, giving up on update");
-      return false;
+
+      // If we reach here, it's an error that withWriteRetry or this handler
+      // couldn't resolve, re-throw it.
+      throw error;
     }
   };
   
+  try {
+    sessionStorage.setItem(`onboarding_complete_${userId}`, completed ? 'true' : 'false');
+    console.log("Stored onboarding status in sessionStorage as fallback");
+  } catch (storageError) { console.error("Failed to store in sessionStorage:", storageError); }  
   return attemptUpdate();
 };
 
@@ -402,21 +283,6 @@ export const signInWithGoogle = async () => {
 export const validateFirestoreConnection = async () => {
   try {
     if (isFirestoreConnected) {
-      return true; // Return immediately if we already have a verified connection
-    }
-    
-    // Force network reset if we've been having persistent issues
-    const now = Date.now();
-    if (connectionRetryCount > 3 && (now - lastNetworkResetTime > 10000)) {
-      console.log("Too many connection failures, resetting network connection");
-      lastNetworkResetTime = now;
-      
-      // Reset network connection
-      await resetNetworkConnection();
-    }
-    
-    // Try a minimal read operation to verify connection
-    // Use timeout to prevent hanging operations
     const timeoutPromise = new Promise((_, reject) => 
       setTimeout(() => reject(new Error("Firestore connection timeout")), 10000)
     );
@@ -484,18 +350,6 @@ export const validateFirestoreConnection = async () => {
     console.error(`Firestore connection test failed (attempt ${connectionRetryCount + 1}):`, 
       error.name, error.code, error.message);
     
-    // Check for WebChannel errors specifically
-    if (error.message && (
-        error.message.includes('WebChannelConnection') || 
-        error.message.includes('transport errored') ||
-        error.message.includes('Connection failed') ||
-        error.message.includes('WebChannel') ||
-        error.message.includes('RPC')
-      )) {
-      console.log("WebChannel error during connection test, resetting network");
-      // Always reset network for WebChannel errors
-      await resetNetworkConnection();
-    }
     
     connectionRetryCount++;
     isFirestoreConnected = false;
@@ -510,12 +364,8 @@ export const ensureFirestoreConnection = async (maxRetries = MAX_CONNECTION_RETR
     console.log("Circuit breaker activated: Resetting Firestore connection state");
     connectionRetryCount = 0;
     isFirestoreConnected = false;
-    
-    // Force a network reset
-    try {        try {
-          await resetNetworkConnection();
-          console.log("Network connection reset completed during ensureFirestoreConnection");
-        } catch (error) {
+    // Only attempt network reset if not already in progress and sufficient time has passed
+    if (!networkResetInProgress && Date.now() - lastNetworkResetTime > 15000) {
           console.error("Error during network reset:", error);
         }
     } catch (error) {
@@ -560,7 +410,7 @@ export const resetNetworkConnection = async (): Promise<boolean> => {
   }
   
   // Prevent resets if we've recently reset already
-  const now = Date.now();
+  const now = Date.now();  
   if (now - lastNetworkResetTime < 10000) {
     console.log("Network reset on cooldown, skipping");
     return false;
@@ -619,10 +469,10 @@ export const enableNetwork = async (): Promise<void> => {
 // Helper function to wrap Firestore write operations with automatic retry for WebChannel errors
 export const withWriteRetry = async <T>(
   operation: () => Promise<T>,
-  maxRetries: number = 3
+  maxRetries: number = 5 // Increased retries for writes
 ): Promise<T> => {
   let retryCount = 0;
-  
+
   const attempt = async (): Promise<T> => {
     try {
       return await operation();
@@ -641,7 +491,7 @@ export const withWriteRetry = async <T>(
       // If it's a WebChannel error and we haven't exceeded max retries
       if (isWebChannelError && retryCount < maxRetries) {
         retryCount++;
-        console.log(`WebChannel error detected, retry ${retryCount}/${maxRetries}`);
+        console.warn(`WebChannel error detected during write, retry ${retryCount}/${maxRetries}`);
         
         // Always try to reset the network connection for WebChannel errors
         try {
