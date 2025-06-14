@@ -1,8 +1,7 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/UI-Components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/UI-Components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Heart, BookOpen, Stethoscope, ArrowRight, Users, Shield, Clock } from "lucide-react";
 
 const Index = () => {

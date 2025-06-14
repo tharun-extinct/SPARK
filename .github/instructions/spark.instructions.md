@@ -96,8 +96,8 @@ applyTo: '**/src/pages/**'
 - GDPR/COPPA compliance
 - End-to-end encryption for sensitive data
 - Firebase Authentication for secure user management
-- Protected routes for authenticated content
 - Firestore security rules to control data access
+- Protected routes for authenticated content
 - Explicit user consent for data collection
 - Anonymous usage options
 - Secure crisis intervention protocols
