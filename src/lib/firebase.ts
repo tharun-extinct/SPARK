@@ -9,8 +9,7 @@ import {
   setPersistence,
   browserLocalPersistence,
   GoogleAuthProvider,
-  signInWithPopup
-} from 'firebase/auth';
+  signInWithPopup                   } from 'firebase/auth';
 import { 
   getFirestore, 
   doc, 
@@ -25,8 +24,7 @@ import {
   persistentMultipleTabManager,
   CACHE_SIZE_UNLIMITED,
   disableNetwork as disableFirestoreNetwork,
-  enableNetwork as enableFirestoreNetwork
-} from 'firebase/firestore';
+  enableNetwork as enableFirestoreNetwork    } from 'firebase/firestore';
 
 // Firebase configuration - directly from Firebase console
 const firebaseConfig = {
@@ -68,12 +66,13 @@ const db = initializeFirestore(app, firestoreSettings);
 // but do it in background to not block UI
 setTimeout(() => {
   enableFirestoreNetwork(db).catch(error => {
-    console.error("Error enabling Firestore network:", error);
+    //console.error("Error enabling Firestore network:", error);
+    console.log("Error enabling Firestore network:", error);
   });
 }, 0);
 // Set auth persistence to LOCAL by default for persistent sessions
 setPersistence(auth, browserLocalPersistence).catch((error) => {
-  console.error("Error setting auth persistence:", error);
+  console.log("Error setting auth persistence:", error);
 });
 
 console.log("Firestore initialized with optimized settings");

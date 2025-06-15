@@ -10,7 +10,8 @@ SPARK (Social Perceptual AI Real-time Knowledge Assistant) is an AI-powered vide
 ## Rules & Guidelines
 - Always use tabs for indentation.
 - Don't create any files for debugging, until I told you to do so.
-- For all designs I ask you to make, have them be beautiful, not cookie cutter. Make webpages that are fully featured and worthy for production.
+- For all designs I ask you to make, have them be beautiful, not cookie cutter. 
+- Make code changes in such a way that are fully featured and worthy for production.
 - Do not install other packages for UI themes, icons, etc unless absolutely necessary or I request them.
 
 
@@ -28,13 +29,6 @@ SPARK (Social Perceptual AI Real-time Knowledge Assistant) is an AI-powered vide
 - **Routing**: React Router
 - **Package Manager**: Bun (preferred) / npm
 
-## Key AI Models & Features
-- **Phoenix-3**: Lifelike avatar generation with natural facial movements
-- **Raven-0**: Advanced emotional perception and ambient awareness
-- **Sparrow-0**: Natural turn-taking and conversation rhythm
-- **Real-time video conversations** with sub-1-second latency
-- **Crisis intervention** with human-in-the-loop escalation
-- **Multilingual support** with cultural adaptation
 
 
 ## Development Standards
@@ -55,5 +49,14 @@ src/
 
 
 
+--
+applyTo: '**/.py'
+--
 
-
+## Key AI Models & Features
+- **Phoenix-3**: Lifelike avatar generation with natural facial movements
+- **Raven-0**: Advanced emotional perception and ambient awareness
+- **Sparrow-0**: Natural turn-taking and conversation rhythm
+- **Real-time video conversations** with sub-1-second latency
+- **Crisis intervention** with human-in-the-loop escalation
+- **Multilingual support** with cultural adaptation
