@@ -14,6 +14,7 @@ import {
 import { useAuth } from '@/services/firebaseAuth';
 import { signOut } from '@/lib/firebase';
 import { useToast } from '@/components/ui/use-toast';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -86,11 +87,19 @@ const Navigation = () => {
                   </Link>
                 ))}
               </div>
-              
-              <DropdownMenu>
+                <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full w-10 h-10 bg-muted">
-                    <User className="w-5 h-5" />
+                  <Button variant="ghost" size="icon" className="rounded-full w-10 h-10 p-0 overflow-hidden">
+                    <Avatar>
+                      {currentUser.photoURL ? (
+                        <AvatarImage src={currentUser.photoURL} alt={currentUser.displayName || "User profile"} />
+                      ) : (
+                        <AvatarFallback className="bg-primary text-primary-foreground">
+                          {(currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 
+                           currentUser.email ? currentUser.email.charAt(0).toUpperCase() : "U")}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -147,11 +156,23 @@ const Navigation = () => {
                     {item.icon}
                     {item.name}
                   </Link>
-                ))}
-                <div className="pt-2 mt-2 border-t">
+                ))}                <div className="pt-2 mt-2 border-t">
+                  <div className="flex items-center gap-3 py-2">
+                    <Avatar className="w-8 h-8">
+                      {currentUser.photoURL ? (
+                        <AvatarImage src={currentUser.photoURL} alt={currentUser.displayName || "User profile"} />
+                      ) : (
+                        <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                          {(currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 
+                           currentUser.email ? currentUser.email.charAt(0).toUpperCase() : "U")}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                    <span className="font-medium">{currentUser.displayName || currentUser.email}</span>
+                  </div>
                   <Button 
                     variant="ghost" 
-                    className="w-full justify-start px-0" 
+                    className="w-full justify-start px-0 mt-2" 
                     onClick={handleSignOut}
                   >
                     <LogOut className="w-5 h-5 mr-2" />

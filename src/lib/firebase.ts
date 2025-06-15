@@ -275,20 +275,29 @@ export const updateUserOnboardingStatus = async (userId: string, completed: bool
 
 // Google Authentication
 export const signInWithGoogle = async () => {
-  try {
-    const provider = new GoogleAuthProvider();
+  try {    const provider = new GoogleAuthProvider();
     const result = await signInWithPopup(auth, provider);
-      // Google doesn't directly expose isNewUser in the type, but we can check if the user already exists
-    const userExists = await getDoc(doc(db, "users", result.user.uid));
-    const isNewUser = !userExists.exists();
+    // Google doesn't directly expose isNewUser in the type, but we can check if the user already exists
+    const userDoc = await getDoc(doc(db, "users", result.user.uid));
+    const isNewUser = !userDoc.exists();
     
     // If it's a new user, create a profile
-    if (isNewUser && result.user) {      await createUserProfile(result.user.uid, {
+    if (isNewUser && result.user) {
+      await createUserProfile(result.user.uid, {
         email: result.user.email,
         displayName: result.user.displayName,
         photoURL: result.user.photoURL,
         onboardingCompleted: false, // Show onboarding for new users
-      });
+      });    } else if (result.user && result.user.photoURL) {
+      // For existing users, update their photoURL if it has changed
+      const userData = userDoc.data();
+      if (userData && userData.photoURL !== result.user.photoURL) {
+        await setDoc(doc(db, "users", result.user.uid), {
+          photoURL: result.user.photoURL,
+          lastUpdated: new Date().toISOString()
+        }, { merge: true });
+        console.log("Updated user profile with new photo URL");
+      }
     }
     
     return result;
