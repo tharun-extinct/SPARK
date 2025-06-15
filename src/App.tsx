@@ -11,6 +11,9 @@ import Signup from "./pages/Signup";
 import Conversation from "./pages/Conversation";
 import Dashboard from "./pages/Dashboard";
 import Onboarding from "./pages/Onboarding";
+import Profile from "./pages/Profile";
+import Rewards from "./pages/Rewards";
+import Support from "./pages/Support";
 import NotFound from "./pages/NotFound";
 import Navigation from "./pages/Navigation";
 
@@ -20,6 +23,9 @@ const queryClient = new QueryClient();
 const ProtectedConversation = withAuth(Conversation);
 const ProtectedDashboard = withCompletedOnboarding(Dashboard);
 const ProtectedOnboarding = withAuth(Onboarding);
+const ProtectedProfile = withAuth(Profile);
+const ProtectedRewards = withAuth(Rewards);
+const ProtectedSupport = withAuth(Support);
 
 // Component to handle conditional navigation rendering
 const AppContent = () => {
@@ -33,10 +39,12 @@ const AppContent = () => {
       {!hideNavigation && <Navigation />}
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/conversation/:agentType" element={<ProtectedConversation />} />
+        <Route path="/signup" element={<Signup />} />        <Route path="/conversation/:agentType" element={<ProtectedConversation />} />
         <Route path="/dashboard" element={<ProtectedDashboard />} />
         <Route path="/onboarding" element={<ProtectedOnboarding />} />
+        <Route path="/profile" element={<ProtectedProfile />} />
+        <Route path="/rewards" element={<ProtectedRewards />} />
+        <Route path="/support" element={<ProtectedSupport />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>

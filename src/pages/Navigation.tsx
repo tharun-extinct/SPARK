@@ -10,7 +10,9 @@ import {
   Home,
   MessageSquare,
   BarChart,
-  Settings } from 'lucide-react';
+  Settings,
+  Gift,
+  HelpCircle } from 'lucide-react';
 import { useAuth } from '@/services/firebaseAuth';
 import { signOut } from '@/lib/firebase';
 import { useToast } from '@/components/ui/use-toast';
@@ -50,9 +52,8 @@ const Navigation = () => {
   };
 
   const menuItems = [
-    { name: 'Home', path: '/dashboard', icon: <Home className="w-5 h-5" /> },
+    { name: 'Dashboard', path: '/dashboard', icon: <BarChart className="w-5 h-5" /> },
     { name: 'Chat', path: '/conversation/default', icon: <MessageSquare className="w-5 h-5" /> },
-    { name: 'Analytics', path: '/analytics', icon: <BarChart className="w-5 h-5" /> },
     { name: 'Settings', path: '/settings', icon: <Settings className="w-5 h-5" /> },
   ];
 
@@ -106,11 +107,19 @@ const Navigation = () => {
                   <DropdownMenuLabel>
                     {currentUser.displayName || currentUser.email}
                   </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate('/profile')}>
+                  <DropdownMenuSeparator />                  <DropdownMenuItem onClick={() => navigate('/profile')}>
                     <User className="w-4 h-4 mr-2" />
                     Profile
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/rewards')}>
+                    <Gift className="w-4 h-4 mr-2" />
+                    Rewards & Referrals
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/support')}>
+                    <HelpCircle className="w-4 h-4 mr-2" />
+                    Support
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleSignOut}>
                     <LogOut className="w-4 h-4 mr-2" />
                     Sign out
@@ -170,6 +179,39 @@ const Navigation = () => {
                     </Avatar>
                     <span className="font-medium">{currentUser.displayName || currentUser.email}</span>
                   </div>
+                  <Button 
+                    variant="ghost" 
+                    className="w-full justify-start px-0 mt-2" 
+                    onClick={() => {
+                      navigate('/profile');
+                      setMobileMenuOpen(false);
+                    }}
+                  >
+                    <User className="w-5 h-5 mr-2" />
+                    Profile
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    className="w-full justify-start px-0 mt-2" 
+                    onClick={() => {
+                      navigate('/rewards');
+                      setMobileMenuOpen(false);
+                    }}
+                  >
+                    <Gift className="w-5 h-5 mr-2" />
+                    Rewards & Referrals
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    className="w-full justify-start px-0 mt-2" 
+                    onClick={() => {
+                      navigate('/support');
+                      setMobileMenuOpen(false);
+                    }}
+                  >
+                    <HelpCircle className="w-5 h-5 mr-2" />
+                    Support
+                  </Button>
                   <Button 
                     variant="ghost" 
                     className="w-full justify-start px-0 mt-2" 
