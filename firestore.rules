@@ -15,6 +15,9 @@ service cloud.firestore {
       // Allow write if the user is authenticated and the document ID matches their UID
       // This ensures users can only modify their own documents
       allow write: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow creation of new user profiles during signup
+      allow create: if request.auth != null && request.auth.uid == userId;
     }
     
     // Conversation history - users can only access their own conversations
@@ -38,9 +41,16 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if false;  // Only allow writes through admin functions
     }
-      // System collection for connection testing
+    
+    // System collection for connection testing
     match /system/connection-test {
       allow read: if true;  // Allow reading without authentication for connection testing
+      allow write: if request.auth != null;  // Allow authenticated users to write for connection testing
+    }
+    
+    // Allow authenticated users to check if they exist
+    match /system/{document=**} {
+      allow read: if true;  // Allow reading system documents for connectivity checks
     }
   }
 }

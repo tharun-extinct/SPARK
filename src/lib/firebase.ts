@@ -176,9 +176,12 @@ export const getUserOnboardingStatus = async (userId: string) => {
   }
 };
 
+
+// Update Users Onboarding Status function
 export const updateUserOnboardingStatus = async (userId: string, completed: boolean) => {
+  
   if (!userId) {
-    console.error("Cannot update onboarding status: Missing user ID");
+    console.log("Missing user ID");
     return false;
   }
   
@@ -187,7 +190,7 @@ export const updateUserOnboardingStatus = async (userId: string, completed: bool
     sessionStorage.setItem(`onboarding_complete_${userId}`, completed ? 'true' : 'false');
     console.log("Stored onboarding status in sessionStorage as fallback");
   } catch (storageError) { 
-    console.error("Failed to store in sessionStorage:", storageError); 
+    console.log("Session storage failed:", storageError); 
   }  
 
   const maxRetries = 3; // Reduced from 5 for faster feedback
@@ -223,9 +226,13 @@ export const updateUserOnboardingStatus = async (userId: string, completed: bool
         };
         await setDoc(userDocRef, initialUserData);
       } else {
-        // Only update the necessary fields if the document exists
+        // Updates the necessary fields if the document exists
         await setDoc(userDocRef, updateData, { merge: true });
       }
+
+      //await setDoc(userDocRef, updateData, { merge: true });
+      //console.log("User onboarding status updated successfully:", completed);
+
       isFirestoreConnected = true; // Mark connection as verified on successful write
 
       // Save to sessionStorage on successful update as well
