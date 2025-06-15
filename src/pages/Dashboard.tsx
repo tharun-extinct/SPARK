@@ -214,25 +214,7 @@ const Dashboard = () => {
       ) : (
         <>
           {/* Header */}
-          <header className="bg-white shadow-sm px-6 py-4">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center space-x-4">
-                <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
-                  <Home className="w-4 h-4" />
-                </Button>
-                <h1 className="text-2xl font-bold text-gray-900">Wellness Dashboard</h1>
-              </div>
-              <div className="flex items-center space-x-4">
-                <Button variant="outline" size="sm">
-                  <Settings className="w-4 h-4 mr-2" />
-                  Settings
-                </Button>
-                <Button variant="ghost" size="sm">
-                  <User className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </header>
+          
 
           <div className="p-6 space-y-6">
             {/* Quick Stats */}
