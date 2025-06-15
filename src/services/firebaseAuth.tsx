@@ -34,7 +34,7 @@ const AuthContext = createContext<AuthContextType>({
 
 // Track connection attempts to prevent excessive reconnection
 let connectionAttemptTimestamp = 0;
-const CONNECTION_COOLDOWN_MS = 30000; // 30 seconds cooldown between connection resets
+const CONNECTION_COOLDOWN_MS = 15000; // 15 seconds cooldown between connection resets (reduced from 30s)
 
 // Provider component
 export const AuthProvider = ({ children }: AuthProviderProps) => {
@@ -69,14 +69,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       console.error("Error resetting Firestore connection:", error);
     }
   };
-  useEffect(() => {
-    // Set up a timeout to prevent indefinite loading state
+  useEffect(() => {    // Set up a timeout to prevent indefinite loading state
     const loadingTimeout = setTimeout(() => {
       if (isLoading) {
         console.log("Auth loading timeout reached - forcing completion");
         setIsLoading(false);
       }
-    }, 5000); // Force loading to complete after 5 seconds max
+    }, 3000); // Reduced from 5s for faster UI response
     
     // Proactively ensure Firestore connection is established once at startup
     // Run in background to not block UI
@@ -148,13 +147,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         
         return status;
       }
-      
-      // No cached value, set a short timeout for Firestore connection
+        // No cached value, set a short timeout for Firestore connection
       const timeoutPromise = new Promise<boolean>((resolve) => {
         setTimeout(() => {
           console.log("Firestore connection timeout for onboarding status");
           resolve(false);
-        }, 2000); // 2 second timeout
+        }, 1000); // 1 second timeout (reduced from 2s)
       });
       
       // Attempt to get the status from Firestore
@@ -277,14 +275,13 @@ export const withCompletedOnboarding = (Component: React.ComponentType) => {
     const [error, setError] = useState<string | null>(null);
     const [retryCount, setRetryCount] = useState(0);
 
-    useEffect(() => {
-      // Set a max timeout for checking status to prevent indefinite loading
+    useEffect(() => {      // Set a max timeout for checking status to prevent indefinite loading
       const checkTimeout = setTimeout(() => {
         if (checking) {
           console.log("Dashboard check timeout reached - showing dashboard anyway");
           setChecking(false);
         }
-      }, 3000); // Show dashboard after 3 seconds max wait
+      }, 2000); // Show dashboard after 2 seconds max wait (reduced from 3s)
       
       const checkStatus = async () => {
         try {
@@ -341,11 +338,10 @@ export const withCompletedOnboarding = (Component: React.ComponentType) => {
             
             // Try to reset the Firestore connection
             resetFirestoreConnection().catch(console.error);
-            
-            // Wait a moment then retry, but shorter wait
+              // Wait a moment then retry, but shorter wait
             setTimeout(() => {
               checkStatus();
-            }, 1000);
+            }, 500); // Reduced from 1000ms for faster retry
           } else {
             // After retries, just show dashboard instead of error
             // This is a better user experience than showing an error

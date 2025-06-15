@@ -53,21 +53,18 @@ const firestoreSettings = {
   experimentalForceLongPolling: true,
   // Configure a shorter timeout for faster initial loading
   experimentalLongPollingOptions: {
-    timeoutSeconds: 10 // Shorter timeout for faster response (30s max allowed by Firebase)
+    timeoutSeconds: 5 // Reduced timeout for faster response
   }
 };
 
 // Create Firestore instance with optimized settings
 const db = initializeFirestore(app, firestoreSettings);
 
-// Explicitly enable network connections to ensure we're not in offline mode
-// but do it in background to not block UI
-setTimeout(() => {
-  enableFirestoreNetwork(db).catch(error => {
-    //console.error("Error enabling Firestore network:", error);
-    console.log("Error enabling Firestore network:", error);
-  });
-}, 0);
+// Initialize network immediately
+enableFirestoreNetwork(db).catch(error => {
+  console.log("Error enabling Firestore network:", error);
+});
+
 // Set auth persistence to LOCAL by default for persistent sessions
 setPersistence(auth, browserLocalPersistence).catch((error) => {
   console.log("Error setting auth persistence:", error);
@@ -307,11 +304,10 @@ export const signInWithGoogle = async () => {
 
 // Utility function to test Firestore connection with better error handling
 export const validateFirestoreConnection = async () => {
-  try {
-    if (isFirestoreConnected) return true; // Return immediately if we believe we are connected
+  try {    if (isFirestoreConnected) return true; // Return immediately if we believe we are connected
 
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error("Firestore connection timeout")), 8000) // Reduced from 10s
+      setTimeout(() => reject(new Error("Firestore connection timeout")), 4000) // Reduced timeout for faster failure detection
     );
     
     const connectionPromise = (async () => {
@@ -470,10 +466,9 @@ export const resetNetworkConnection = async (): Promise<boolean> => {
     console.log("Network reset already in progress, skipping");
     return false;
   }
-  
-  // Prevent resets if we've recently reset already (cooldown of 10s)
+    // Prevent resets if we've recently reset already (cooldown of 5s)
   const now = Date.now();  
-  if (now - lastNetworkResetTime < 10000) {
+  if (now - lastNetworkResetTime < 5000) {
     console.log("Network reset on cooldown, skipping");
     return false;
   }
@@ -482,18 +477,17 @@ export const resetNetworkConnection = async (): Promise<boolean> => {
     networkResetInProgress = true;
     lastNetworkResetTime = now;
     console.log("Resetting Firestore network connection");
-    
-    // Disable network
+      // Disable network
     await disableFirestoreNetwork(db);
     
     // Short delay to ensure clean disconnect
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Reduced from 2s
+    await new Promise(resolve => setTimeout(resolve, 500)); // Reduced for faster reset
     
     // Re-enable network
     await enableFirestoreNetwork(db);
     
     // Another short delay to let connection establish
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Reduced from 1.5s
+    await new Promise(resolve => setTimeout(resolve, 500)); // Reduced for faster reset
     
     console.log("Firestore network connection reset complete");
     // Reset connection flag to force verification on next operation
@@ -564,9 +558,8 @@ export const withWriteRetry = async <T>(
             console.error("Failed to reset network during retry:", resetError);
           }
         }
-        
-        // Add a delay with exponential backoff
-        const delay = Math.min(Math.pow(2, retryCount) * 500, 5000); // Reduced base and max delay
+          // Add a delay with exponential backoff
+        const delay = Math.min(Math.pow(2, retryCount) * 300, 2000); // Reduced backoff for faster retries
         await new Promise(resolve => setTimeout(resolve, delay));
         
         // Retry the operation
