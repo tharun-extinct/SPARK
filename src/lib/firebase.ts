@@ -46,9 +46,7 @@ const auth = getAuth(app);
 const firestoreSettings = {
   // Use persistent cache with multi-tab support
   localCache: persistentLocalCache({
-    // Use the tabManager for multi-tab support
     tabManager: persistentMultipleTabManager(),
-    // Set cache size to unlimited for better offline support
     cacheSizeBytes: CACHE_SIZE_UNLIMITED
   }),
   // Use long polling instead of WebSockets for more reliable connections
