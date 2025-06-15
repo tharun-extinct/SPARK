@@ -28,7 +28,6 @@ import {
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 
-// Define the form schema
 const profileFormSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
@@ -48,7 +47,23 @@ const Profile = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
+  // Role options for dropdown
+  const roleOptions = [
+    { value: "student", label: "Student" },
+    { value: "software_engineer", label: "Software Engineer" },
+    { value: "data_scientist", label: "Data Science Professional" },
+    { value: "professor", label: "Professor" },
+    { value: "doctor", label: "Doctor" },
+    { value: "startup_founder", label: "Startup Founder" },
+    { value: "scientist", label: "Scientist" },
+    { value: "designer", label: "Designer" },
+    { value: "product_manager", label: "Product Manager" },
+    { value: "business_professional", label: "Business Professional" },
+    { value: "artist", label: "Artist" },
+    { value: "other", label: "Other" }
+  ];
   // Initialize form
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -61,52 +76,51 @@ const Profile = () => {
       phone: '',
       currentRole: '',
     },
+    mode: "onChange"
   });
-
   // Fetch user profile data
-  useEffect(() => {
-    const fetchProfileData = async () => {
-      if (!currentUser) return;
+  const fetchProfileData = async () => {
+    if (!currentUser) return;
+    
+    setIsLoading(true);
+    try {
+      const userDocRef = doc(db, "users", currentUser.uid);
+      const userDoc = await getDoc(userDocRef);
 
-      try {
-        const userDocRef = doc(db, "users", currentUser.uid);
-        const userDoc = await getDoc(userDocRef);
-
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          // Update form with existing data
-          form.reset({
-            firstName: userData.firstName || '',
-            lastName: userData.lastName || '',
-            email: userData.email || currentUser.email || '',
-            age: userData.age ? String(userData.age) : '',
-            gender: userData.gender || '',
-            phone: userData.phone || '',
-            currentRole: userData.currentRole || '',
-          });
-        } else {
-          // Initialize with data from auth if available
-          if (currentUser.displayName) {
-            const nameParts = currentUser.displayName.split(' ');
-            form.setValue('firstName', nameParts[0] || '');
-            form.setValue('lastName', nameParts.slice(1).join(' ') || '');
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching profile data:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load profile data',
-          variant: 'destructive',
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        // Update form with existing data
+        form.reset({
+          firstName: userData.firstName || '',
+          lastName: userData.lastName || '',
+          email: userData.email || currentUser.email || '',
+          age: userData.age ? String(userData.age) : '',
+          gender: userData.gender || '',
+          phone: userData.phone || '',
+          currentRole: userData.currentRole || '',
         });
-      } finally {
-        setIsLoading(false);
+      } else {
+        // Initialize with data from auth if available
+        if (currentUser.displayName) {
+          const nameParts = currentUser.displayName.split(' ');
+          form.setValue('firstName', nameParts[0] || '');
+          form.setValue('lastName', nameParts.slice(1).join(' ') || '');
+        }
       }
-    };
-
+    } catch (error) {
+      console.error('Error fetching profile data:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load profile data',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  useEffect(() => {
     fetchProfileData();
-  }, [currentUser, form, toast]);
-
+  }, [currentUser]); // eslint-disable-line react-hooks/exhaustive-deps
   // Submit handler
   const onSubmit = async (data: ProfileFormValues) => {
     if (!currentUser) return;
@@ -129,6 +143,9 @@ const Profile = () => {
 
       // Update profile in Firestore
       await setDoc(userDocRef, profileData, { merge: true });
+      
+      // Turn off edit mode
+      setIsEditing(false);
       
       toast({
         title: 'Profile Updated',
@@ -185,29 +202,27 @@ const Profile = () => {
             </div>
           ) : (
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormField
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6" autoComplete="on">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">                    <FormField
                     control={form.control}
                     name="firstName"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>First Name</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input {...field} disabled={!isEditing} autoComplete="given-name" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
-                  />
-                  <FormField
+                  />                  <FormField
                     control={form.control}
                     name="lastName"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Last Name</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input {...field} disabled={!isEditing} autoComplete="family-name" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -220,9 +235,8 @@ const Profile = () => {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input {...field} disabled />
+                      <FormLabel>Email</FormLabel>                      <FormControl>
+                        <Input {...field} disabled autoComplete="email" />
                       </FormControl>
                       <FormDescription>
                         Your email address is associated with your account and cannot be changed.
@@ -232,15 +246,13 @@ const Profile = () => {
                   )}
                 />
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormField
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">                  <FormField
                     control={form.control}
                     name="age"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Age</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="number" />
+                        <FormLabel>Age</FormLabel>                      <FormControl>
+                          <Input {...field} type="number" disabled={!isEditing} autoComplete="age" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -255,6 +267,7 @@ const Profile = () => {
                         <Select
                           onValueChange={field.onChange}
                           defaultValue={field.value}
+                          disabled={!isEditing}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -273,47 +286,84 @@ const Profile = () => {
                       </FormItem>
                     )}
                   />
-                </div>
-
-                <FormField
+                </div>                <FormField
                   control={form.control}
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Phone (with country code)</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="+1 (555) 123-4567" />
+                      <FormLabel>Phone (with country code)</FormLabel>                      <FormControl>
+                        <Input {...field} placeholder="+1 (555) 123-4567" disabled={!isEditing} autoComplete="tel" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
-                />
-
-                <FormField
+                /><FormField
                   control={form.control}
                   name="currentRole"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Current Role</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="e.g. Software Engineer, Student, etc." />
-                      </FormControl>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        disabled={!isEditing}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select your role" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {roleOptions.map((role) => (
+                            <SelectItem key={role.value} value={role.value}>
+                              {role.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
-                />
-
-                <div className="pt-4">
-                  <Button type="submit" className="w-full" disabled={isSaving}>
-                    {isSaving ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      'Save Changes'
-                    )}
-                  </Button>
+                />                <div className="pt-4 space-y-4">
+                  {!isEditing ? (
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={() => setIsEditing(true)}
+                    >
+                      Edit Profile
+                    </Button>
+                  ) : (
+                    <div className="flex flex-col space-y-3">
+                      <Button 
+                        type="submit" 
+                        className="w-full" 
+                        disabled={isSaving}
+                      >
+                        {isSaving ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          'Save Changes'
+                        )}
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        className="w-full"
+                        onClick={() => {
+                          setIsEditing(false);
+                          // Reset form to the last saved values
+                          fetchProfileData();
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </form>
             </Form>
