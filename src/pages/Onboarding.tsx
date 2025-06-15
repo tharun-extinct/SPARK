@@ -48,7 +48,7 @@ const Onboarding = () => {
 
   const steps = [
     {
-      title: "Welcome to ConnectAI",
+      title: "Welcome to SPARK",
       description: "Let's get you started with your AI wellness companion",
       content: (
         <div className="text-center space-y-6">
@@ -58,7 +58,7 @@ const Onboarding = () => {
           <div>
             <h3 className="text-xl font-bold mb-2">Your Wellness Journey Begins</h3>
             <p className="text-gray-600">
-              ConnectAI uses advanced AI technology to provide you with empathetic, 
+              SPARK uses advanced AI technology to provide you with empathetic, 
               human-like conversations that support your mental wellness and personal growth.
             </p>
           </div>
@@ -90,13 +90,13 @@ const Onboarding = () => {
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <h3 className="font-bold text-yellow-800 mb-2">Important: You're Talking to AI</h3>
             <p className="text-yellow-700">
-              ConnectAI companions are advanced AI agents, not human therapists or medical professionals. 
+              SPARK companions are advanced AI agents, not human therapists or medical professionals. 
               While they provide empathetic support and guidance, they cannot replace professional medical care.
             </p>
           </div>
           
           <div className="space-y-4">
-            <h4 className="font-semibold">What ConnectAI CAN do:</h4>
+            <h4 className="font-semibold">What SPARK CAN do:</h4>
             <ul className="space-y-2">
               <li className="flex items-start">
                 <CheckCircle className="w-5 h-5 text-green-500 mr-2 mt-0.5" />
@@ -153,7 +153,7 @@ const Onboarding = () => {
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <h4 className="font-semibold text-green-800 mb-2">Anonymous by Default</h4>
               <p className="text-green-700 text-sm">
-                You can use ConnectAI without sharing personal identifying information
+                You can use SPARK without sharing personal identifying information
               </p>
             </div>
             
@@ -188,7 +188,7 @@ const Onboarding = () => {
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <h3 className="font-bold text-red-800 mb-2">Crisis Intervention</h3>
             <p className="text-red-700">
-              If ConnectAI detects signs of severe distress, suicidal thoughts, or immediate danger, 
+              If SPARK detects signs of severe distress, suicidal thoughts, or immediate danger, 
               it will immediately connect you with human crisis support services.
             </p>
           </div>
@@ -355,7 +355,7 @@ const Onboarding = () => {
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold">C</span>
               </div>
-              <span className="text-xl font-bold text-gray-900">ConnectAI</span>
+              <span className="text-xl font-bold text-gray-900">SPARK</span>
             </div>
             <span className="text-sm text-gray-500">
               Step {currentStep + 1} of {steps.length}
