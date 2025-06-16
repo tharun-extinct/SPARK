@@ -52,7 +52,7 @@ src/
 
 
 --
-applyTo: '**/.py'
+applyTo: '**/tavus.ts'
 --
 
 ## Key AI Models & Features
@@ -62,3 +62,6 @@ applyTo: '**/.py'
 - **Real-time video conversations** with sub-1-second latency
 - **Crisis intervention** with human-in-the-loop escalation
 - **Multilingual support** with cultural adaptation
+
+## Reference Documentation
+- [Tavus CVI Documentation](https://docs.tavus.io/)
