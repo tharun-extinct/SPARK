@@ -1,14 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db, uploadProfilePicture } from '@/lib/firebase';
 import { useAuth } from '@/services/firebaseAuth';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Pencil, Loader2 } from 'lucide-react';
 import {
   Form,
   FormControl,
@@ -26,7 +27,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
 
 const profileFormSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -48,6 +48,10 @@ const Profile = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Role options for dropdown
   const roleOptions = [
@@ -163,6 +167,91 @@ const Profile = () => {
     }
   };
 
+  // Handle image upload
+  const handleImageUpload = async (file: File) => {
+    if (!currentUser) return;
+
+    try {
+      setIsUploadingPhoto(true);
+      // Upload the image file
+      const imageUrl = await uploadProfilePicture(currentUser.uid, file);
+
+      // Update the user's profile picture URL in Firestore
+      const userDocRef = doc(db, "users", currentUser.uid);
+      await setDoc(userDocRef, { photoURL: imageUrl }, { merge: true });
+
+      toast({
+        title: 'Profile Picture Updated',
+        description: 'Your profile picture has been updated successfully',
+      });
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to upload profile picture',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  // Handle profile picture upload
+  const handleProfilePictureUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!currentUser || !event.target.files || event.target.files.length === 0) return;
+    
+    const file = event.target.files[0];
+    setIsUploadingPhoto(true);
+    
+    try {
+      await uploadProfilePicture(currentUser, file);
+      
+      toast({
+        title: 'Profile Picture Updated',
+        description: 'Your profile picture has been updated successfully',
+      });
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to upload profile picture',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  // Trigger file input click
+  const triggerFileUpload = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  // Handle file input change
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    setImageFile(file);
+
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setImagePreview(null);
+    }
+  };
+
+  // Trigger file input click
+  const handleAvatarClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
   if (!currentUser) {
     return (
       <div className="container mx-auto py-6 px-4">
@@ -181,8 +270,10 @@ const Profile = () => {
       <Card className="max-w-2xl mx-auto">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <Avatar className="w-24 h-24">
-              {currentUser.photoURL ? (
+            <Avatar className="w-24 h-24 cursor-pointer" onClick={handleAvatarClick}>
+              {imagePreview ? (
+                <AvatarImage src={imagePreview} alt="Profile picture preview" />
+              ) : currentUser.photoURL ? (
                 <AvatarImage src={currentUser.photoURL} alt={currentUser.displayName || "User profile"} />
               ) : (
                 <AvatarFallback className="text-2xl">
@@ -191,6 +282,13 @@ const Profile = () => {
                 </AvatarFallback>
               )}
             </Avatar>
+            <input
+              type="file"
+              accept="image/*"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+            />
           </div>
           <CardTitle>Your Profile</CardTitle>
           <CardDescription>Update your personal information</CardDescription>

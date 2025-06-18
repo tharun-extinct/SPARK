@@ -9,7 +9,8 @@ import {
   setPersistence,
   browserLocalPersistence,
   GoogleAuthProvider,
-  signInWithPopup                   } from 'firebase/auth';
+  signInWithPopup,
+  updateProfile                  } from 'firebase/auth';
 import { 
   getFirestore, 
   doc, 
@@ -25,6 +26,12 @@ import {
   CACHE_SIZE_UNLIMITED,
   disableNetwork as disableFirestoreNetwork,
   enableNetwork as enableFirestoreNetwork    } from 'firebase/firestore';
+import {
+  getStorage,
+  ref as storageRef,
+  uploadBytes,
+  getDownloadURL
+} from 'firebase/storage';
 
 // Firebase configuration - directly from Firebase console
 const firebaseConfig = {
@@ -41,6 +48,7 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const storage = getStorage(app);
 
 // Configure Firebase with memory management settings to prevent excessive re-connects
 const firestoreSettings = {
@@ -80,7 +88,7 @@ let lastNetworkResetTime = Date.now();
 let pendingOperations = 0;
 let networkResetInProgress = false;
 
-export { app, auth, db };
+export { app, auth, db, storage };
 
 // Helper authentication functions
 export const createAccount = async (email: string, password: string) => {
@@ -574,4 +582,32 @@ export const withWriteRetry = async <T>(
   };
   
   return attempt();
+};
+
+// Upload profile picture and update user profile
+export const uploadProfilePicture = async (user: User, file: File): Promise<string> => {
+  try {
+    // Create a storage reference
+    const fileRef = storageRef(storage, `profilePictures/${user.uid}/${file.name}`);
+    
+    // Upload the file
+    const snapshot = await uploadBytes(fileRef, file);
+    
+    // Get the download URL
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    
+    // Update the user's profile with the new photo URL
+    await updateProfile(user, {
+      photoURL: downloadURL,
+    });
+    
+    // Update the user document in Firestore
+    const userDocRef = doc(db, "users", user.uid);
+    await setDoc(userDocRef, { photoURL: downloadURL }, { merge: true });
+    
+    return downloadURL;
+  } catch (error: any) {
+    console.error("Error uploading profile picture:", error.code, error.message);
+    throw error;
+  }
 };
