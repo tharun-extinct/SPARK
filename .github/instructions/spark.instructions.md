@@ -10,6 +10,7 @@ SPARK (Social Perceptual AI Real-time Knowledge Assistant) is an AI-powered vide
 ## Rules & Guidelines
 - Always use tabs for indentation.
 - Don't create any files for debugging, until I told you to do so.
+- create custom UI components in this path `src/components/`.
 - For all designs I ask you to make, have them be beautiful, not cookie cutter. 
 - Make code changes in such a way that are fully featured and worthy for production.
 - Do not install other packages for UI themes, icons, etc unless absolutely necessary or I request them.
