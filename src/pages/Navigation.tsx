@@ -87,8 +87,8 @@ const Navigation = () => {
                     {item.name}
                   </Link>
                 ))}
-              </div>
-                <DropdownMenu>
+              </div>                
+              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full w-10 h-10 p-0 overflow-hidden">
                     <Avatar>
@@ -96,8 +96,11 @@ const Navigation = () => {
                         <AvatarImage src={currentUser.photoURL} alt={currentUser.displayName || "User profile"} />
                       ) : (
                         <AvatarFallback className="bg-primary text-primary-foreground">
-                          {(currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 
-                           currentUser.email ? currentUser.email.charAt(0).toUpperCase() : "U")}
+                          {currentUser.displayName ? 
+                            currentUser.displayName.charAt(0).toUpperCase() : 
+                            currentUser.email ? 
+                              currentUser.email.charAt(0).toUpperCase() : 
+                              "U"}
                         </AvatarFallback>
                       )}
                     </Avatar>
@@ -166,14 +169,16 @@ const Navigation = () => {
                     {item.name}
                   </Link>
                 ))}                <div className="pt-2 mt-2 border-t">
-                  <div className="flex items-center gap-3 py-2">
-                    <Avatar className="w-8 h-8">
+                  <div className="flex items-center gap-3 py-2">                    <Avatar className="w-8 h-8">
                       {currentUser.photoURL ? (
                         <AvatarImage src={currentUser.photoURL} alt={currentUser.displayName || "User profile"} />
                       ) : (
                         <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                          {(currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 
-                           currentUser.email ? currentUser.email.charAt(0).toUpperCase() : "U")}
+                          {currentUser.displayName ? 
+                            currentUser.displayName.charAt(0).toUpperCase() : 
+                            currentUser.email ? 
+                              currentUser.email.charAt(0).toUpperCase() : 
+                              "U"}
                         </AvatarFallback>
                       )}
                     </Avatar>
