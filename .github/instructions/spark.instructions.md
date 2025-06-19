@@ -10,10 +10,14 @@ SPARK (Social Perceptual AI Real-time Knowledge Assistant) is an AI-powered vide
 ## Rules & Guidelines
 - Always use tabs for indentation.
 - Don't create any files for debugging, until I told you to do so.
-- create custom UI components in this path `src/components/`.
 - For all designs I ask you to make, have them be beautiful, not cookie cutter. 
 - Make code changes in such a way that are fully featured and worthy for production.
 - Do not install other packages for UI themes, icons, etc unless absolutely necessary or I request them.
+
+
+## Work flow
+- **New user**: SignUp -> Onboarding (necessary) -> Dashboard
+- **Returning user**: Login -> Dashboard
 
 
 ## Core Technology Stack
@@ -29,7 +33,7 @@ SPARK (Social Perceptual AI Real-time Knowledge Assistant) is an AI-powered vide
 ## Firebase Setup
 There isn't a firebase.json file in this project directory, which means we need to update the rules directly from the Firebase console.
 
-
+## Development Standards
 ### File Structure
 ```
 src/
@@ -52,9 +56,12 @@ applyTo: '**/tavus.ts'
 --
 
 ## Key AI Models & Features
+- **Phoenix-3**: Lifelike avatar generation with natural facial movements
+- **Raven-0**: Advanced emotional perception and ambient awareness
+- **Sparrow-0**: Natural turn-taking and conversation rhythm
 - **Real-time video conversations** with sub-1-second latency
-- **AI-driven insights** for mental wellness
-- **Personalized user experience** through Tavus CVI
+- **Crisis intervention** with human-in-the-loop escalation
+- **Multilingual support** with cultural adaptation
 
 ## Reference Documentation
 - [Tavus CVI Documentation](https://docs.tavus.io/)
