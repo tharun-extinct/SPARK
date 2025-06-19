@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -48,15 +49,11 @@ const Login = () => {
   };
 
   const handleGoogleLogin = async () => {
+    setIsLoading(true);
     setError("");
     
     try {
-      // Call signInWithGoogle immediately within the user gesture
-      const signInPromise = signInWithGoogle();
-      // Set loading state after initiating the sign-in
-      setIsLoading(true);
-      
-      await signInPromise;
+      await signInWithGoogle();
       toast({
         title: "Login successful!",
         description: "Welcome to SPARK",
