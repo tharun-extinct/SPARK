@@ -9,7 +9,7 @@ import { TavusCVIFrame } from "@/components/TavusCVIFrame";
 import { useToast } from "@/components/ui/use-toast";
 
 const Conversation = () => {
-  const { agentType } = useParams();
+  const { agentType = "psychiatrist" } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isVideoOn, setIsVideoOn] = useState(true);
@@ -26,8 +26,8 @@ const Conversation = () => {
 
   const agentInfo = {
     psychiatrist: {
-      name: "Dr.Anna",
-      context: "You are a helpful virtual doctor called Dr.Anna giving medical advice.",
+      name: "Dr. Anna",
+      context: "You are a helpful virtual doctor called Dr. Anna giving mental health advice. Be empathetic and supportive.",
       avatar: "👩‍⚕️",
       greeting: "Hello! I'm Dr.Anna, your mental health companion. How are you feeling today?",
       replicaId: "r6ae5b6efc9d",
@@ -35,15 +35,15 @@ const Conversation = () => {
     },
     tutor: {
       name: "Alex",
-      context: "You are a helpful virtual tutor called Alex providing learning assistance.",
+      context: "You are a helpful virtual tutor called Alex providing learning assistance and educational guidance.",
       avatar: "👨‍🏫",
       greeting: "Hi there! I'm Alex, your learning companion. What would you like to explore today?",
       replicaId: "rc2146c13e81",
       personaId: "peebe852d86b"
     },
     doctor: {
-      name: "Dr.James",
-      context: "You are a helpful virtual wellness coach called Dr. James providing wellness advice.",
+      name: "Dr. James",
+      context: "You are a helpful virtual wellness coach called Dr. James providing physical health and wellness advice.",
       avatar: "👨‍⚕️",
       greeting: "Good day! I'm Dr. James, your wellness assistant. How can I help with your health today?",
       replicaId: "r4d9b2288937",
@@ -271,6 +271,7 @@ const Conversation = () => {
       </div>
     </div>
   );
+};
 };
 
 export default Conversation;
