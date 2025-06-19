@@ -14,6 +14,7 @@ import Onboarding from "./pages/Onboarding";
 import Profile from "./pages/Profile";
 import Rewards from "./pages/Rewards";
 import Support from "./pages/Support";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import Navigation from "./pages/Navigation";
 
@@ -26,6 +27,7 @@ const ProtectedOnboarding = withAuth(Onboarding);
 const ProtectedProfile = withAuth(Profile);
 const ProtectedRewards = withAuth(Rewards);
 const ProtectedSupport = withAuth(Support);
+const ProtectedSettings = withAuth(Settings);
 
 // Component to handle conditional navigation rendering
 const AppContent = () => {
@@ -45,6 +47,7 @@ const AppContent = () => {
         <Route path="/profile" element={<ProtectedProfile />} />
         <Route path="/rewards" element={<ProtectedRewards />} />
         <Route path="/support" element={<ProtectedSupport />} />
+        <Route path="/settings" element={<ProtectedSettings />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>

@@ -147,7 +147,7 @@ const Index = () => {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2 group">
             <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/70 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-              <Sparkles className="w-5 h-5 text-primary-foreground animate-pulse" />
+              <Sparkles className="w-5 h-5 text-primary-foreground" />
             </div>
             <span className="text-xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">SPARK</span>
           </div>
@@ -179,7 +179,7 @@ const Index = () => {
             }`}
           >
             <Badge variant="secondary" className="mb-6 px-4 py-2 text-sm font-medium hover:scale-105 transition-transform duration-300 bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
-              <Sparkles className="w-4 h-4 mr-2 animate-spin" />
+              <Sparkles className="w-4 h-4 mr-2" />
               Powered by Tavus & LiveKit
             </Badge>
           </div>
