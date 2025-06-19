@@ -60,8 +60,11 @@ const Conversation = () => {
   // }, [conversationStarted, currentAgent.greeting]);
 
   const [conversationUrl, setConversationUrl] = useState("");
-
   useEffect(() => {
+    // Show loading indicator
+    setConversationStarted(true);
+    
+    // Create a new Tavus conversation
     createTavusConversation({
       replicaId: currentAgent.replicaId,
       personaId: currentAgent.personaId,
@@ -69,24 +72,64 @@ const Conversation = () => {
       context: currentAgent.context,
       greeting: currentAgent.greeting,
     })
-      .then(setConversationUrl)
+      .then(response => {
+        setConversationUrl(response.conversationUrl);
+        console.log("Conversation started successfully");
+      })
       .catch((err) => {
         console.error("Failed to start conversation", err);
+        // You could add error handling UI here
       });
-  }, []);
-
+  }, [currentAgent]);
   const endCall = () => {
     navigate("/dashboard");
   };
-
+  
+  // Build a custom style to control the height precisely
+  const containerStyle = {
+    height: "calc(100vh - 120px)" // 120px accounts for header + margins + padding
+  };
+  
   return (
-    <div>
-      <h1>{`${currentAgent.name} Chat`}</h1>
-      {conversationUrl ? (
-        <TavusCVIFrame conversationUrl={conversationUrl} />
-      ) : (
-        <p>Loading {`${currentAgent.name} Chat`}...</p>
-      )}
+    <div className="container mx-auto px-4 py-4 flex flex-col min-h-screen max-h-screen overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={() => navigate("/dashboard")}
+            className="rounded-full"
+          >
+            <Home className="h-4 w-4" />
+          </Button>
+          <h1 className="text-xl md:text-2xl font-bold">{`${currentAgent.name} Session`}</h1>
+        </div>
+        <Button variant="outline" onClick={endCall}>
+          Return to Dashboard
+        </Button>
+      </div>      {/* Main content */}
+      <div className="flex-1 mb-4">
+        {conversationUrl ? (
+          <Card className="overflow-hidden">
+            <CardContent className="p-0" style={containerStyle}>
+              <TavusCVIFrame 
+                conversationUrl={conversationUrl} 
+                agentName={currentAgent.name}
+                agentAvatar={currentAgent.avatar}
+                onEndCall={endCall}
+              />
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="flex items-center justify-center bg-muted/20 rounded-lg" style={containerStyle}>
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-muted-foreground">Loading {`${currentAgent.name} Chat`}...</p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
   };
