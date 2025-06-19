@@ -30,7 +30,7 @@ import {
   updateUserOnboardingStatus 
 } from "@/lib/firebase";
 import { useToast } from "@/components/ui/use-toast";
-import { wellnessAssistants } from "@/services/tavusConversation";
+//import { wellnessAssistants } from "@/services/tavusConversation";
 
 const Dashboard = () => {
   const navigate = useNavigate();
