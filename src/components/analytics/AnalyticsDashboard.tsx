@@ -205,32 +205,28 @@ const AnalyticsDashboard: React.FC = () => {
   const averageRating = sessionData.reduce((sum, item) => sum + item.quality, 0) / sessionData.length;
 
   return (
-    <div className="space-y-6 min-h-screen">
+    <div className="space-y-6 min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-6 rounded-2xl">
       {/* Header */}
       <div 
         id="analytics-header"
         data-animate
-        className={`flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all duration-1000 ${
-          isVisible('analytics-header') 
-            ? 'opacity-100 translate-y-0' 
-            : 'opacity-100 translate-y-0'
-        }`}
+        className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 opacity-100 translate-y-0"
       >
         <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2 bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
-            <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg">
-              <BarChart3 className="w-6 h-6 text-white" />
+          <h2 className="text-3xl font-bold flex items-center gap-3 bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+            <div className="p-3 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl shadow-lg">
+              <BarChart3 className="w-7 h-7 text-white" />
             </div>
             AI Conversation Analytics
           </h2>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground mt-2 text-lg">
             Insights into your wellness journey and AI interactions
           </p>
         </div>
         
         <div className="flex items-center gap-3">
           <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="w-32 bg-white/80 backdrop-blur-sm border border-white/20">
+            <SelectTrigger className="w-36 bg-white/80 backdrop-blur-sm border border-white/20 shadow-lg">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -244,7 +240,7 @@ const AnalyticsDashboard: React.FC = () => {
           <Button 
             variant="outline" 
             onClick={handleExportData}
-            className="bg-white/80 backdrop-blur-sm border border-white/20 hover:bg-gradient-to-r hover:from-primary hover:to-purple-600 hover:text-white transition-all duration-300"
+            className="bg-white/80 backdrop-blur-sm border border-white/20 hover:bg-gradient-to-r hover:from-primary hover:to-purple-600 hover:text-white transition-all duration-300 shadow-lg"
           >
             <Download className="w-4 h-4 mr-2" />
             Export
@@ -256,38 +252,34 @@ const AnalyticsDashboard: React.FC = () => {
       <div 
         id="analytics-tabs"
         data-animate
-        className={`transition-all duration-1000 delay-200 ${
-          isVisible('analytics-tabs') 
-            ? 'opacity-100 translate-y-0' 
-            : 'opacity-100 translate-y-0'
-        }`}
+        className="opacity-100 translate-y-0"
       >
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 bg-white/80 backdrop-blur-sm border border-white/20 shadow-lg">
+          <TabsList className="grid w-full grid-cols-4 bg-white/90 backdrop-blur-sm border border-white/30 shadow-xl rounded-xl p-2">
             <TabsTrigger 
               value="mood" 
-              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-rose-500 data-[state=active]:to-pink-600 data-[state=active]:text-white transition-all duration-300 hover:scale-105"
+              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-rose-500 data-[state=active]:to-pink-600 data-[state=active]:text-white transition-all duration-300 hover:scale-105 rounded-lg"
             >
               <TrendingUp className="w-4 h-4" />
               Mood Tracking
             </TabsTrigger>
             <TabsTrigger 
               value="insights" 
-              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white transition-all duration-300 hover:scale-105"
+              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white transition-all duration-300 hover:scale-105 rounded-lg"
             >
               <MessageSquare className="w-4 h-4" />
               Conversation Insights
             </TabsTrigger>
             <TabsTrigger 
               value="progress" 
-              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white transition-all duration-300 hover:scale-105"
+              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white transition-all duration-300 hover:scale-105 rounded-lg"
             >
               <Target className="w-4 h-4" />
               Progress Metrics
             </TabsTrigger>
             <TabsTrigger 
               value="quality" 
-              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white transition-all duration-300 hover:scale-105"
+              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white transition-all duration-300 hover:scale-105 rounded-lg"
             >
               <BarChart3 className="w-4 h-4" />
               Session Quality
@@ -296,15 +288,11 @@ const AnalyticsDashboard: React.FC = () => {
 
           <TabsContent value="mood" className="space-y-6">
             {/* Mood Overview Cards */}
-            <div 
-              id="mood-overview"
-              data-animate
-              className="grid grid-cols-1 md:grid-cols-4 gap-4"
-            >
-              <Card className="bg-gradient-to-br from-rose-50 to-pink-100 border-rose-200 hover:shadow-xl hover:scale-105 transition-all duration-300">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card className="bg-gradient-to-br from-rose-50 to-pink-100 border-rose-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-rose-500 to-pink-600 rounded-lg">
+                    <div className="p-2 bg-gradient-to-br from-rose-500 to-pink-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
                       <Heart className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -315,10 +303,10 @@ const AnalyticsDashboard: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200 hover:shadow-xl hover:scale-105 transition-all duration-300">
+              <Card className="bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg">
+                    <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
                       <TrendingUp className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -329,10 +317,10 @@ const AnalyticsDashboard: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 hover:shadow-xl hover:scale-105 transition-all duration-300">
+              <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg">
+                    <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
                       <Zap className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -343,10 +331,10 @@ const AnalyticsDashboard: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-orange-50 to-red-100 border-orange-200 hover:shadow-xl hover:scale-105 transition-all duration-300">
+              <Card className="bg-gradient-to-br from-orange-50 to-red-100 border-orange-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg">
+                    <div className="p-2 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
                       <Activity className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -359,32 +347,32 @@ const AnalyticsDashboard: React.FC = () => {
             </div>
 
             {/* Mood Chart */}
-            <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
+            <Card className="bg-white/90 backdrop-blur-sm border border-white/30 hover:shadow-2xl transition-all duration-500 shadow-xl">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Heart className="w-5 h-5 text-rose-500" />
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <Heart className="w-6 h-6 text-rose-500" />
                   Mood Tracking Over Time
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-base">
                   Your emotional patterns over {timeRange}
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-64 w-full">
+                <div className="h-80 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={moodData}>
                       <defs>
                         <linearGradient id="moodGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                          <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4}/>
+                          <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.1}/>
                         </linearGradient>
                         <linearGradient id="energyGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0.1}/>
                         </linearGradient>
                         <linearGradient id="stressGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                          <stop offset="5%" stopColor="#ef4444" stopOpacity={0.4}/>
+                          <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1}/>
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
@@ -398,10 +386,10 @@ const AnalyticsDashboard: React.FC = () => {
                         content={({ active, payload, label }) => {
                           if (active && payload && payload.length) {
                             return (
-                              <div className="bg-white p-3 border rounded-lg shadow-lg">
-                                <p className="font-medium">{new Date(label).toLocaleDateString()}</p>
+                              <div className="bg-white p-4 border rounded-xl shadow-xl">
+                                <p className="font-medium text-lg">{new Date(label).toLocaleDateString()}</p>
                                 {payload.map((entry, index) => (
-                                  <p key={index} style={{ color: entry.color }}>
+                                  <p key={index} style={{ color: entry.color }} className="text-sm">
                                     {entry.name}: {entry.value}/10
                                   </p>
                                 ))}
@@ -415,7 +403,7 @@ const AnalyticsDashboard: React.FC = () => {
                         type="monotone"
                         dataKey="mood"
                         stroke="#8b5cf6"
-                        strokeWidth={2}
+                        strokeWidth={3}
                         fill="url(#moodGradient)"
                         name="Mood"
                       />
@@ -423,16 +411,16 @@ const AnalyticsDashboard: React.FC = () => {
                         type="monotone"
                         dataKey="energy"
                         stroke="#10b981"
-                        strokeWidth={2}
-                        dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
+                        strokeWidth={3}
+                        dot={{ fill: '#10b981', strokeWidth: 2, r: 5 }}
                         name="Energy"
                       />
                       <Line
                         type="monotone"
                         dataKey="stress"
                         stroke="#ef4444"
-                        strokeWidth={2}
-                        dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
+                        strokeWidth={3}
+                        dot={{ fill: '#ef4444', strokeWidth: 2, r: 5 }}
                         name="Stress"
                       />
                     </AreaChart>
@@ -445,10 +433,10 @@ const AnalyticsDashboard: React.FC = () => {
           <TabsContent value="insights" className="space-y-6">
             {/* Conversation Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200 hover:shadow-xl hover:scale-105 transition-all duration-300">
+              <Card className="bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg">
+                    <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
                       <MessageSquare className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -459,10 +447,10 @@ const AnalyticsDashboard: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 hover:shadow-xl hover:scale-105 transition-all duration-300">
+              <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg">
+                    <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
                       <Clock className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -473,10 +461,10 @@ const AnalyticsDashboard: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-purple-50 to-indigo-100 border-purple-200 hover:shadow-xl hover:scale-105 transition-all duration-300">
+              <Card className="bg-gradient-to-br from-purple-50 to-indigo-100 border-purple-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg">
+                    <div className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
                       <Brain className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -489,26 +477,26 @@ const AnalyticsDashboard: React.FC = () => {
             </div>
 
             {/* Topic Word Cloud */}
-            <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
+            <Card className="bg-white/90 backdrop-blur-sm border border-white/30 hover:shadow-2xl transition-all duration-500 shadow-xl">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="w-5 h-5 text-blue-500" />
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <Target className="w-6 h-6 text-blue-500" />
                   Conversation Topics
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-base">
                   Most frequently discussed topics in your conversations
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-wrap gap-3 justify-center p-6 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg">
+                <div className="flex flex-wrap gap-3 justify-center p-8 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl">
                   {conversationTopics.map((topic, index) => (
                     <Badge
                       key={index}
                       variant="outline"
-                      className={`${getSentimentColor(topic.sentiment)} hover:scale-105 transition-transform cursor-pointer animate-pulse`}
+                      className={`${getSentimentColor(topic.sentiment)} hover:scale-110 transition-all duration-300 cursor-pointer shadow-md hover:shadow-lg`}
                       style={{ 
                         fontSize: `${12 + (topic.frequency / 15) * 12}px`,
-                        padding: '8px 12px',
+                        padding: '10px 16px',
                         animationDelay: `${index * 100}ms`
                       }}
                     >
@@ -520,24 +508,24 @@ const AnalyticsDashboard: React.FC = () => {
             </Card>
 
             {/* Topic Analysis Chart */}
-            <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
+            <Card className="bg-white/90 backdrop-blur-sm border border-white/30 hover:shadow-2xl transition-all duration-500 shadow-xl">
               <CardHeader>
-                <CardTitle>Topic Frequency Analysis</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-xl">Topic Frequency Analysis</CardTitle>
+                <CardDescription className="text-base">
                   Detailed breakdown of your conversation themes
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-64 w-full">
+                <div className="h-80 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={conversationTopics.slice(0, 6)}>
                       <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                       <XAxis 
                         dataKey="topic" 
-                        tick={{ fontSize: 10 }}
+                        tick={{ fontSize: 11 }}
                         angle={-45}
                         textAnchor="end"
-                        height={80}
+                        height={100}
                       />
                       <YAxis tick={{ fontSize: 12 }} />
                       <Tooltip 
@@ -545,8 +533,8 @@ const AnalyticsDashboard: React.FC = () => {
                           if (active && payload && payload.length) {
                             const data = payload[0].payload;
                             return (
-                              <div className="bg-white p-3 border rounded-lg shadow-lg">
-                                <p className="font-medium">{label}</p>
+                              <div className="bg-white p-4 border rounded-xl shadow-xl">
+                                <p className="font-medium text-lg">{label}</p>
                                 <p className="text-blue-600">Frequency: {data.frequency}</p>
                                 <p className="text-green-600">Sentiment: {data.sentiment}</p>
                                 <p className="text-purple-600">Growth: {data.growth}%</p>
@@ -556,7 +544,7 @@ const AnalyticsDashboard: React.FC = () => {
                           return null;
                         }}
                       />
-                      <Bar dataKey="frequency" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="frequency" fill="#3b82f6" radius={[6, 6, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -567,10 +555,10 @@ const AnalyticsDashboard: React.FC = () => {
           <TabsContent value="progress" className="space-y-6">
             {/* Progress Overview */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card className="bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200 hover:shadow-xl hover:scale-105 transition-all duration-300">
+              <Card className="bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg">
+                    <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
                       <TrendingUp className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -581,10 +569,10 @@ const AnalyticsDashboard: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 hover:shadow-xl hover:scale-105 transition-all duration-300">
+              <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg">
+                    <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
                       <Target className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -595,10 +583,10 @@ const AnalyticsDashboard: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-purple-50 to-indigo-100 border-purple-200 hover:shadow-xl hover:scale-105 transition-all duration-300">
+              <Card className="bg-gradient-to-br from-purple-50 to-indigo-100 border-purple-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg">
+                    <div className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
                       <Trophy className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -609,10 +597,10 @@ const AnalyticsDashboard: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-orange-50 to-amber-100 border-orange-200 hover:shadow-xl hover:scale-105 transition-all duration-300">
+              <Card className="bg-gradient-to-br from-orange-50 to-amber-100 border-orange-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-orange-500 to-amber-600 rounded-lg">
+                    <div className="p-2 bg-gradient-to-br from-orange-500 to-amber-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
                       <CheckCircle className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -625,27 +613,26 @@ const AnalyticsDashboard: React.FC = () => {
             </div>
 
             {/* Milestones */}
-            <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
+            <Card className="bg-white/90 backdrop-blur-sm border border-white/30 hover:shadow-2xl transition-all duration-500 shadow-xl">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="w-5 h-5 text-green-500" />
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <Target className="w-6 h-6 text-green-500" />
                   Learning Milestones
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-base">
                   Track your progress towards wellness and learning goals
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="space-y-6">
                   {milestones.map((milestone, index) => (
                     <div 
                       key={milestone.id} 
-                      className="space-y-2 p-3 rounded-lg hover:bg-gradient-to-r hover:from-gray-50 hover:to-blue-50 transition-all duration-300"
-                      style={{ animationDelay: `${index * 100}ms` }}
+                      className="space-y-3 p-4 rounded-xl hover:bg-gradient-to-r hover:from-gray-50 hover:to-blue-50 transition-all duration-300 border border-gray-100"
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{milestone.title}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="font-semibold text-lg">{milestone.title}</span>
                           <Badge 
                             variant="outline" 
                             className={getCategoryColor(milestone.category)}
@@ -653,18 +640,18 @@ const AnalyticsDashboard: React.FC = () => {
                             {milestone.category}
                           </Badge>
                           {milestone.completed && (
-                            <CheckCircle className="w-4 h-4 text-green-500 animate-pulse" />
+                            <CheckCircle className="w-5 h-5 text-green-500 animate-pulse" />
                           )}
                         </div>
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-sm text-muted-foreground font-medium">
                           {milestone.progress}/{milestone.target}
                         </div>
                       </div>
                       <p className="text-sm text-muted-foreground">{milestone.description}</p>
                       <Progress value={(milestone.progress / milestone.target) * 100} className="h-3" />
                       {milestone.completed && milestone.completedDate && (
-                        <p className="text-xs text-green-600">
-                          Completed on {new Date(milestone.completedDate).toLocaleDateString()}
+                        <p className="text-xs text-green-600 font-medium">
+                          ✅ Completed on {new Date(milestone.completedDate).toLocaleDateString()}
                         </p>
                       )}
                     </div>
@@ -674,13 +661,13 @@ const AnalyticsDashboard: React.FC = () => {
             </Card>
 
             {/* Achievements */}
-            <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
+            <Card className="bg-white/90 backdrop-blur-sm border border-white/30 hover:shadow-2xl transition-all duration-500 shadow-xl">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Award className="w-5 h-5 text-yellow-500" />
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <Award className="w-6 h-6 text-yellow-500" />
                   Recent Achievements
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-base">
                   Celebrate your accomplishments and milestones
                 </CardDescription>
               </CardHeader>
@@ -689,22 +676,21 @@ const AnalyticsDashboard: React.FC = () => {
                   {achievements.map((achievement, index) => (
                     <div 
                       key={achievement.id}
-                      className="flex items-center gap-3 p-3 border rounded-lg hover:shadow-md hover:scale-105 transition-all duration-300"
-                      style={{ animationDelay: `${index * 100}ms` }}
+                      className="flex items-center gap-4 p-4 border rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300 bg-gradient-to-r from-white to-gray-50"
                     >
-                      <div className="text-2xl animate-bounce">{achievement.icon}</div>
+                      <div className="text-3xl animate-bounce">{achievement.icon}</div>
                       <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{achievement.title}</span>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-semibold">{achievement.title}</span>
                           <Badge 
                             className={getRarityColor(achievement.rarity)}
                           >
                             {achievement.rarity}
                           </Badge>
                         </div>
-                        <p className="text-sm text-muted-foreground">{achievement.description}</p>
+                        <p className="text-sm text-muted-foreground mb-1">{achievement.description}</p>
                         <p className="text-xs text-muted-foreground">
-                          Unlocked {new Date(achievement.unlockedDate).toLocaleDateString()}
+                          🎉 Unlocked {new Date(achievement.unlockedDate).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
@@ -717,10 +703,10 @@ const AnalyticsDashboard: React.FC = () => {
           <TabsContent value="quality" className="space-y-6">
             {/* Quality Overview */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card className="bg-gradient-to-br from-yellow-50 to-amber-100 border-yellow-200 hover:shadow-xl hover:scale-105 transition-all duration-300">
+              <Card className="bg-gradient-to-br from-yellow-50 to-amber-100 border-yellow-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-lg">
+                    <div className="p-2 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
                       <Star className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -731,10 +717,10 @@ const AnalyticsDashboard: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200 hover:shadow-xl hover:scale-105 transition-all duration-300">
+              <Card className="bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg">
+                    <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
                       <MessageSquare className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -745,10 +731,10 @@ const AnalyticsDashboard: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 hover:shadow-xl hover:scale-105 transition-all duration-300">
+              <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg">
+                    <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
                       <Heart className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -759,10 +745,10 @@ const AnalyticsDashboard: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-purple-50 to-indigo-100 border-purple-200 hover:shadow-xl hover:scale-105 transition-all duration-300">
+              <Card className="bg-gradient-to-br from-purple-50 to-indigo-100 border-purple-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg">
+                    <div className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
                       <Zap className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -776,13 +762,13 @@ const AnalyticsDashboard: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Session Quality Chart */}
-              <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
+              <Card className="bg-white/90 backdrop-blur-sm border border-white/30 hover:shadow-2xl transition-all duration-500 shadow-xl">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Star className="w-5 h-5 text-yellow-500" />
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <Star className="w-6 h-6 text-yellow-500" />
                     Session Quality Trend
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-base">
                     Quality ratings over your recent sessions
                   </CardDescription>
                 </CardHeader>
@@ -802,8 +788,8 @@ const AnalyticsDashboard: React.FC = () => {
                             if (active && payload && payload.length) {
                               const data = payload[0].payload;
                               return (
-                                <div className="bg-white p-3 border rounded-lg shadow-lg">
-                                  <p className="font-medium">{new Date(label).toLocaleDateString()}</p>
+                                <div className="bg-white p-4 border rounded-xl shadow-xl">
+                                  <p className="font-medium text-lg">{new Date(label).toLocaleDateString()}</p>
                                   <p className="text-blue-600">Quality: {data.quality}/5</p>
                                   <p className="text-green-600">Engagement: {data.engagement}/5</p>
                                   <p className="text-purple-600">Satisfaction: {data.satisfaction}/5</p>
@@ -814,7 +800,7 @@ const AnalyticsDashboard: React.FC = () => {
                             return null;
                           }}
                         />
-                        <Bar dataKey="quality" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="quality" fill="#3b82f6" radius={[6, 6, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -822,13 +808,13 @@ const AnalyticsDashboard: React.FC = () => {
               </Card>
 
               {/* Quality Metrics Radar */}
-              <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
+              <Card className="bg-white/90 backdrop-blur-sm border border-white/30 hover:shadow-2xl transition-all duration-500 shadow-xl">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Brain className="w-5 h-5 text-purple-500" />
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <Brain className="w-6 h-6 text-purple-500" />
                     AI Performance Metrics
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-base">
                     Detailed breakdown of AI assistant capabilities
                   </CardDescription>
                 </CardHeader>
@@ -850,7 +836,7 @@ const AnalyticsDashboard: React.FC = () => {
                           stroke="#8b5cf6"
                           fill="#8b5cf6"
                           fillOpacity={0.3}
-                          strokeWidth={2}
+                          strokeWidth={3}
                         />
                       </RadarChart>
                     </ResponsiveContainer>
@@ -860,32 +846,31 @@ const AnalyticsDashboard: React.FC = () => {
             </div>
 
             {/* Recent Sessions */}
-            <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
+            <Card className="bg-white/90 backdrop-blur-sm border border-white/30 hover:shadow-2xl transition-all duration-500 shadow-xl">
               <CardHeader>
-                <CardTitle>Recent Session Feedback</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-xl">Recent Session Feedback</CardTitle>
+                <CardDescription className="text-base">
                   Your latest conversation ratings and feedback
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {sessionData.slice(-5).map((session, index) => (
                     <div 
                       key={index} 
-                      className="flex items-center justify-between p-3 border rounded-lg hover:shadow-md hover:scale-102 transition-all duration-300"
-                      style={{ animationDelay: `${index * 100}ms` }}
+                      className="flex items-center justify-between p-4 border rounded-xl hover:shadow-md hover:scale-102 transition-all duration-300 bg-gradient-to-r from-white to-gray-50"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="text-sm text-muted-foreground">
+                      <div className="flex items-center gap-4">
+                        <div className="text-sm text-muted-foreground font-medium">
                           {new Date(session.date).toLocaleDateString()}
                         </div>
-                        <Badge variant="outline">{session.agentType}</Badge>
+                        <Badge variant="outline" className="font-medium">{session.agentType}</Badge>
                         <div className="flex items-center gap-1">
                           <Clock className="w-4 h-4 text-muted-foreground" />
                           <span className="text-sm text-muted-foreground">{session.duration}min</span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1">
                           {[...Array(5)].map((_, i) => (
                             <Star 
@@ -898,7 +883,7 @@ const AnalyticsDashboard: React.FC = () => {
                             />
                           ))}
                         </div>
-                        <span className="text-sm font-medium">{session.quality.toFixed(1)}</span>
+                        <span className="text-sm font-bold">{session.quality.toFixed(1)}</span>
                       </div>
                     </div>
                   ))}
