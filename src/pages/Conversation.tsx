@@ -30,8 +30,8 @@ const Conversation = () => {
       context: "You are a helpful virtual doctor called Dr.Anna giving medical advice.",
       avatar: "👩‍⚕️",
       greeting: "Hello! I'm Dr.Anna, your mental health companion. How are you feeling today?",
-      replicaId: "r4dcf31b60e1",
-      personaId: "p321a7b6f093"
+      replicaId: "r6ae5b6efc9d",
+      personaId: "p57b90fab974"
     },
     tutor: {
       name: "Alex",
