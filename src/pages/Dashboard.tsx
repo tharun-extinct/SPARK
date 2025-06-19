@@ -274,7 +274,7 @@ const Dashboard = () => {
             className={`transition-all duration-1000 ${
               isVisible('welcome-header') 
                 ? 'opacity-100 translate-y-0' 
-                : 'opacity-0 translate-y-8'
+                : 'opacity-100 translate-y-0'
             }`}
           >
             <div className="bg-gradient-to-r from-white/80 to-blue-50/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-500">
@@ -299,11 +299,7 @@ const Dashboard = () => {
           <div 
             id="dashboard-tabs"
             data-animate
-            className={`transition-all duration-1000 delay-200 ${
-              isVisible('dashboard-tabs') 
-                ? 'opacity-100 translate-y-0' 
-                : 'opacity-0 translate-y-8'
-            }`}
+            className="opacity-100 translate-y-0"
           >
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
               <TabsList className="grid w-full grid-cols-2 max-w-md bg-white/80 backdrop-blur-sm border border-white/20 shadow-lg">
@@ -328,11 +324,7 @@ const Dashboard = () => {
                 <div 
                   id="stats-grid"
                   data-animate
-                  className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 transition-all duration-1000 delay-400 ${
-                    isVisible('stats-grid') 
-                      ? 'opacity-100 translate-y-0' 
-                      : 'opacity-0 translate-y-8'
-                  }`}
+                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 opacity-100 translate-y-0"
                 >
                   <Card className="bg-gradient-to-br from-rose-50 to-pink-100 border-rose-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -402,11 +394,7 @@ const Dashboard = () => {
                   <div 
                     id="recent-sessions"
                     data-animate
-                    className={`transition-all duration-1000 delay-600 ${
-                      isVisible('recent-sessions') 
-                        ? 'opacity-100 translate-y-0' 
-                        : 'opacity-0 translate-y-8'
-                    }`}
+                    className="opacity-100 translate-y-0"
                   >
                     <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
                       <CardHeader>
@@ -453,11 +441,7 @@ const Dashboard = () => {
                   <div 
                     id="wellness-goals"
                     data-animate
-                    className={`transition-all duration-1000 delay-800 ${
-                      isVisible('wellness-goals') 
-                        ? 'opacity-100 translate-y-0' 
-                        : 'opacity-0 translate-y-8'
-                    }`}
+                    className="opacity-100 translate-y-0"
                   >
                     <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
                       <CardHeader>
@@ -502,11 +486,7 @@ const Dashboard = () => {
                 <div 
                   id="quick-actions"
                   data-animate
-                  className={`transition-all duration-1000 delay-1000 ${
-                    isVisible('quick-actions') 
-                      ? 'opacity-100 translate-y-0' 
-                      : 'opacity-0 translate-y-8'
-                  }`}
+                  className="opacity-100 translate-y-0"
                 >
                   <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
                     <CardHeader>
@@ -553,11 +533,7 @@ const Dashboard = () => {
                 <div 
                   id="analytics-dashboard"
                   data-animate
-                  className={`transition-all duration-1000 ${
-                    isVisible('analytics-dashboard') 
-                      ? 'opacity-100 translate-y-0' 
-                      : 'opacity-0 translate-y-8'
-                  }`}
+                  className="opacity-100 translate-y-0"
                 >
                   <AnalyticsDashboard />
                 </div>
