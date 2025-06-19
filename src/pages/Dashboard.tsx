@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,7 +39,36 @@ const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [connectionError, setConnectionError] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
-  const [animatedCards, setAnimatedCards] = useState(new Set());
+  const [visibleElements, setVisibleElements] = useState(new Set());
+  const observerRef = useRef<IntersectionObserver | null>(null);
+
+  // Intersection Observer for scroll animations
+  useEffect(() => {
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setVisibleElements(prev => new Set(prev).add(entry.target.id));
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '50px' }
+    );
+
+    // Observe all animated elements
+    const animatedElements = document.querySelectorAll('[data-animate]');
+    animatedElements.forEach(el => {
+      if (observerRef.current) {
+        observerRef.current.observe(el);
+      }
+    });
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [isLoading]);
 
   // Check if we're coming directly from onboarding and ensure Firestore connection
   useEffect(() => {
@@ -176,15 +205,7 @@ const Dashboard = () => {
       return () => clearTimeout(timer);
   }, [location, currentUser, toast, connectionError]);
 
-  // Animate cards on load
-  useEffect(() => {
-    if (!isLoading) {
-      const timer = setTimeout(() => {
-        setAnimatedCards(new Set(['stats', 'sessions', 'goals', 'actions']));
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [isLoading]);
+  const isVisible = (id: string) => visibleElements.has(id);
 
   const metrics = {
     moodScore: 7.2,
@@ -247,8 +268,16 @@ const Dashboard = () => {
       ) : (
         <div className="relative z-10 p-6 space-y-6">
           {/* Welcome Header */}
-          <div className={`transition-all duration-1000 ${animatedCards.has('stats') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-            <div className="bg-gradient-to-r from-white/80 to-blue-50/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-xl">
+          <div 
+            id="welcome-header"
+            data-animate
+            className={`transition-all duration-1000 ${
+              isVisible('welcome-header') 
+                ? 'opacity-100 translate-y-0' 
+                : 'opacity-0 translate-y-8'
+            }`}
+          >
+            <div className="bg-gradient-to-r from-white/80 to-blue-50/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-500">
               <div className="flex items-center justify-between">
                 <div>
                   <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
@@ -267,218 +296,274 @@ const Dashboard = () => {
           </div>
 
           {/* Dashboard Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2 max-w-md bg-white/80 backdrop-blur-sm border border-white/20">
-              <TabsTrigger value="overview" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-purple-600 data-[state=active]:text-white">
-                <Home className="w-4 h-4" />
-                Overview
-              </TabsTrigger>
-              <TabsTrigger value="analytics" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-purple-600 data-[state=active]:text-white">
-                <BarChart3 className="w-4 h-4" />
-                Analytics
-              </TabsTrigger>
-            </TabsList>
+          <div 
+            id="dashboard-tabs"
+            data-animate
+            className={`transition-all duration-1000 delay-200 ${
+              isVisible('dashboard-tabs') 
+                ? 'opacity-100 translate-y-0' 
+                : 'opacity-0 translate-y-8'
+            }`}
+          >
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+              <TabsList className="grid w-full grid-cols-2 max-w-md bg-white/80 backdrop-blur-sm border border-white/20 shadow-lg">
+                <TabsTrigger 
+                  value="overview" 
+                  className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-purple-600 data-[state=active]:text-white transition-all duration-300 hover:scale-105"
+                >
+                  <Home className="w-4 h-4" />
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="analytics" 
+                  className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-purple-600 data-[state=active]:text-white transition-all duration-300 hover:scale-105"
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  Analytics
+                </TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="overview" className="space-y-6">
-              {/* Quick Stats */}
-              <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 transition-all duration-1000 delay-200 ${animatedCards.has('stats') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-                <Card className="bg-gradient-to-br from-rose-50 to-pink-100 border-rose-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-rose-700">Mood Score</CardTitle>
-                    <div className="p-2 bg-gradient-to-br from-rose-500 to-pink-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
-                      <Heart className="h-4 w-4 text-white" />
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-rose-600">{metrics.moodScore}/10</div>
-                    <p className="text-xs text-rose-500 flex items-center gap-1">
-                      <TrendingUp className="w-3 h-3" />
-                      +0.5 from last week
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-blue-700">Sessions</CardTitle>
-                    <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
-                      <MessageCircle className="h-4 w-4 text-white" />
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-blue-600">{metrics.sessionsThisWeek}</div>
-                    <p className="text-xs text-blue-500">
-                      This week
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-green-700">Time Spent</CardTitle>
-                    <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
-                      <Clock className="h-4 w-4 text-white" />
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-green-600">{metrics.totalMinutes}min</div>
-                    <p className="text-xs text-green-500">
-                      Total this week
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-gradient-to-br from-orange-50 to-amber-100 border-orange-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-orange-700">Streak</CardTitle>
-                    <div className="p-2 bg-gradient-to-br from-orange-500 to-amber-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
-                      <Zap className="h-4 w-4 text-white" />
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-orange-600">{metrics.streakDays}</div>
-                    <p className="text-xs text-orange-500 flex items-center gap-1">
-                      <Star className="w-3 h-3" />
-                      Days active
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Recent Sessions */}
-                <div className={`transition-all duration-1000 delay-400 ${animatedCards.has('sessions') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-                  <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
-                    <CardHeader>
-                      <CardTitle className="flex items-center">
-                        <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg mr-3">
-                          <Activity className="w-5 h-5 text-white" />
-                        </div>
-                        Recent Sessions
-                      </CardTitle>
-                      <CardDescription>
-                        Your latest AI companion interactions
-                      </CardDescription>
+              <TabsContent value="overview" className="space-y-6">
+                {/* Quick Stats */}
+                <div 
+                  id="stats-grid"
+                  data-animate
+                  className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 transition-all duration-1000 delay-400 ${
+                    isVisible('stats-grid') 
+                      ? 'opacity-100 translate-y-0' 
+                      : 'opacity-0 translate-y-8'
+                  }`}
+                >
+                  <Card className="bg-gradient-to-br from-rose-50 to-pink-100 border-rose-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium text-rose-700">Mood Score</CardTitle>
+                      <div className="p-2 bg-gradient-to-br from-rose-500 to-pink-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
+                        <Heart className="h-4 w-4 text-white" />
+                      </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-4">
-                        {recentSessions.map((session, index) => (
-                          <div 
-                            key={session.id} 
-                            className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl hover:shadow-md transition-all duration-300 hover:scale-102 group"
-                            style={{ animationDelay: `${index * 100}ms` }}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className={`w-3 h-3 bg-gradient-to-r ${session.color} rounded-full animate-pulse`}></div>
-                              <div>
-                                <p className="font-medium text-slate-700 group-hover:text-slate-900 transition-colors">{session.agent}</p>
-                                <p className="text-sm text-gray-600">{session.type} • {session.duration}</p>
+                      <div className="text-2xl font-bold text-rose-600">{metrics.moodScore}/10</div>
+                      <p className="text-xs text-rose-500 flex items-center gap-1">
+                        <TrendingUp className="w-3 h-3" />
+                        +0.5 from last week
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium text-blue-700">Sessions</CardTitle>
+                      <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
+                        <MessageCircle className="h-4 w-4 text-white" />
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-blue-600">{metrics.sessionsThisWeek}</div>
+                      <p className="text-xs text-blue-500">
+                        This week
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium text-green-700">Time Spent</CardTitle>
+                      <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
+                        <Clock className="h-4 w-4 text-white" />
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-green-600">{metrics.totalMinutes}min</div>
+                      <p className="text-xs text-green-500">
+                        Total this week
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-gradient-to-br from-orange-50 to-amber-100 border-orange-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium text-orange-700">Streak</CardTitle>
+                      <div className="p-2 bg-gradient-to-br from-orange-500 to-amber-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
+                        <Zap className="h-4 w-4 text-white" />
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-orange-600">{metrics.streakDays}</div>
+                      <p className="text-xs text-orange-500 flex items-center gap-1">
+                        <Star className="w-3 h-3" />
+                        Days active
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Recent Sessions */}
+                  <div 
+                    id="recent-sessions"
+                    data-animate
+                    className={`transition-all duration-1000 delay-600 ${
+                      isVisible('recent-sessions') 
+                        ? 'opacity-100 translate-y-0' 
+                        : 'opacity-0 translate-y-8'
+                    }`}
+                  >
+                    <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
+                      <CardHeader>
+                        <CardTitle className="flex items-center">
+                          <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg mr-3">
+                            <Activity className="w-5 h-5 text-white" />
+                          </div>
+                          Recent Sessions
+                        </CardTitle>
+                        <CardDescription>
+                          Your latest AI companion interactions
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {recentSessions.map((session, index) => (
+                            <div 
+                              key={session.id} 
+                              className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl hover:shadow-md transition-all duration-300 hover:scale-102 group"
+                              style={{ animationDelay: `${index * 100}ms` }}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={`w-3 h-3 bg-gradient-to-r ${session.color} rounded-full animate-pulse`}></div>
+                                <div>
+                                  <p className="font-medium text-slate-700 group-hover:text-slate-900 transition-colors">{session.agent}</p>
+                                  <p className="text-sm text-gray-600">{session.type} • {session.duration}</p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-medium text-slate-700">{session.mood}</p>
+                                <p className="text-xs text-gray-500">{session.date}</p>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <p className="text-sm font-medium text-slate-700">{session.mood}</p>
-                              <p className="text-xs text-gray-500">{session.date}</p>
-                            </div>
+                          ))}
+                        </div>
+                        <Button variant="outline" className="w-full mt-4 hover:bg-gradient-to-r hover:from-primary hover:to-purple-600 hover:text-white transition-all duration-300">
+                          View All Sessions
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Wellness Goals */}
+                  <div 
+                    id="wellness-goals"
+                    data-animate
+                    className={`transition-all duration-1000 delay-800 ${
+                      isVisible('wellness-goals') 
+                        ? 'opacity-100 translate-y-0' 
+                        : 'opacity-0 translate-y-8'
+                    }`}
+                  >
+                    <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
+                      <CardHeader>
+                        <CardTitle className="flex items-center">
+                          <div className="p-2 bg-gradient-to-br from-green-500 to-teal-600 rounded-lg mr-3">
+                            <Target className="w-5 h-5 text-white" />
                           </div>
-                        ))}
-                      </div>
-                      <Button variant="outline" className="w-full mt-4 hover:bg-gradient-to-r hover:from-primary hover:to-purple-600 hover:text-white transition-all duration-300">
-                        View All Sessions
-                      </Button>
-                    </CardContent>
-                  </Card>
+                          Wellness Goals
+                        </CardTitle>
+                        <CardDescription>
+                          Track your progress towards better mental health
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {upcomingGoals.map((goal, index) => (
+                            <div key={goal.id} className="space-y-3 p-3 rounded-lg hover:bg-gradient-to-r hover:from-gray-50 hover:to-blue-50 transition-all duration-300">
+                              <div className="flex justify-between items-center">
+                                <p className="font-medium text-slate-700">{goal.title}</p>
+                                <span className="text-sm text-gray-600 font-semibold">{goal.progress}%</span>
+                              </div>
+                              <div className="relative">
+                                <Progress value={goal.progress} className="h-3" />
+                                <div 
+                                  className={`absolute top-0 left-0 h-3 bg-gradient-to-r ${goal.color} rounded-full transition-all duration-1000 ease-out`}
+                                  style={{ width: `${goal.progress}%` }}
+                                />
+                              </div>
+                              <p className="text-xs text-gray-500">{goal.target}</p>
+                            </div>
+                          ))}
+                        </div>
+                        <Button variant="outline" className="w-full mt-4 hover:bg-gradient-to-r hover:from-green-500 hover:to-teal-600 hover:text-white transition-all duration-300">
+                          Set New Goal
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </div>
                 </div>
 
-                {/* Wellness Goals */}
-                <div className={`transition-all duration-1000 delay-600 ${animatedCards.has('goals') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+                {/* Quick Actions */}
+                <div 
+                  id="quick-actions"
+                  data-animate
+                  className={`transition-all duration-1000 delay-1000 ${
+                    isVisible('quick-actions') 
+                      ? 'opacity-100 translate-y-0' 
+                      : 'opacity-0 translate-y-8'
+                  }`}
+                >
                   <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
                     <CardHeader>
                       <CardTitle className="flex items-center">
-                        <div className="p-2 bg-gradient-to-br from-green-500 to-teal-600 rounded-lg mr-3">
-                          <Target className="w-5 h-5 text-white" />
+                        <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg mr-3">
+                          <Sparkles className="w-5 h-5 text-white" />
                         </div>
-                        Wellness Goals
+                        Quick Actions
                       </CardTitle>
                       <CardDescription>
-                        Track your progress towards better mental health
+                        Start a new session or explore your wellness tools
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-4">
-                        {upcomingGoals.map((goal, index) => (
-                          <div key={goal.id} className="space-y-3 p-3 rounded-lg hover:bg-gradient-to-r hover:from-gray-50 hover:to-blue-50 transition-all duration-300">
-                            <div className="flex justify-between items-center">
-                              <p className="font-medium text-slate-700">{goal.title}</p>
-                              <span className="text-sm text-gray-600 font-semibold">{goal.progress}%</span>
-                            </div>
-                            <div className="relative">
-                              <Progress value={goal.progress} className="h-3" />
-                              <div 
-                                className={`absolute top-0 left-0 h-3 bg-gradient-to-r ${goal.color} rounded-full transition-all duration-1000 ease-out`}
-                                style={{ width: `${goal.progress}%` }}
-                              />
-                            </div>
-                            <p className="text-xs text-gray-500">{goal.target}</p>
-                          </div>
-                        ))}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <Button 
+                          onClick={() => navigate("/conversation/psychiatrist")}
+                          className="h-24 flex flex-col items-center justify-center space-y-2 bg-gradient-to-br from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
+                        >
+                          <Heart className="w-6 h-6" />
+                          <span>Mental Health Chat</span>
+                        </Button>
+                        <Button 
+                          onClick={() => navigate("/conversation/tutor")}
+                          className="h-24 flex flex-col items-center justify-center space-y-2 bg-gradient-to-br from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-white"
+                        >
+                          <Brain className="w-6 h-6" />
+                          <span>Learning Session</span>
+                        </Button>
+                        <Button 
+                          onClick={() => navigate("/conversation/doctor")}
+                          className="h-24 flex flex-col items-center justify-center space-y-2 bg-gradient-to-br from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-white"
+                        >
+                          <Activity className="w-6 h-6" />
+                          <span>Wellness Check</span>
+                        </Button>
                       </div>
-                      <Button variant="outline" className="w-full mt-4 hover:bg-gradient-to-r hover:from-green-500 hover:to-teal-600 hover:text-white transition-all duration-300">
-                        Set New Goal
-                      </Button>
                     </CardContent>
                   </Card>
                 </div>
-              </div>
+              </TabsContent>
 
-              {/* Quick Actions */}
-              <div className={`transition-all duration-1000 delay-800 ${animatedCards.has('actions') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-                <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg mr-3">
-                        <Sparkles className="w-5 h-5 text-white" />
-                      </div>
-                      Quick Actions
-                    </CardTitle>
-                    <CardDescription>
-                      Start a new session or explore your wellness tools
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <Button 
-                        onClick={() => navigate("/conversation/psychiatrist")}
-                        className="h-24 flex flex-col items-center justify-center space-y-2 bg-gradient-to-br from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
-                      >
-                        <Heart className="w-6 h-6" />
-                        <span>Mental Health Chat</span>
-                      </Button>
-                      <Button 
-                        onClick={() => navigate("/conversation/tutor")}
-                        className="h-24 flex flex-col items-center justify-center space-y-2 bg-gradient-to-br from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-white"
-                      >
-                        <Brain className="w-6 h-6" />
-                        <span>Learning Session</span>
-                      </Button>
-                      <Button 
-                        onClick={() => navigate("/conversation/doctor")}
-                        className="h-24 flex flex-col items-center justify-center space-y-2 bg-gradient-to-br from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-white"
-                      >
-                        <Activity className="w-6 h-6" />
-                        <span>Wellness Check</span>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="analytics" className="space-y-6">
-              <div className={`transition-all duration-1000 ${activeTab === 'analytics' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-                <AnalyticsDashboard />
-              </div>
-            </TabsContent>
-          </Tabs>
+              <TabsContent value="analytics" className="space-y-6">
+                <div 
+                  id="analytics-dashboard"
+                  data-animate
+                  className={`transition-all duration-1000 ${
+                    isVisible('analytics-dashboard') 
+                      ? 'opacity-100 translate-y-0' 
+                      : 'opacity-0 translate-y-8'
+                  }`}
+                >
+                  <AnalyticsDashboard />
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
         </div>
       )}
     </div>
