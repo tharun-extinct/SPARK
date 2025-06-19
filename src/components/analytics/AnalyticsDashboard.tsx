@@ -205,7 +205,7 @@ const AnalyticsDashboard: React.FC = () => {
   const averageRating = sessionData.reduce((sum, item) => sum + item.quality, 0) / sessionData.length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-h-screen">
       {/* Header */}
       <div 
         id="analytics-header"
@@ -213,7 +213,7 @@ const AnalyticsDashboard: React.FC = () => {
         className={`flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all duration-1000 ${
           isVisible('analytics-header') 
             ? 'opacity-100 translate-y-0' 
-            : 'opacity-0 translate-y-8'
+            : 'opacity-100 translate-y-0'
         }`}
       >
         <div>
@@ -259,7 +259,7 @@ const AnalyticsDashboard: React.FC = () => {
         className={`transition-all duration-1000 delay-200 ${
           isVisible('analytics-tabs') 
             ? 'opacity-100 translate-y-0' 
-            : 'opacity-0 translate-y-8'
+            : 'opacity-100 translate-y-0'
         }`}
       >
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
@@ -299,11 +299,7 @@ const AnalyticsDashboard: React.FC = () => {
             <div 
               id="mood-overview"
               data-animate
-              className={`grid grid-cols-1 md:grid-cols-4 gap-4 transition-all duration-1000 ${
-                isVisible('mood-overview') 
-                  ? 'opacity-100 translate-y-0' 
-                  : 'opacity-0 translate-y-8'
-              }`}
+              className="grid grid-cols-1 md:grid-cols-4 gap-4"
             >
               <Card className="bg-gradient-to-br from-rose-50 to-pink-100 border-rose-200 hover:shadow-xl hover:scale-105 transition-all duration-300">
                 <CardContent className="p-4">
@@ -363,110 +359,92 @@ const AnalyticsDashboard: React.FC = () => {
             </div>
 
             {/* Mood Chart */}
-            <div 
-              id="mood-chart"
-              data-animate
-              className={`transition-all duration-1000 delay-400 ${
-                isVisible('mood-chart') 
-                  ? 'opacity-100 translate-y-0' 
-                  : 'opacity-0 translate-y-8'
-              }`}
-            >
-              <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Heart className="w-5 h-5 text-rose-500" />
-                    Mood Tracking Over Time
-                  </CardTitle>
-                  <CardDescription>
-                    Your emotional patterns over {timeRange}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-64 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={moodData}>
-                        <defs>
-                          <linearGradient id="moodGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
-                          </linearGradient>
-                          <linearGradient id="energyGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                          </linearGradient>
-                          <linearGradient id="stressGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                        <XAxis 
-                          dataKey="date" 
-                          tick={{ fontSize: 12 }}
-                          tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        />
-                        <YAxis domain={[0, 10]} tick={{ fontSize: 12 }} />
-                        <Tooltip 
-                          content={({ active, payload, label }) => {
-                            if (active && payload && payload.length) {
-                              return (
-                                <div className="bg-white p-3 border rounded-lg shadow-lg">
-                                  <p className="font-medium">{new Date(label).toLocaleDateString()}</p>
-                                  {payload.map((entry, index) => (
-                                    <p key={index} style={{ color: entry.color }}>
-                                      {entry.name}: {entry.value}/10
-                                    </p>
-                                  ))}
-                                </div>
-                              );
-                            }
-                            return null;
-                          }}
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="mood"
-                          stroke="#8b5cf6"
-                          strokeWidth={2}
-                          fill="url(#moodGradient)"
-                          name="Mood"
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="energy"
-                          stroke="#10b981"
-                          strokeWidth={2}
-                          dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
-                          name="Energy"
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="stress"
-                          stroke="#ef4444"
-                          strokeWidth={2}
-                          dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
-                          name="Stress"
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Heart className="w-5 h-5 text-rose-500" />
+                  Mood Tracking Over Time
+                </CardTitle>
+                <CardDescription>
+                  Your emotional patterns over {timeRange}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={moodData}>
+                      <defs>
+                        <linearGradient id="moodGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                        </linearGradient>
+                        <linearGradient id="energyGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                        </linearGradient>
+                        <linearGradient id="stressGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                      <XAxis 
+                        dataKey="date" 
+                        tick={{ fontSize: 12 }}
+                        tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      />
+                      <YAxis domain={[0, 10]} tick={{ fontSize: 12 }} />
+                      <Tooltip 
+                        content={({ active, payload, label }) => {
+                          if (active && payload && payload.length) {
+                            return (
+                              <div className="bg-white p-3 border rounded-lg shadow-lg">
+                                <p className="font-medium">{new Date(label).toLocaleDateString()}</p>
+                                {payload.map((entry, index) => (
+                                  <p key={index} style={{ color: entry.color }}>
+                                    {entry.name}: {entry.value}/10
+                                  </p>
+                                ))}
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="mood"
+                        stroke="#8b5cf6"
+                        strokeWidth={2}
+                        fill="url(#moodGradient)"
+                        name="Mood"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="energy"
+                        stroke="#10b981"
+                        strokeWidth={2}
+                        dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
+                        name="Energy"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="stress"
+                        stroke="#ef4444"
+                        strokeWidth={2}
+                        dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
+                        name="Stress"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="insights" className="space-y-6">
             {/* Conversation Stats */}
-            <div 
-              id="conversation-stats"
-              data-animate
-              className={`grid grid-cols-1 md:grid-cols-3 gap-4 transition-all duration-1000 ${
-                isVisible('conversation-stats') 
-                  ? 'opacity-100 translate-y-0' 
-                  : 'opacity-0 translate-y-8'
-              }`}
-            >
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card className="bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200 hover:shadow-xl hover:scale-105 transition-all duration-300">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
@@ -511,112 +489,84 @@ const AnalyticsDashboard: React.FC = () => {
             </div>
 
             {/* Topic Word Cloud */}
-            <div 
-              id="topic-cloud"
-              data-animate
-              className={`transition-all duration-1000 delay-400 ${
-                isVisible('topic-cloud') 
-                  ? 'opacity-100 translate-y-0' 
-                  : 'opacity-0 translate-y-8'
-              }`}
-            >
-              <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Target className="w-5 h-5 text-blue-500" />
-                    Conversation Topics
-                  </CardTitle>
-                  <CardDescription>
-                    Most frequently discussed topics in your conversations
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-3 justify-center p-6 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg">
-                    {conversationTopics.map((topic, index) => (
-                      <Badge
-                        key={index}
-                        variant="outline"
-                        className={`${getSentimentColor(topic.sentiment)} hover:scale-105 transition-transform cursor-pointer animate-pulse`}
-                        style={{ 
-                          fontSize: `${12 + (topic.frequency / 15) * 12}px`,
-                          padding: '8px 12px',
-                          animationDelay: `${index * 100}ms`
-                        }}
-                      >
-                        {topic.topic}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="w-5 h-5 text-blue-500" />
+                  Conversation Topics
+                </CardTitle>
+                <CardDescription>
+                  Most frequently discussed topics in your conversations
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-3 justify-center p-6 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg">
+                  {conversationTopics.map((topic, index) => (
+                    <Badge
+                      key={index}
+                      variant="outline"
+                      className={`${getSentimentColor(topic.sentiment)} hover:scale-105 transition-transform cursor-pointer animate-pulse`}
+                      style={{ 
+                        fontSize: `${12 + (topic.frequency / 15) * 12}px`,
+                        padding: '8px 12px',
+                        animationDelay: `${index * 100}ms`
+                      }}
+                    >
+                      {topic.topic}
+                    </Badge>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Topic Analysis Chart */}
-            <div 
-              id="topic-analysis"
-              data-animate
-              className={`transition-all duration-1000 delay-600 ${
-                isVisible('topic-analysis') 
-                  ? 'opacity-100 translate-y-0' 
-                  : 'opacity-0 translate-y-8'
-              }`}
-            >
-              <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
-                <CardHeader>
-                  <CardTitle>Topic Frequency Analysis</CardTitle>
-                  <CardDescription>
-                    Detailed breakdown of your conversation themes
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-64 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={conversationTopics.slice(0, 6)}>
-                        <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                        <XAxis 
-                          dataKey="topic" 
-                          tick={{ fontSize: 10 }}
-                          angle={-45}
-                          textAnchor="end"
-                          height={80}
-                        />
-                        <YAxis tick={{ fontSize: 12 }} />
-                        <Tooltip 
-                          content={({ active, payload, label }) => {
-                            if (active && payload && payload.length) {
-                              const data = payload[0].payload;
-                              return (
-                                <div className="bg-white p-3 border rounded-lg shadow-lg">
-                                  <p className="font-medium">{label}</p>
-                                  <p className="text-blue-600">Frequency: {data.frequency}</p>
-                                  <p className="text-green-600">Sentiment: {data.sentiment}</p>
-                                  <p className="text-purple-600">Growth: {data.growth}%</p>
-                                </div>
-                              );
-                            }
-                            return null;
-                          }}
-                        />
-                        <Bar dataKey="frequency" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
+              <CardHeader>
+                <CardTitle>Topic Frequency Analysis</CardTitle>
+                <CardDescription>
+                  Detailed breakdown of your conversation themes
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={conversationTopics.slice(0, 6)}>
+                      <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                      <XAxis 
+                        dataKey="topic" 
+                        tick={{ fontSize: 10 }}
+                        angle={-45}
+                        textAnchor="end"
+                        height={80}
+                      />
+                      <YAxis tick={{ fontSize: 12 }} />
+                      <Tooltip 
+                        content={({ active, payload, label }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="bg-white p-3 border rounded-lg shadow-lg">
+                                <p className="font-medium">{label}</p>
+                                <p className="text-blue-600">Frequency: {data.frequency}</p>
+                                <p className="text-green-600">Sentiment: {data.sentiment}</p>
+                                <p className="text-purple-600">Growth: {data.growth}%</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Bar dataKey="frequency" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="progress" className="space-y-6">
             {/* Progress Overview */}
-            <div 
-              id="progress-overview"
-              data-animate
-              className={`grid grid-cols-1 md:grid-cols-4 gap-4 transition-all duration-1000 ${
-                isVisible('progress-overview') 
-                  ? 'opacity-100 translate-y-0' 
-                  : 'opacity-0 translate-y-8'
-              }`}
-            >
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card className="bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200 hover:shadow-xl hover:scale-105 transition-all duration-300">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
@@ -675,126 +625,98 @@ const AnalyticsDashboard: React.FC = () => {
             </div>
 
             {/* Milestones */}
-            <div 
-              id="milestones"
-              data-animate
-              className={`transition-all duration-1000 delay-400 ${
-                isVisible('milestones') 
-                  ? 'opacity-100 translate-y-0' 
-                  : 'opacity-0 translate-y-8'
-              }`}
-            >
-              <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Target className="w-5 h-5 text-green-500" />
-                    Learning Milestones
-                  </CardTitle>
-                  <CardDescription>
-                    Track your progress towards wellness and learning goals
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {milestones.map((milestone, index) => (
-                      <div 
-                        key={milestone.id} 
-                        className="space-y-2 p-3 rounded-lg hover:bg-gradient-to-r hover:from-gray-50 hover:to-blue-50 transition-all duration-300"
-                        style={{ animationDelay: `${index * 100}ms` }}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{milestone.title}</span>
-                            <Badge 
-                              variant="outline" 
-                              className={getCategoryColor(milestone.category)}
-                            >
-                              {milestone.category}
-                            </Badge>
-                            {milestone.completed && (
-                              <CheckCircle className="w-4 h-4 text-green-500 animate-pulse" />
-                            )}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {milestone.progress}/{milestone.target}
-                          </div>
+            <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="w-5 h-5 text-green-500" />
+                  Learning Milestones
+                </CardTitle>
+                <CardDescription>
+                  Track your progress towards wellness and learning goals
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {milestones.map((milestone, index) => (
+                    <div 
+                      key={milestone.id} 
+                      className="space-y-2 p-3 rounded-lg hover:bg-gradient-to-r hover:from-gray-50 hover:to-blue-50 transition-all duration-300"
+                      style={{ animationDelay: `${index * 100}ms` }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{milestone.title}</span>
+                          <Badge 
+                            variant="outline" 
+                            className={getCategoryColor(milestone.category)}
+                          >
+                            {milestone.category}
+                          </Badge>
+                          {milestone.completed && (
+                            <CheckCircle className="w-4 h-4 text-green-500 animate-pulse" />
+                          )}
                         </div>
-                        <p className="text-sm text-muted-foreground">{milestone.description}</p>
-                        <Progress value={(milestone.progress / milestone.target) * 100} className="h-3" />
-                        {milestone.completed && milestone.completedDate && (
-                          <p className="text-xs text-green-600">
-                            Completed on {new Date(milestone.completedDate).toLocaleDateString()}
-                          </p>
-                        )}
+                        <div className="text-sm text-muted-foreground">
+                          {milestone.progress}/{milestone.target}
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                      <p className="text-sm text-muted-foreground">{milestone.description}</p>
+                      <Progress value={(milestone.progress / milestone.target) * 100} className="h-3" />
+                      {milestone.completed && milestone.completedDate && (
+                        <p className="text-xs text-green-600">
+                          Completed on {new Date(milestone.completedDate).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Achievements */}
-            <div 
-              id="achievements"
-              data-animate
-              className={`transition-all duration-1000 delay-600 ${
-                isVisible('achievements') 
-                  ? 'opacity-100 translate-y-0' 
-                  : 'opacity-0 translate-y-8'
-              }`}
-            >
-              <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Award className="w-5 h-5 text-yellow-500" />
-                    Recent Achievements
-                  </CardTitle>
-                  <CardDescription>
-                    Celebrate your accomplishments and milestones
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {achievements.map((achievement, index) => (
-                      <div 
-                        key={achievement.id}
-                        className="flex items-center gap-3 p-3 border rounded-lg hover:shadow-md hover:scale-105 transition-all duration-300"
-                        style={{ animationDelay: `${index * 100}ms` }}
-                      >
-                        <div className="text-2xl animate-bounce">{achievement.icon}</div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{achievement.title}</span>
-                            <Badge 
-                              className={getRarityColor(achievement.rarity)}
-                            >
-                              {achievement.rarity}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">{achievement.description}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Unlocked {new Date(achievement.unlockedDate).toLocaleDateString()}
-                          </p>
+            <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Award className="w-5 h-5 text-yellow-500" />
+                  Recent Achievements
+                </CardTitle>
+                <CardDescription>
+                  Celebrate your accomplishments and milestones
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {achievements.map((achievement, index) => (
+                    <div 
+                      key={achievement.id}
+                      className="flex items-center gap-3 p-3 border rounded-lg hover:shadow-md hover:scale-105 transition-all duration-300"
+                      style={{ animationDelay: `${index * 100}ms` }}
+                    >
+                      <div className="text-2xl animate-bounce">{achievement.icon}</div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{achievement.title}</span>
+                          <Badge 
+                            className={getRarityColor(achievement.rarity)}
+                          >
+                            {achievement.rarity}
+                          </Badge>
                         </div>
+                        <p className="text-sm text-muted-foreground">{achievement.description}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Unlocked {new Date(achievement.unlockedDate).toLocaleDateString()}
+                        </p>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="quality" className="space-y-6">
             {/* Quality Overview */}
-            <div 
-              id="quality-overview"
-              data-animate
-              className={`grid grid-cols-1 md:grid-cols-4 gap-4 transition-all duration-1000 ${
-                isVisible('quality-overview') 
-                  ? 'opacity-100 translate-y-0' 
-                  : 'opacity-0 translate-y-8'
-              }`}
-            >
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card className="bg-gradient-to-br from-yellow-50 to-amber-100 border-yellow-200 hover:shadow-xl hover:scale-105 transition-all duration-300">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
@@ -854,165 +776,135 @@ const AnalyticsDashboard: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Session Quality Chart */}
-              <div 
-                id="quality-chart"
-                data-animate
-                className={`transition-all duration-1000 delay-400 ${
-                  isVisible('quality-chart') 
-                    ? 'opacity-100 translate-y-0' 
-                    : 'opacity-0 translate-y-8'
-                }`}
-              >
-                <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Star className="w-5 h-5 text-yellow-500" />
-                      Session Quality Trend
-                    </CardTitle>
-                    <CardDescription>
-                      Quality ratings over your recent sessions
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-64 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={sessionData}>
-                          <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                          <XAxis 
-                            dataKey="date" 
-                            tick={{ fontSize: 12 }}
-                            tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                          />
-                          <YAxis domain={[0, 5]} tick={{ fontSize: 12 }} />
-                          <Tooltip 
-                            content={({ active, payload, label }) => {
-                              if (active && payload && payload.length) {
-                                const data = payload[0].payload;
-                                return (
-                                  <div className="bg-white p-3 border rounded-lg shadow-lg">
-                                    <p className="font-medium">{new Date(label).toLocaleDateString()}</p>
-                                    <p className="text-blue-600">Quality: {data.quality}/5</p>
-                                    <p className="text-green-600">Engagement: {data.engagement}/5</p>
-                                    <p className="text-purple-600">Satisfaction: {data.satisfaction}/5</p>
-                                    <p className="text-gray-600">Agent: {data.agentType}</p>
-                                  </div>
-                                );
-                              }
-                              return null;
-                            }}
-                          />
-                          <Bar dataKey="quality" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Quality Metrics Radar */}
-              <div 
-                id="quality-radar"
-                data-animate
-                className={`transition-all duration-1000 delay-600 ${
-                  isVisible('quality-radar') 
-                    ? 'opacity-100 translate-y-0' 
-                    : 'opacity-0 translate-y-8'
-                }`}
-              >
-                <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Brain className="w-5 h-5 text-purple-500" />
-                      AI Performance Metrics
-                    </CardTitle>
-                    <CardDescription>
-                      Detailed breakdown of AI assistant capabilities
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-64 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RadarChart data={radarData}>
-                          <PolarGrid />
-                          <PolarAngleAxis dataKey="subject" tick={{ fontSize: 12 }} />
-                          <PolarRadiusAxis 
-                            angle={90} 
-                            domain={[0, 5]} 
-                            tick={{ fontSize: 10 }}
-                            tickCount={6}
-                          />
-                          <Radar
-                            name="Performance"
-                            dataKey="value"
-                            stroke="#8b5cf6"
-                            fill="#8b5cf6"
-                            fillOpacity={0.3}
-                            strokeWidth={2}
-                          />
-                        </RadarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-
-            {/* Recent Sessions */}
-            <div 
-              id="recent-sessions-quality"
-              data-animate
-              className={`transition-all duration-1000 delay-800 ${
-                isVisible('recent-sessions-quality') 
-                  ? 'opacity-100 translate-y-0' 
-                  : 'opacity-0 translate-y-8'
-              }`}
-            >
               <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
                 <CardHeader>
-                  <CardTitle>Recent Session Feedback</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <Star className="w-5 h-5 text-yellow-500" />
+                    Session Quality Trend
+                  </CardTitle>
                   <CardDescription>
-                    Your latest conversation ratings and feedback
+                    Quality ratings over your recent sessions
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {sessionData.slice(-5).map((session, index) => (
-                      <div 
-                        key={index} 
-                        className="flex items-center justify-between p-3 border rounded-lg hover:shadow-md hover:scale-102 transition-all duration-300"
-                        style={{ animationDelay: `${index * 100}ms` }}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="text-sm text-muted-foreground">
-                            {new Date(session.date).toLocaleDateString()}
-                          </div>
-                          <Badge variant="outline">{session.agentType}</Badge>
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-4 h-4 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">{session.duration}min</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1">
-                            {[...Array(5)].map((_, i) => (
-                              <Star 
-                                key={i} 
-                                className={`w-4 h-4 ${
-                                  i < session.quality 
-                                    ? 'text-yellow-400 fill-current' 
-                                    : 'text-gray-300'
-                                }`} 
-                              />
-                            ))}
-                          </div>
-                          <span className="text-sm font-medium">{session.quality.toFixed(1)}</span>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="h-64 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={sessionData}>
+                        <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                        <XAxis 
+                          dataKey="date" 
+                          tick={{ fontSize: 12 }}
+                          tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        />
+                        <YAxis domain={[0, 5]} tick={{ fontSize: 12 }} />
+                        <Tooltip 
+                          content={({ active, payload, label }) => {
+                            if (active && payload && payload.length) {
+                              const data = payload[0].payload;
+                              return (
+                                <div className="bg-white p-3 border rounded-lg shadow-lg">
+                                  <p className="font-medium">{new Date(label).toLocaleDateString()}</p>
+                                  <p className="text-blue-600">Quality: {data.quality}/5</p>
+                                  <p className="text-green-600">Engagement: {data.engagement}/5</p>
+                                  <p className="text-purple-600">Satisfaction: {data.satisfaction}/5</p>
+                                  <p className="text-gray-600">Agent: {data.agentType}</p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Bar dataKey="quality" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Quality Metrics Radar */}
+              <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Brain className="w-5 h-5 text-purple-500" />
+                    AI Performance Metrics
+                  </CardTitle>
+                  <CardDescription>
+                    Detailed breakdown of AI assistant capabilities
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-64 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RadarChart data={radarData}>
+                        <PolarGrid />
+                        <PolarAngleAxis dataKey="subject" tick={{ fontSize: 12 }} />
+                        <PolarRadiusAxis 
+                          angle={90} 
+                          domain={[0, 5]} 
+                          tick={{ fontSize: 10 }}
+                          tickCount={6}
+                        />
+                        <Radar
+                          name="Performance"
+                          dataKey="value"
+                          stroke="#8b5cf6"
+                          fill="#8b5cf6"
+                          fillOpacity={0.3}
+                          strokeWidth={2}
+                        />
+                      </RadarChart>
+                    </ResponsiveContainer>
                   </div>
                 </CardContent>
               </Card>
             </div>
+
+            {/* Recent Sessions */}
+            <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
+              <CardHeader>
+                <CardTitle>Recent Session Feedback</CardTitle>
+                <CardDescription>
+                  Your latest conversation ratings and feedback
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {sessionData.slice(-5).map((session, index) => (
+                    <div 
+                      key={index} 
+                      className="flex items-center justify-between p-3 border rounded-lg hover:shadow-md hover:scale-102 transition-all duration-300"
+                      style={{ animationDelay: `${index * 100}ms` }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="text-sm text-muted-foreground">
+                          {new Date(session.date).toLocaleDateString()}
+                        </div>
+                        <Badge variant="outline">{session.agentType}</Badge>
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">{session.duration}min</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star 
+                              key={i} 
+                              className={`w-4 h-4 ${
+                                i < session.quality 
+                                  ? 'text-yellow-400 fill-current' 
+                                  : 'text-gray-300'
+                              }`} 
+                            />
+                          ))}
+                        </div>
+                        <span className="text-sm font-medium">{session.quality.toFixed(1)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
