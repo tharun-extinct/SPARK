@@ -269,9 +269,7 @@ const Conversation = () => {
           </div>
         )}
       </div>
-    </div>
-  );
-};
+    </div>  );
 };
 
 export default Conversation;
