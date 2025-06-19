@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Mic, MicOff, Video, VideoOff, Phone, Settings, Home } from "lucide-react";
 import { createTavusConversation } from "@/lib/tavus";
-import { TavusCVIFrame } from "@/components/ui/TavusCVIFrame";
+import { TavusCVIFrame } from "@/components/TavusCVIFrame";
 
 const Conversation = () => {
   const { agentType } = useParams();

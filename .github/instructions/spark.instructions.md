@@ -5,7 +5,7 @@ applyTo: '**'
 # SPARK AI Development Instructions
 
 ## Project Overview
-SPARK (Social Perceptual AI Real-time Knowledge Assistant) is an AI-powered video agent for mental wellness support using Tavus's Conversational Video Interface (CVI).
+SPARK (Social Perceptual AI Real-time Knowledge Assistant) is an AI-powered video agent for mental wellness expert, Doctor and a Tutor. Powered by Tavus's Conversational Video Interface (CVI).
 
 ## Rules & Guidelines
 - Always use tabs for indentation.

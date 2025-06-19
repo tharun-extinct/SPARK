@@ -1,4 +1,4 @@
-import { TavusCVIFrame } from "@/components/ui/TavusCVIFrame";
+import { TavusCVIFrame } from "@/components/TavusCVIFrame";
 
 export default function TavusPage() {
   return (
