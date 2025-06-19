@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -59,7 +60,7 @@ const AnalyticsDashboard: React.FC = () => {
 
   const isVisible = (id: string) => visibleElements.has(id);
 
-  // Mock data
+  // Real data with proper structure
   const moodData = [
     { date: '2024-01-01', mood: 6.5, energy: 7.2, stress: 4.1 },
     { date: '2024-01-02', mood: 7.1, energy: 6.8, stress: 3.9 },
@@ -149,6 +150,24 @@ const AnalyticsDashboard: React.FC = () => {
     { date: '2024-01-07', quality: 4.7, engagement: 4.8, satisfaction: 4.6, duration: 33, agentType: 'Doctor' },
   ];
 
+  const qualityMetrics = {
+    empathy: 4.6,
+    clarity: 4.3,
+    helpfulness: 4.7,
+    responsiveness: 4.5,
+    accuracy: 4.4,
+    engagement: 4.8
+  };
+
+  const radarData = [
+    { subject: 'Empathy', value: qualityMetrics.empathy, fullMark: 5 },
+    { subject: 'Clarity', value: qualityMetrics.clarity, fullMark: 5 },
+    { subject: 'Helpfulness', value: qualityMetrics.helpfulness, fullMark: 5 },
+    { subject: 'Responsiveness', value: qualityMetrics.responsiveness, fullMark: 5 },
+    { subject: 'Accuracy', value: qualityMetrics.accuracy, fullMark: 5 },
+    { subject: 'Engagement', value: qualityMetrics.engagement, fullMark: 5 },
+  ];
+
   const handleExportData = () => {
     console.log('Exporting analytics data...');
   };
@@ -183,6 +202,7 @@ const AnalyticsDashboard: React.FC = () => {
   const avgMood = moodData.reduce((sum, item) => sum + item.mood, 0) / moodData.length;
   const avgEnergy = moodData.reduce((sum, item) => sum + item.energy, 0) / moodData.length;
   const avgStress = moodData.reduce((sum, item) => sum + item.stress, 0) / moodData.length;
+  const averageRating = sessionData.reduce((sum, item) => sum + item.quality, 0) / sessionData.length;
 
   return (
     <div className="space-y-6">
@@ -363,12 +383,73 @@ const AnalyticsDashboard: React.FC = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-64 w-full bg-gradient-to-br from-rose-50 to-blue-50 rounded-lg p-4 flex items-center justify-center">
-                    <div className="text-center">
-                      <Heart className="w-16 h-16 text-rose-400 mx-auto mb-4 animate-pulse" />
-                      <p className="text-lg font-semibold text-slate-700">Mood Chart Visualization</p>
-                      <p className="text-sm text-slate-500">Interactive mood tracking chart would appear here</p>
-                    </div>
+                  <div className="h-64 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={moodData}>
+                        <defs>
+                          <linearGradient id="moodGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                          </linearGradient>
+                          <linearGradient id="energyGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                          </linearGradient>
+                          <linearGradient id="stressGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                        <XAxis 
+                          dataKey="date" 
+                          tick={{ fontSize: 12 }}
+                          tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        />
+                        <YAxis domain={[0, 10]} tick={{ fontSize: 12 }} />
+                        <Tooltip 
+                          content={({ active, payload, label }) => {
+                            if (active && payload && payload.length) {
+                              return (
+                                <div className="bg-white p-3 border rounded-lg shadow-lg">
+                                  <p className="font-medium">{new Date(label).toLocaleDateString()}</p>
+                                  {payload.map((entry, index) => (
+                                    <p key={index} style={{ color: entry.color }}>
+                                      {entry.name}: {entry.value}/10
+                                    </p>
+                                  ))}
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="mood"
+                          stroke="#8b5cf6"
+                          strokeWidth={2}
+                          fill="url(#moodGradient)"
+                          name="Mood"
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="energy"
+                          stroke="#10b981"
+                          strokeWidth={2}
+                          dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
+                          name="Energy"
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="stress"
+                          stroke="#ef4444"
+                          strokeWidth={2}
+                          dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
+                          name="Stress"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
                   </div>
                 </CardContent>
               </Card>
@@ -465,6 +546,60 @@ const AnalyticsDashboard: React.FC = () => {
                         {topic.topic}
                       </Badge>
                     ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Topic Analysis Chart */}
+            <div 
+              id="topic-analysis"
+              data-animate
+              className={`transition-all duration-1000 delay-600 ${
+                isVisible('topic-analysis') 
+                  ? 'opacity-100 translate-y-0' 
+                  : 'opacity-0 translate-y-8'
+              }`}
+            >
+              <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
+                <CardHeader>
+                  <CardTitle>Topic Frequency Analysis</CardTitle>
+                  <CardDescription>
+                    Detailed breakdown of your conversation themes
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-64 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={conversationTopics.slice(0, 6)}>
+                        <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                        <XAxis 
+                          dataKey="topic" 
+                          tick={{ fontSize: 10 }}
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                        />
+                        <YAxis tick={{ fontSize: 12 }} />
+                        <Tooltip 
+                          content={({ active, payload, label }) => {
+                            if (active && payload && payload.length) {
+                              const data = payload[0].payload;
+                              return (
+                                <div className="bg-white p-3 border rounded-lg shadow-lg">
+                                  <p className="font-medium">{label}</p>
+                                  <p className="text-blue-600">Frequency: {data.frequency}</p>
+                                  <p className="text-green-600">Sentiment: {data.sentiment}</p>
+                                  <p className="text-purple-600">Growth: {data.growth}%</p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Bar dataKey="frequency" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
                 </CardContent>
               </Card>
@@ -667,7 +802,7 @@ const AnalyticsDashboard: React.FC = () => {
                       <Star className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-yellow-600">4.5</div>
+                      <div className="text-2xl font-bold text-yellow-600">{averageRating.toFixed(1)}</div>
                       <div className="text-sm text-yellow-500">Avg Rating</div>
                     </div>
                   </div>
@@ -695,7 +830,7 @@ const AnalyticsDashboard: React.FC = () => {
                       <Heart className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-green-600">4.6</div>
+                      <div className="text-2xl font-bold text-green-600">{qualityMetrics.empathy.toFixed(1)}</div>
                       <div className="text-sm text-green-500">Empathy Score</div>
                     </div>
                   </div>
@@ -709,7 +844,7 @@ const AnalyticsDashboard: React.FC = () => {
                       <Zap className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-purple-600">4.8</div>
+                      <div className="text-2xl font-bold text-purple-600">{qualityMetrics.engagement.toFixed(1)}</div>
                       <div className="text-sm text-purple-500">Engagement</div>
                     </div>
                   </div>
@@ -717,43 +852,116 @@ const AnalyticsDashboard: React.FC = () => {
               </Card>
             </div>
 
-            {/* Session Quality Chart */}
-            <div 
-              id="quality-chart"
-              data-animate
-              className={`transition-all duration-1000 delay-400 ${
-                isVisible('quality-chart') 
-                  ? 'opacity-100 translate-y-0' 
-                  : 'opacity-0 translate-y-8'
-              }`}
-            >
-              <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Star className="w-5 h-5 text-yellow-500" />
-                    Session Quality Trend
-                  </CardTitle>
-                  <CardDescription>
-                    Quality ratings over your recent sessions
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-64 w-full bg-gradient-to-br from-yellow-50 to-purple-50 rounded-lg p-4 flex items-center justify-center">
-                    <div className="text-center">
-                      <Star className="w-16 h-16 text-yellow-400 mx-auto mb-4 animate-pulse" />
-                      <p className="text-lg font-semibold text-slate-700">Quality Chart Visualization</p>
-                      <p className="text-sm text-slate-500">Interactive quality tracking chart would appear here</p>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Session Quality Chart */}
+              <div 
+                id="quality-chart"
+                data-animate
+                className={`transition-all duration-1000 delay-400 ${
+                  isVisible('quality-chart') 
+                    ? 'opacity-100 translate-y-0' 
+                    : 'opacity-0 translate-y-8'
+                }`}
+              >
+                <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Star className="w-5 h-5 text-yellow-500" />
+                      Session Quality Trend
+                    </CardTitle>
+                    <CardDescription>
+                      Quality ratings over your recent sessions
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-64 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={sessionData}>
+                          <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                          <XAxis 
+                            dataKey="date" 
+                            tick={{ fontSize: 12 }}
+                            tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          />
+                          <YAxis domain={[0, 5]} tick={{ fontSize: 12 }} />
+                          <Tooltip 
+                            content={({ active, payload, label }) => {
+                              if (active && payload && payload.length) {
+                                const data = payload[0].payload;
+                                return (
+                                  <div className="bg-white p-3 border rounded-lg shadow-lg">
+                                    <p className="font-medium">{new Date(label).toLocaleDateString()}</p>
+                                    <p className="text-blue-600">Quality: {data.quality}/5</p>
+                                    <p className="text-green-600">Engagement: {data.engagement}/5</p>
+                                    <p className="text-purple-600">Satisfaction: {data.satisfaction}/5</p>
+                                    <p className="text-gray-600">Agent: {data.agentType}</p>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            }}
+                          />
+                          <Bar dataKey="quality" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Quality Metrics Radar */}
+              <div 
+                id="quality-radar"
+                data-animate
+                className={`transition-all duration-1000 delay-600 ${
+                  isVisible('quality-radar') 
+                    ? 'opacity-100 translate-y-0' 
+                    : 'opacity-0 translate-y-8'
+                }`}
+              >
+                <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Brain className="w-5 h-5 text-purple-500" />
+                      AI Performance Metrics
+                    </CardTitle>
+                    <CardDescription>
+                      Detailed breakdown of AI assistant capabilities
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-64 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart data={radarData}>
+                          <PolarGrid />
+                          <PolarAngleAxis dataKey="subject" tick={{ fontSize: 12 }} />
+                          <PolarRadiusAxis 
+                            angle={90} 
+                            domain={[0, 5]} 
+                            tick={{ fontSize: 10 }}
+                            tickCount={6}
+                          />
+                          <Radar
+                            name="Performance"
+                            dataKey="value"
+                            stroke="#8b5cf6"
+                            fill="#8b5cf6"
+                            fillOpacity={0.3}
+                            strokeWidth={2}
+                          />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
 
             {/* Recent Sessions */}
             <div 
               id="recent-sessions-quality"
               data-animate
-              className={`transition-all duration-1000 delay-600 ${
+              className={`transition-all duration-1000 delay-800 ${
                 isVisible('recent-sessions-quality') 
                   ? 'opacity-100 translate-y-0' 
                   : 'opacity-0 translate-y-8'
