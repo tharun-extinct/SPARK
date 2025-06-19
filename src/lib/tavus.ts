@@ -15,7 +15,7 @@ export const createTavusConversation = async ({
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-api-key": 'f1c7b8671f24473bad8f3a6a482f0f68', // safer than hardcoding
+      "x-api-key": '70285b696d38469bb4dd106924099ded', // safer than hardcoding
       },
     body: JSON.stringify({
       replica_id: replicaId,
