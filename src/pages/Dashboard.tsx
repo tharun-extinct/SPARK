@@ -1,9 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Heart, 
   Brain, 
@@ -15,7 +15,8 @@ import {
   Target,
   Home,
   Settings,
-  User
+  User,
+  BarChart3
 } from "lucide-react";
 import { useAuth } from "@/services/firebaseAuth";
 import { 
@@ -24,6 +25,7 @@ import {
   updateUserOnboardingStatus 
 } from "@/lib/firebase";
 import { useToast } from "@/components/ui/use-toast";
+import AnalyticsDashboard from "@/components/analytics/AnalyticsDashboard";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -32,7 +34,10 @@ const Dashboard = () => {
   const { toast } = useToast();
   const [selectedPeriod, setSelectedPeriod] = useState("week");
   const [isLoading, setIsLoading] = useState(true);
-  const [connectionError, setConnectionError] = useState(false);  // Check if we're coming directly from onboarding and ensure Firestore connection
+  const [connectionError, setConnectionError] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
+
+  // Check if we're coming directly from onboarding and ensure Firestore connection
   useEffect(() => {
     const fromOnboarding = location.state?.fromOnboarding === true;
     const offlineCompletion = location.state?.offlineCompletion === true;
@@ -116,7 +121,7 @@ const Dashboard = () => {
         
         if (fromOnboarding) {
           toast({
-            title: "Welcome to ConnectAI",
+            title: "Welcome to SPARK",
             description: "Your onboarding is complete. Start your wellness journey!",
           });
         }
@@ -181,6 +186,7 @@ const Dashboard = () => {
     { id: 2, agent: "Alex", type: "Learning", duration: "30 min", mood: "Focused", date: "Yesterday" },
     { id: 3, agent: "Dr. James", type: "Wellness", duration: "25 min", mood: "Calm", date: "2 days ago" },
   ];
+  
   const upcomingGoals = [
     { id: 1, title: "Daily check-in", progress: 80, target: "7 days" },
     { id: 2, title: "Anxiety management", progress: 60, target: "Practice breathing" },
@@ -212,170 +218,186 @@ const Dashboard = () => {
           </div>
         </div>
       ) : (
-        <>
-          {/* Header */}
-          
+        <div className="p-6 space-y-6">
+          {/* Dashboard Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            <TabsList className="grid w-full grid-cols-2 max-w-md">
+              <TabsTrigger value="overview" className="flex items-center gap-2">
+                <Home className="w-4 h-4" />
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="analytics" className="flex items-center gap-2">
+                <BarChart3 className="w-4 h-4" />
+                Analytics
+              </TabsTrigger>
+            </TabsList>
 
-          <div className="p-6 space-y-6">
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Mood Score</CardTitle>
-                  <Heart className="h-4 w-4 text-rose-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{metrics.moodScore}/10</div>
-                  <p className="text-xs text-muted-foreground">
-                    +0.5 from last week
-                  </p>
-                </CardContent>
-              </Card>
+            <TabsContent value="overview" className="space-y-6">
+              {/* Quick Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Mood Score</CardTitle>
+                    <Heart className="h-4 w-4 text-rose-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{metrics.moodScore}/10</div>
+                    <p className="text-xs text-muted-foreground">
+                      +0.5 from last week
+                    </p>
+                  </CardContent>
+                </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Sessions</CardTitle>
-                  <MessageCircle className="h-4 w-4 text-blue-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{metrics.sessionsThisWeek}</div>
-                  <p className="text-xs text-muted-foreground">
-                    This week
-                  </p>
-                </CardContent>
-              </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Sessions</CardTitle>
+                    <MessageCircle className="h-4 w-4 text-blue-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{metrics.sessionsThisWeek}</div>
+                    <p className="text-xs text-muted-foreground">
+                      This week
+                    </p>
+                  </CardContent>
+                </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Time Spent</CardTitle>
-                  <Clock className="h-4 w-4 text-green-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{metrics.totalMinutes}min</div>
-                  <p className="text-xs text-muted-foreground">
-                    Total this week
-                  </p>
-                </CardContent>
-              </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Time Spent</CardTitle>
+                    <Clock className="h-4 w-4 text-green-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{metrics.totalMinutes}min</div>
+                    <p className="text-xs text-muted-foreground">
+                      Total this week
+                    </p>
+                  </CardContent>
+                </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Streak</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-orange-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{metrics.streakDays}</div>
-                  <p className="text-xs text-muted-foreground">
-                    Days active
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Streak</CardTitle>
+                    <TrendingUp className="h-4 w-4 text-orange-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{metrics.streakDays}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Days active
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Recent Sessions */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Recent Sessions */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Activity className="w-5 h-5 mr-2" />
+                      Recent Sessions
+                    </CardTitle>
+                    <CardDescription>
+                      Your latest AI companion interactions
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {recentSessions.map((session) => (
+                        <div key={session.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div>
+                            <p className="font-medium">{session.agent}</p>
+                            <p className="text-sm text-gray-600">{session.type} • {session.duration}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-medium">{session.mood}</p>
+                            <p className="text-xs text-gray-500">{session.date}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <Button variant="outline" className="w-full mt-4">
+                      View All Sessions
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Wellness Goals */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Target className="w-5 h-5 mr-2" />
+                      Wellness Goals
+                    </CardTitle>
+                    <CardDescription>
+                      Track your progress towards better mental health
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {upcomingGoals.map((goal) => (
+                        <div key={goal.id} className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <p className="font-medium">{goal.title}</p>
+                            <span className="text-sm text-gray-600">{goal.progress}%</span>
+                          </div>
+                          <Progress value={goal.progress} className="h-2" />
+                          <p className="text-xs text-gray-500">{goal.target}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <Button variant="outline" className="w-full mt-4">
+                      Set New Goal
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Quick Actions */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Activity className="w-5 h-5 mr-2" />
-                    Recent Sessions
-                  </CardTitle>
+                  <CardTitle>Quick Actions</CardTitle>
                   <CardDescription>
-                    Your latest AI companion interactions
+                    Start a new session or explore your wellness tools
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {recentSessions.map((session) => (
-                      <div key={session.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div>
-                          <p className="font-medium">{session.agent}</p>
-                          <p className="text-sm text-gray-600">{session.type} • {session.duration}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium">{session.mood}</p>
-                          <p className="text-xs text-gray-500">{session.date}</p>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Button 
+                      onClick={() => navigate("/conversation/psychiatrist")}
+                      className="h-24 flex flex-col items-center justify-center space-y-2"
+                    >
+                      <Heart className="w-6 h-6" />
+                      <span>Mental Health Chat</span>
+                    </Button>
+                    <Button 
+                      onClick={() => navigate("/conversation/tutor")}
+                      variant="outline"
+                      className="h-24 flex flex-col items-center justify-center space-y-2"
+                    >
+                      <Brain className="w-6 h-6" />
+                      <span>Learning Session</span>
+                    </Button>
+                    <Button 
+                      onClick={() => navigate("/conversation/doctor")}
+                      variant="outline"
+                      className="h-24 flex flex-col items-center justify-center space-y-2"
+                    >
+                      <Activity className="w-6 h-6" />
+                      <span>Wellness Check</span>
+                    </Button>
                   </div>
-                  <Button variant="outline" className="w-full mt-4">
-                    View All Sessions
-                  </Button>
                 </CardContent>
               </Card>
+            </TabsContent>
 
-              {/* Wellness Goals */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Target className="w-5 h-5 mr-2" />
-                    Wellness Goals
-                  </CardTitle>
-                  <CardDescription>
-                    Track your progress towards better mental health
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {upcomingGoals.map((goal) => (
-                      <div key={goal.id} className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <p className="font-medium">{goal.title}</p>
-                          <span className="text-sm text-gray-600">{goal.progress}%</span>
-                        </div>
-                        <Progress value={goal.progress} className="h-2" />
-                        <p className="text-xs text-gray-500">{goal.target}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <Button variant="outline" className="w-full mt-4">
-                    Set New Goal
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-                <CardDescription>
-                  Start a new session or explore your wellness tools
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Button 
-                    onClick={() => navigate("/conversation/psychiatrist")}
-                    className="h-24 flex flex-col items-center justify-center space-y-2"
-                  >
-                    <Heart className="w-6 h-6" />
-                    <span>Mental Health Chat</span>
-                  </Button>
-                  <Button 
-                    onClick={() => navigate("/conversation/tutor")}
-                    variant="outline"
-                    className="h-24 flex flex-col items-center justify-center space-y-2"
-                  >
-                    <Brain className="w-6 h-6" />
-                    <span>Learning Session</span>
-                  </Button>
-                  <Button 
-                    onClick={() => navigate("/conversation/doctor")}
-                    variant="outline"
-                    className="h-24 flex flex-col items-center justify-center space-y-2"
-                  >
-                    <Activity className="w-6 h-6" />
-                    <span>Wellness Check</span>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </>
+            <TabsContent value="analytics" className="space-y-6">
+              <AnalyticsDashboard />
+            </TabsContent>
+          </Tabs>
+        </div>
       )}
-    </div>  );
+    </div>
+  );
 };
 
 export default Dashboard;
