@@ -261,7 +261,7 @@ const Conversation = () => {
       <div className="max-w-6xl mx-auto p-4">
         {conversationUrl ? (
           <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-            <TavusCVIFrame conversationUrl={conversationUrl} />
+            <TavusCVIFrame url={conversationUrl} />
           </div>
         ) : (
           <div className="text-center py-8">
