@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Mic, MicOff, Video, VideoOff, Phone, Settings, Home, AlertTriangle, RefreshCw } from "lucide-react";
 import { createTavusConversation } from "@/lib/tavus";
-import { TavusCVIFrame } from "@/components/TavusCVIFrame";
+import { TavusCVIFrame } from "@/components/ui/TavusCVIFrame";
 import { useToast } from "@/components/ui/use-toast";
 
 const Conversation = () => {
@@ -220,7 +220,7 @@ const Conversation = () => {
                 <p className="text-xs text-gray-500 mt-4">
                   If this problem persists, please contact support or try again later.
                 </p>
-              )}
+                )}
             </div>
           </CardContent>
         </Card>
@@ -269,7 +269,8 @@ const Conversation = () => {
           </div>
         )}
       </div>
-    </div>  );
+    </div>
+  );
 };
 
 export default Conversation;

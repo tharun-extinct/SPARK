@@ -11,13 +11,12 @@ export const createTavusConversation = async ({
   context: string;
   greeting: string;
 }): Promise<string> => {
-
-  const response = await fetch("https://tavusapi.com/v2/conversations", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": '70285b696d38469bb4dd106924099ded', // safer than hardcoding
-
+  try {
+    const response = await fetch("https://tavusapi.com/v2/conversations", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": '70285b696d38469bb4dd106924099ded', // safer than hardcoding
       },
       body: JSON.stringify({
         replica_id: replicaId,
