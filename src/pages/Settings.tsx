@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -7,17 +6,6 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { 
   Settings as SettingsIcon, 
   Shield, 
@@ -28,23 +16,16 @@ import {
   Save,
   Check,
   AlertTriangle,
-  Info,
-  Trash2,
-  LogOut,
-  Loader2
+  Info
 } from 'lucide-react';
 import { useAuth } from '@/services/firebaseAuth';
-import { signOut } from '@/lib/firebase';
 import { useToast } from '@/components/ui/use-toast';
 
 const Settings = () => {
   const { currentUser } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isDeletingData, setIsDeletingData] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [visibleElements, setVisibleElements] = useState(new Set());
   const observerRef = useRef<IntersectionObserver | null>(null);
 
@@ -140,48 +121,6 @@ const Settings = () => {
       });
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  // Delete all conversation data
-  const handleDeleteConversationData = async () => {
-    setIsDeletingData(true);
-    try {
-      // Simulate API call to delete conversation data
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      toast({
-        title: "Data Deleted",
-        description: "All your conversation data has been permanently deleted.",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete conversation data. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDeletingData(false);
-    }
-  };
-
-  // Handle logout
-  const handleLogout = async () => {
-    setIsLoggingOut(true);
-    try {
-      await signOut();
-      toast({
-        title: "Logged Out",
-        description: "You have been successfully logged out.",
-      });
-      navigate('/');
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to log out. Please try again.",
-        variant: "destructive",
-      });
-      setIsLoggingOut(false);
     }
   };
 
@@ -433,7 +372,7 @@ const Settings = () => {
                   >
                     {isSaving ? (
                       <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
                         Saving...
                       </>
                     ) : (
@@ -443,138 +382,6 @@ const Settings = () => {
                       </>
                     )}
                   </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Danger Zone - Delete Data and Logout */}
-          <div 
-            id="danger-zone"
-            data-animate
-            className={`transition-all duration-1000 delay-1000 ${
-              isVisible('danger-zone') 
-                ? 'opacity-100 translate-y-0' 
-                : 'opacity-0 translate-y-8'
-            }`}
-          >
-            <Card className="bg-gradient-to-r from-red-50 to-orange-50 border-red-200 shadow-xl hover:shadow-2xl transition-all duration-500">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-gradient-to-br from-red-500 to-orange-600 rounded-lg">
-                    <AlertTriangle className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-xl text-red-800">Danger Zone</CardTitle>
-                    <CardDescription className="text-red-600">
-                      Irreversible actions that affect your account and data
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Delete Conversation Data */}
-                <div className="flex items-center justify-between p-4 rounded-lg border border-red-200 bg-white/50">
-                  <div>
-                    <h4 className="font-medium text-red-800">Delete All Conversation Data</h4>
-                    <p className="text-sm text-red-600">
-                      Permanently delete all your conversation history and chat data. This action cannot be undone.
-                    </p>
-                  </div>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button 
-                        variant="destructive" 
-                        disabled={isDeletingData}
-                        className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
-                      >
-                        {isDeletingData ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Deleting...
-                          </>
-                        ) : (
-                          <>
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete Data
-                          </>
-                        )}
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle className="flex items-center gap-2 text-red-800">
-                          <AlertTriangle className="w-5 h-5" />
-                          Delete All Conversation Data?
-                        </AlertDialogTitle>
-                        <AlertDialogDescription className="text-red-600">
-                          This will permanently delete all your conversation history, chat logs, and related data. 
-                          This action cannot be undone and you will lose all your conversation records.
-                          <br /><br />
-                          Are you absolutely sure you want to continue?
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction 
-                          onClick={handleDeleteConversationData}
-                          className="bg-red-600 hover:bg-red-700"
-                        >
-                          Yes, Delete All Data
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-
-                <Separator className="bg-red-200" />
-
-                {/* Logout */}
-                <div className="flex items-center justify-between p-4 rounded-lg border border-orange-200 bg-white/50">
-                  <div>
-                    <h4 className="font-medium text-orange-800">Logout</h4>
-                    <p className="text-sm text-orange-600">
-                      Sign out of your account and return to the home page
-                    </p>
-                  </div>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button 
-                        variant="outline" 
-                        disabled={isLoggingOut}
-                        className="border-orange-300 text-orange-700 hover:bg-orange-50 hover:text-orange-800"
-                      >
-                        {isLoggingOut ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Logging out...
-                          </>
-                        ) : (
-                          <>
-                            <LogOut className="w-4 h-4 mr-2" />
-                            Logout
-                          </>
-                        )}
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle className="flex items-center gap-2">
-                          <LogOut className="w-5 h-5" />
-                          Logout Confirmation
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to logout? You'll need to sign in again to access your account.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleLogout}>
-                          Yes, Logout
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
                 </div>
               </CardContent>
             </Card>
