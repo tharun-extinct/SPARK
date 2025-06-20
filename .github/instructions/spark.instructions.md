@@ -27,7 +27,7 @@ SPARK (Social Perceptual AI Real-time Knowledge Assistant) is an AI-powered vide
 - **WebRTC**: Daily.co / LiveKit integration
 - **State Management**: React hooks (useState, useEffect)
 - **Routing**: React Router
-- **Package Manager**: Bun / npm (preferred)
+- **Package Manager**: npm (preferred)
 
 
 ## Firebase Setup
