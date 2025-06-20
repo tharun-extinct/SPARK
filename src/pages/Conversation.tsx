@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Mic, MicOff, Video, VideoOff, Phone, Settings, Home, AlertTriangle, RefreshCw } from "lucide-react";
+import { Mic, MicOff, Video, VideoOff, Phone, Settings, Home, AlertTriangle, RefreshCw, Send } from "lucide-react";
 import { createTavusConversation } from "@/lib/tavus";
 import { TavusCVIFrame } from "@/components/ui/TavusCVIFrame";
 import { useToast } from "@/components/ui/use-toast";
@@ -20,6 +20,8 @@ const Conversation = () => {
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [chatMessages, setChatMessages] = useState<Array<{text: string, sender: 'user' | 'ai', timestamp: Date}>>([]);
+  const [inputMessage, setInputMessage] = useState("");
 
   const MAX_RETRIES = 3;
   const RETRY_DELAY = 2000; // 2 seconds
@@ -142,9 +144,45 @@ const Conversation = () => {
     navigate("/dashboard");
   };
 
+  // Add a function to handle sending messages
+  const handleSendMessage = () => {
+    if (!inputMessage.trim()) return;
+    
+    // Add user message
+    const userMessage = {
+      text: inputMessage.trim(),
+      sender: 'user' as const,
+      timestamp: new Date()
+    };
+    
+    setChatMessages(prev => [...prev, userMessage]);
+    setInputMessage("");
+    
+    // Simulate AI response after a short delay
+    setTimeout(() => {
+      const aiMessage = {
+        text: `I'm processing your message: "${inputMessage.trim()}"`,
+        sender: 'ai' as const,
+        timestamp: new Date()
+      };
+      setChatMessages(prev => [...prev, aiMessage]);
+    }, 1000);
+  };
+
   useEffect(() => {
     initializeConversation();
   }, [agentType]); // Re-initialize if agent type changes
+
+  // Add initial greeting message from AI
+  useEffect(() => {
+    if (conversationStarted && chatMessages.length === 0) {
+      setChatMessages([{
+        text: currentAgent.greeting,
+        sender: 'ai',
+        timestamp: new Date()
+      }]);
+    }
+  }, [conversationStarted, currentAgent.greeting]);
 
   // Loading State
   if (isLoading || isRetrying) {
@@ -231,9 +269,8 @@ const Conversation = () => {
   // Success State - Show the conversation
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <div className="bg-white border-b px-4 py-3">
-        <div className="flex items-center justify-between max-w-6xl mx-auto">
+      {/* Header */}      <div className="bg-white border-b px-4 py-3">
+        <div className="flex items-center justify-between w-full">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
               <span className="text-xl">{currentAgent.avatar}</span>
@@ -255,13 +292,72 @@ const Conversation = () => {
             </Button>
           </div>
         </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="max-w-6xl mx-auto p-4 flex-1 flex flex-col">
+      </div>      {/* Main Content */}
+      <div className="w-full max-w-none px-4 py-2 flex-1 flex flex-col">
         {conversationUrl ? (
-          <div className="bg-white rounded-lg shadow-sm overflow-hidden h-[calc(100vh-120px)]">
-            <TavusCVIFrame url={conversationUrl} />
+          <div className="flex h-[calc(100vh-100px)] w-full mx-auto gap-4">
+            {/* Video conversation */}
+            <div className="flex-1 bg-white rounded-lg shadow-sm overflow-hidden">
+              <TavusCVIFrame url={conversationUrl} />
+            </div>
+            
+            {/* Chat interface */}
+            <div className="w-96 bg-white rounded-lg shadow-sm overflow-hidden flex flex-col">
+              <div className="p-3 border-b">
+                <h2 className="font-semibold">Chat with {currentAgent.name}</h2>
+              </div>
+              
+              {/* Messages container */}
+              <div className="flex-1 p-3 overflow-y-auto">
+                {chatMessages.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-gray-400 text-sm">
+                    <p>Your chat messages will appear here</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {chatMessages.map((msg, index) => (
+                      <div 
+                        key={index} 
+                        className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div 
+                          className={`max-w-[85%] rounded-lg px-3 py-2 ${
+                            msg.sender === 'user' 
+                              ? 'bg-primary text-primary-foreground' 
+                              : 'bg-muted'
+                          }`}
+                        >
+                          <p>{msg.text}</p>
+                          <p className="text-xs opacity-70 mt-1">
+                            {msg.timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              {/* Input area */}
+              <div className="p-3 border-t">
+                <div className="flex">
+                  <input
+                    type="text"
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                    placeholder="Type your message..."
+                    className="flex-1 border rounded-l-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                  />                  <Button 
+                    onClick={handleSendMessage}
+                    className="rounded-l-none"
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    Send
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="text-center py-8">
