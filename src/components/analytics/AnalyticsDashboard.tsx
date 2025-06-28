@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, PieChart, Pie, Cell } from 'recharts';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -21,12 +21,20 @@ import {
   Zap,
   Clock,
   Award,
-  CheckCircle
+  CheckCircle,
+  Users,
+  Smile,
+  AlertCircle,
+  TrendingDown,
+  Eye,
+  Headphones,
+  Video,
+  MessageCircleMore
 } from 'lucide-react';
 
 const AnalyticsDashboard: React.FC = () => {
   const [timeRange, setTimeRange] = useState('week');
-  const [selectedTab, setSelectedTab] = useState('mood');
+  const [selectedTab, setSelectedTab] = useState('overview');
   const [visibleElements, setVisibleElements] = useState(new Set());
   const observerRef = useRef<IntersectionObserver | null>(null);
 
@@ -43,7 +51,6 @@ const AnalyticsDashboard: React.FC = () => {
       { threshold: 0.1, rootMargin: '50px' }
     );
 
-    // Observe all animated elements
     const animatedElements = document.querySelectorAll('[data-animate]');
     animatedElements.forEach(el => {
       if (observerRef.current) {
@@ -60,149 +67,110 @@ const AnalyticsDashboard: React.FC = () => {
 
   const isVisible = (id: string) => visibleElements.has(id);
 
-  // Real data with proper structure
+  // Enhanced data with more comprehensive analytics
   const moodData = [
-    { date: '2024-01-01', mood: 6.5, energy: 7.2, stress: 4.1 },
-    { date: '2024-01-02', mood: 7.1, energy: 6.8, stress: 3.9 },
-    { date: '2024-01-03', mood: 6.8, energy: 7.5, stress: 3.2 },
-    { date: '2024-01-04', mood: 8.2, energy: 8.1, stress: 2.8 },
-    { date: '2024-01-05', mood: 7.9, energy: 7.8, stress: 3.1 },
-    { date: '2024-01-06', mood: 8.5, energy: 8.3, stress: 2.5 },
-    { date: '2024-01-07', mood: 8.1, energy: 7.9, stress: 2.9 },
+    { date: '2024-01-01', mood: 6.5, energy: 7.2, stress: 4.1, anxiety: 3.8, sleep: 7.0 },
+    { date: '2024-01-02', mood: 7.1, energy: 6.8, stress: 3.9, anxiety: 3.5, sleep: 6.5 },
+    { date: '2024-01-03', mood: 6.8, energy: 7.5, stress: 3.2, anxiety: 3.0, sleep: 8.0 },
+    { date: '2024-01-04', mood: 8.2, energy: 8.1, stress: 2.8, anxiety: 2.5, sleep: 7.5 },
+    { date: '2024-01-05', mood: 7.9, energy: 7.8, stress: 3.1, anxiety: 2.8, sleep: 7.8 },
+    { date: '2024-01-06', mood: 8.5, energy: 8.3, stress: 2.5, anxiety: 2.2, sleep: 8.2 },
+    { date: '2024-01-07', mood: 8.1, energy: 7.9, stress: 2.9, anxiety: 2.6, sleep: 7.9 },
   ];
 
-  const conversationTopics = [
-    { topic: 'Anxiety Management', frequency: 15, sentiment: 'positive', growth: 12 },
-    { topic: 'Sleep Issues', frequency: 12, sentiment: 'neutral', growth: -5 },
-    { topic: 'Work Stress', frequency: 10, sentiment: 'negative', growth: 8 },
-    { topic: 'Relationships', frequency: 8, sentiment: 'positive', growth: 15 },
-    { topic: 'Self-Care', frequency: 7, sentiment: 'positive', growth: 20 },
-    { topic: 'Goal Setting', frequency: 6, sentiment: 'positive', growth: 10 },
-    { topic: 'Mindfulness', frequency: 5, sentiment: 'positive', growth: 25 },
-    { topic: 'Exercise', frequency: 4, sentiment: 'neutral', growth: 5 },
+  const conversationData = [
+    { date: '2024-01-01', sessions: 2, duration: 45, satisfaction: 4.2, topics: 3 },
+    { date: '2024-01-02', sessions: 1, duration: 32, satisfaction: 4.6, topics: 2 },
+    { date: '2024-01-03', sessions: 3, duration: 67, satisfaction: 4.1, topics: 4 },
+    { date: '2024-01-04', sessions: 2, duration: 58, satisfaction: 4.8, topics: 3 },
+    { date: '2024-01-05', sessions: 1, duration: 28, satisfaction: 4.5, topics: 2 },
+    { date: '2024-01-06', sessions: 2, duration: 52, satisfaction: 4.9, topics: 3 },
+    { date: '2024-01-07', sessions: 1, duration: 35, satisfaction: 4.7, topics: 2 },
   ];
 
-  const milestones = [
-    {
-      id: '1',
-      title: 'Daily Check-ins',
-      description: 'Complete daily mood and wellness check-ins',
-      progress: 6,
-      target: 7,
-      category: 'wellness',
-      completed: false
-    },
-    {
-      id: '2',
-      title: 'Anxiety Coping Skills',
-      description: 'Learn and practice 5 different anxiety management techniques',
-      progress: 5,
-      target: 5,
-      category: 'wellness',
-      completed: true,
-      completedDate: '2024-01-05'
-    },
-    {
-      id: '3',
-      title: 'Learning Streak',
-      description: 'Maintain a 30-day learning conversation streak',
-      progress: 18,
-      target: 30,
-      category: 'learning',
-      completed: false
-    }
+  const agentUsageData = [
+    { name: 'Mental Health', sessions: 45, percentage: 52, color: '#ef4444' },
+    { name: 'Learning', sessions: 28, percentage: 32, color: '#3b82f6' },
+    { name: 'Wellness', sessions: 14, percentage: 16, color: '#10b981' },
   ];
 
-  const achievements = [
-    {
-      id: '1',
-      title: 'First Steps',
-      description: 'Completed your first AI conversation',
-      icon: '🎯',
-      unlockedDate: '2024-01-01',
-      rarity: 'common'
-    },
-    {
-      id: '2',
-      title: 'Mood Master',
-      description: 'Tracked mood for 7 consecutive days',
-      icon: '😊',
-      unlockedDate: '2024-01-07',
-      rarity: 'rare'
-    },
-    {
-      id: '3',
-      title: 'Wellness Warrior',
-      description: 'Completed 10 wellness-focused conversations',
-      icon: '💪',
-      unlockedDate: '2024-01-06',
-      rarity: 'epic'
-    }
+  const topicTrendsData = [
+    { topic: 'Anxiety Management', week1: 15, week2: 12, week3: 18, week4: 14, trend: 'stable' },
+    { topic: 'Sleep Issues', week1: 8, week2: 12, week3: 10, week4: 6, trend: 'improving' },
+    { topic: 'Work Stress', week1: 10, week2: 8, week3: 12, week4: 15, trend: 'increasing' },
+    { topic: 'Relationships', week1: 5, week2: 8, week3: 6, week4: 9, trend: 'stable' },
+    { topic: 'Self-Care', week1: 3, week2: 5, week3: 7, week4: 9, trend: 'improving' },
   ];
 
-  const sessionData = [
-    { date: '2024-01-01', quality: 4.2, engagement: 4.5, satisfaction: 4.1, duration: 25, agentType: 'Mental Health' },
-    { date: '2024-01-02', quality: 4.6, engagement: 4.8, satisfaction: 4.4, duration: 32, agentType: 'Tutor' },
-    { date: '2024-01-03', quality: 4.1, engagement: 4.3, satisfaction: 4.0, duration: 28, agentType: 'Doctor' },
-    { date: '2024-01-04', quality: 4.8, engagement: 4.9, satisfaction: 4.7, duration: 35, agentType: 'Mental Health' },
-    { date: '2024-01-05', quality: 4.5, engagement: 4.6, satisfaction: 4.3, duration: 30, agentType: 'Tutor' },
-    { date: '2024-01-06', quality: 4.9, engagement: 5.0, satisfaction: 4.8, duration: 40, agentType: 'Mental Health' },
-    { date: '2024-01-07', quality: 4.7, engagement: 4.8, satisfaction: 4.6, duration: 33, agentType: 'Doctor' },
-  ];
-
-  const qualityMetrics = {
-    empathy: 4.6,
-    clarity: 4.3,
-    helpfulness: 4.7,
-    responsiveness: 4.5,
-    accuracy: 4.4,
-    engagement: 4.8
+  const wellnessMetrics = {
+    overall: 7.8,
+    emotional: 7.5,
+    physical: 8.1,
+    social: 7.2,
+    mental: 8.0,
+    spiritual: 6.8
   };
 
   const radarData = [
-    { subject: 'Empathy', value: qualityMetrics.empathy, fullMark: 5 },
-    { subject: 'Clarity', value: qualityMetrics.clarity, fullMark: 5 },
-    { subject: 'Helpfulness', value: qualityMetrics.helpfulness, fullMark: 5 },
-    { subject: 'Responsiveness', value: qualityMetrics.responsiveness, fullMark: 5 },
-    { subject: 'Accuracy', value: qualityMetrics.accuracy, fullMark: 5 },
-    { subject: 'Engagement', value: qualityMetrics.engagement, fullMark: 5 },
+    { subject: 'Emotional', value: wellnessMetrics.emotional, fullMark: 10 },
+    { subject: 'Physical', value: wellnessMetrics.physical, fullMark: 10 },
+    { subject: 'Social', value: wellnessMetrics.social, fullMark: 10 },
+    { subject: 'Mental', value: wellnessMetrics.mental, fullMark: 10 },
+    { subject: 'Spiritual', value: wellnessMetrics.spiritual, fullMark: 10 },
+  ];
+
+  const engagementMetrics = [
+    { metric: 'Session Completion Rate', value: 94, target: 90, status: 'excellent' },
+    { metric: 'Average Session Duration', value: 42, target: 30, status: 'good' },
+    { metric: 'Weekly Active Days', value: 5, target: 4, status: 'excellent' },
+    { metric: 'Response Quality Rating', value: 4.6, target: 4.0, status: 'excellent' },
   ];
 
   const handleExportData = () => {
-    console.log('Exporting analytics data...');
+    const data = {
+      moodData,
+      conversationData,
+      agentUsageData,
+      topicTrendsData,
+      wellnessMetrics,
+      engagementMetrics,
+      exportDate: new Date().toISOString(),
+      timeRange
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `spark-analytics-${timeRange}-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
-  const getSentimentColor = (sentiment: string) => {
-    switch (sentiment) {
-      case 'positive': return 'bg-green-100 text-green-800 border-green-200';
-      case 'negative': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+  const getTrendIcon = (trend: string) => {
+    switch (trend) {
+      case 'improving': return <TrendingUp className="w-4 h-4 text-green-500" />;
+      case 'increasing': return <TrendingUp className="w-4 h-4 text-red-500" />;
+      case 'decreasing': return <TrendingDown className="w-4 h-4 text-green-500" />;
+      default: return <Activity className="w-4 h-4 text-gray-500" />;
     }
   };
 
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'wellness': return 'bg-green-100 text-green-800 border-green-200';
-      case 'learning': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'social': return 'bg-purple-100 text-purple-800 border-purple-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
-  const getRarityColor = (rarity: string) => {
-    switch (rarity) {
-      case 'legendary': return 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white';
-      case 'epic': return 'bg-gradient-to-r from-purple-500 to-pink-500 text-white';
-      case 'rare': return 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'excellent': return 'text-green-600 bg-green-100';
+      case 'good': return 'text-blue-600 bg-blue-100';
+      case 'needs-improvement': return 'text-orange-600 bg-orange-100';
+      default: return 'text-gray-600 bg-gray-100';
     }
   };
 
   const currentMood = moodData[moodData.length - 1]?.mood || 0;
   const avgMood = moodData.reduce((sum, item) => sum + item.mood, 0) / moodData.length;
-  const avgEnergy = moodData.reduce((sum, item) => sum + item.energy, 0) / moodData.length;
-  const avgStress = moodData.reduce((sum, item) => sum + item.stress, 0) / moodData.length;
-  const averageRating = sessionData.reduce((sum, item) => sum + item.quality, 0) / sessionData.length;
+  const totalSessions = conversationData.reduce((sum, item) => sum + item.sessions, 0);
+  const avgSatisfaction = conversationData.reduce((sum, item) => sum + item.satisfaction, 0) / conversationData.length;
 
   return (
     <div className="space-y-6 min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-6 rounded-2xl">
@@ -220,7 +188,7 @@ const AnalyticsDashboard: React.FC = () => {
             AI Conversation Analytics
           </h2>
           <p className="text-muted-foreground mt-2 text-lg">
-            Insights into your wellness journey and AI interactions
+            Comprehensive insights into your wellness journey and AI interactions
           </p>
         </div>
         
@@ -255,40 +223,182 @@ const AnalyticsDashboard: React.FC = () => {
         className="opacity-100 translate-y-0"
       >
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 bg-white/90 backdrop-blur-sm border border-white/30 shadow-xl rounded-xl p-2">
+          <TabsList className="grid w-full grid-cols-5 bg-white/90 backdrop-blur-sm border border-white/30 shadow-xl rounded-xl p-2">
+            <TabsTrigger 
+              value="overview" 
+              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white transition-all duration-300 hover:scale-105 rounded-lg"
+            >
+              <Eye className="w-4 h-4" />
+              Overview
+            </TabsTrigger>
             <TabsTrigger 
               value="mood" 
               className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-rose-500 data-[state=active]:to-pink-600 data-[state=active]:text-white transition-all duration-300 hover:scale-105 rounded-lg"
             >
-              <TrendingUp className="w-4 h-4" />
-              Mood Tracking
+              <Heart className="w-4 h-4" />
+              Mood & Wellness
+            </TabsTrigger>
+            <TabsTrigger 
+              value="conversations" 
+              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white transition-all duration-300 hover:scale-105 rounded-lg"
+            >
+              <MessageSquare className="w-4 h-4" />
+              Conversations
+            </TabsTrigger>
+            <TabsTrigger 
+              value="engagement" 
+              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white transition-all duration-300 hover:scale-105 rounded-lg"
+            >
+              <Zap className="w-4 h-4" />
+              Engagement
             </TabsTrigger>
             <TabsTrigger 
               value="insights" 
-              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white transition-all duration-300 hover:scale-105 rounded-lg"
+              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-600 data-[state=active]:text-white transition-all duration-300 hover:scale-105 rounded-lg"
             >
-              <MessageSquare className="w-4 h-4" />
-              Conversation Insights
-            </TabsTrigger>
-            <TabsTrigger 
-              value="progress" 
-              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white transition-all duration-300 hover:scale-105 rounded-lg"
-            >
-              <Target className="w-4 h-4" />
-              Progress Metrics
-            </TabsTrigger>
-            <TabsTrigger 
-              value="quality" 
-              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white transition-all duration-300 hover:scale-105 rounded-lg"
-            >
-              <BarChart3 className="w-4 h-4" />
-              Session Quality
+              <Brain className="w-4 h-4" />
+              AI Insights
             </TabsTrigger>
           </TabsList>
 
+          <TabsContent value="overview" className="space-y-6">
+            {/* Key Metrics Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
+                      <Heart className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-blue-600">{avgMood.toFixed(1)}</div>
+                      <div className="text-sm text-blue-500">Avg Mood Score</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
+                      <MessageSquare className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-green-600">{totalSessions}</div>
+                      <div className="text-sm text-green-500">Total Sessions</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-purple-50 to-indigo-100 border-purple-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
+                      <Star className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-purple-600">{avgSatisfaction.toFixed(1)}</div>
+                      <div className="text-sm text-purple-500">Satisfaction</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-orange-50 to-amber-100 border-orange-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-gradient-to-br from-orange-500 to-amber-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
+                      <Trophy className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-orange-600">{wellnessMetrics.overall}</div>
+                      <div className="text-sm text-orange-500">Wellness Score</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Wellness Overview Radar Chart */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="bg-white/90 backdrop-blur-sm border border-white/30 hover:shadow-2xl transition-all duration-500 shadow-xl">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <Target className="w-6 h-6 text-purple-500" />
+                    Wellness Dimensions
+                  </CardTitle>
+                  <CardDescription className="text-base">
+                    Your overall wellness across different life areas
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-80 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RadarChart data={radarData}>
+                        <PolarGrid />
+                        <PolarAngleAxis dataKey="subject" tick={{ fontSize: 12 }} />
+                        <PolarRadiusAxis 
+                          angle={90} 
+                          domain={[0, 10]} 
+                          tick={{ fontSize: 10 }}
+                          tickCount={6}
+                        />
+                        <Radar
+                          name="Wellness"
+                          dataKey="value"
+                          stroke="#8b5cf6"
+                          fill="#8b5cf6"
+                          fillOpacity={0.3}
+                          strokeWidth={3}
+                        />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white/90 backdrop-blur-sm border border-white/30 hover:shadow-2xl transition-all duration-500 shadow-xl">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <Users className="w-6 h-6 text-blue-500" />
+                    AI Agent Usage
+                  </CardTitle>
+                  <CardDescription className="text-base">
+                    Distribution of your conversations by AI agent type
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-80 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={agentUsageData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percentage }) => `${name} ${percentage}%`}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="sessions"
+                        >
+                          {agentUsageData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
           <TabsContent value="mood" className="space-y-6">
             {/* Mood Overview Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <Card className="bg-gradient-to-br from-rose-50 to-pink-100 border-rose-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
@@ -303,20 +413,6 @@ const AnalyticsDashboard: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
-                      <TrendingUp className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-blue-600">{avgMood.toFixed(1)}</div>
-                      <div className="text-sm text-blue-500">Avg Mood</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
               <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
@@ -324,7 +420,7 @@ const AnalyticsDashboard: React.FC = () => {
                       <Zap className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-green-600">{avgEnergy.toFixed(1)}</div>
+                      <div className="text-2xl font-bold text-green-600">{(moodData.reduce((sum, item) => sum + item.energy, 0) / moodData.length).toFixed(1)}</div>
                       <div className="text-sm text-green-500">Avg Energy</div>
                     </div>
                   </div>
@@ -335,46 +431,60 @@ const AnalyticsDashboard: React.FC = () => {
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
-                      <Activity className="w-5 h-5 text-white" />
+                      <AlertCircle className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-orange-600">{avgStress.toFixed(1)}</div>
+                      <div className="text-2xl font-bold text-orange-600">{(moodData.reduce((sum, item) => sum + item.stress, 0) / moodData.length).toFixed(1)}</div>
                       <div className="text-sm text-orange-500">Avg Stress</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
+                      <Brain className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-blue-600">{(moodData.reduce((sum, item) => sum + item.anxiety, 0) / moodData.length).toFixed(1)}</div>
+                      <div className="text-sm text-blue-500">Avg Anxiety</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-purple-50 to-indigo-100 border-purple-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
+                      <Clock className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-purple-600">{(moodData.reduce((sum, item) => sum + item.sleep, 0) / moodData.length).toFixed(1)}</div>
+                      <div className="text-sm text-purple-500">Avg Sleep</div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Mood Chart */}
+            {/* Mood Tracking Chart */}
             <Card className="bg-white/90 backdrop-blur-sm border border-white/30 hover:shadow-2xl transition-all duration-500 shadow-xl">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-xl">
                   <Heart className="w-6 h-6 text-rose-500" />
-                  Mood Tracking Over Time
+                  Comprehensive Mood Tracking
                 </CardTitle>
                 <CardDescription className="text-base">
-                  Your emotional patterns over {timeRange}
+                  Track your emotional and physical wellness patterns over {timeRange}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="h-80 w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={moodData}>
-                      <defs>
-                        <linearGradient id="moodGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4}/>
-                          <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.1}/>
-                        </linearGradient>
-                        <linearGradient id="energyGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0.1}/>
-                        </linearGradient>
-                        <linearGradient id="stressGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#ef4444" stopOpacity={0.4}/>
-                          <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1}/>
-                        </linearGradient>
-                      </defs>
+                    <LineChart data={moodData}>
                       <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                       <XAxis 
                         dataKey="date" 
@@ -399,40 +509,21 @@ const AnalyticsDashboard: React.FC = () => {
                           return null;
                         }}
                       />
-                      <Area
-                        type="monotone"
-                        dataKey="mood"
-                        stroke="#8b5cf6"
-                        strokeWidth={3}
-                        fill="url(#moodGradient)"
-                        name="Mood"
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="energy"
-                        stroke="#10b981"
-                        strokeWidth={3}
-                        dot={{ fill: '#10b981', strokeWidth: 2, r: 5 }}
-                        name="Energy"
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="stress"
-                        stroke="#ef4444"
-                        strokeWidth={3}
-                        dot={{ fill: '#ef4444', strokeWidth: 2, r: 5 }}
-                        name="Stress"
-                      />
-                    </AreaChart>
+                      <Line type="monotone" dataKey="mood" stroke="#ef4444" strokeWidth={3} name="Mood" />
+                      <Line type="monotone" dataKey="energy" stroke="#10b981" strokeWidth={3} name="Energy" />
+                      <Line type="monotone" dataKey="stress" stroke="#f97316" strokeWidth={3} name="Stress" />
+                      <Line type="monotone" dataKey="anxiety" stroke="#3b82f6" strokeWidth={3} name="Anxiety" />
+                      <Line type="monotone" dataKey="sleep" stroke="#8b5cf6" strokeWidth={3} name="Sleep Quality" />
+                    </LineChart>
                   </ResponsiveContainer>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="insights" className="space-y-6">
+          <TabsContent value="conversations" className="space-y-6">
             {/* Conversation Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card className="bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
@@ -440,7 +531,7 @@ const AnalyticsDashboard: React.FC = () => {
                       <MessageSquare className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-blue-600">42</div>
+                      <div className="text-2xl font-bold text-blue-600">{totalSessions}</div>
                       <div className="text-sm text-blue-500">Total Sessions</div>
                     </div>
                   </div>
@@ -454,7 +545,7 @@ const AnalyticsDashboard: React.FC = () => {
                       <Clock className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-green-600">31min</div>
+                      <div className="text-2xl font-bold text-green-600">{Math.round(conversationData.reduce((sum, item) => sum + item.duration, 0) / conversationData.length)}min</div>
                       <div className="text-sm text-green-500">Avg Duration</div>
                     </div>
                   </div>
@@ -465,133 +556,11 @@ const AnalyticsDashboard: React.FC = () => {
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
-                      <Brain className="w-5 h-5 text-white" />
+                      <Star className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-purple-600">1,302</div>
-                      <div className="text-sm text-purple-500">Total Minutes</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Topic Word Cloud */}
-            <Card className="bg-white/90 backdrop-blur-sm border border-white/30 hover:shadow-2xl transition-all duration-500 shadow-xl">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-xl">
-                  <Target className="w-6 h-6 text-blue-500" />
-                  Conversation Topics
-                </CardTitle>
-                <CardDescription className="text-base">
-                  Most frequently discussed topics in your conversations
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-3 justify-center p-8 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl">
-                  {conversationTopics.map((topic, index) => (
-                    <Badge
-                      key={index}
-                      variant="outline"
-                      className={`${getSentimentColor(topic.sentiment)} hover:scale-110 transition-all duration-300 cursor-pointer shadow-md hover:shadow-lg`}
-                      style={{ 
-                        fontSize: `${12 + (topic.frequency / 15) * 12}px`,
-                        padding: '10px 16px',
-                        animationDelay: `${index * 100}ms`
-                      }}
-                    >
-                      {topic.topic}
-                    </Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Topic Analysis Chart */}
-            <Card className="bg-white/90 backdrop-blur-sm border border-white/30 hover:shadow-2xl transition-all duration-500 shadow-xl">
-              <CardHeader>
-                <CardTitle className="text-xl">Topic Frequency Analysis</CardTitle>
-                <CardDescription className="text-base">
-                  Detailed breakdown of your conversation themes
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-80 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={conversationTopics.slice(0, 6)}>
-                      <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                      <XAxis 
-                        dataKey="topic" 
-                        tick={{ fontSize: 11 }}
-                        angle={-45}
-                        textAnchor="end"
-                        height={100}
-                      />
-                      <YAxis tick={{ fontSize: 12 }} />
-                      <Tooltip 
-                        content={({ active, payload, label }) => {
-                          if (active && payload && payload.length) {
-                            const data = payload[0].payload;
-                            return (
-                              <div className="bg-white p-4 border rounded-xl shadow-xl">
-                                <p className="font-medium text-lg">{label}</p>
-                                <p className="text-blue-600">Frequency: {data.frequency}</p>
-                                <p className="text-green-600">Sentiment: {data.sentiment}</p>
-                                <p className="text-purple-600">Growth: {data.growth}%</p>
-                              </div>
-                            );
-                          }
-                          return null;
-                        }}
-                      />
-                      <Bar dataKey="frequency" fill="#3b82f6" radius={[6, 6, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="progress" className="space-y-6">
-            {/* Progress Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card className="bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
-                      <TrendingUp className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-blue-600">73%</div>
-                      <div className="text-sm text-blue-500">Overall Progress</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
-                      <Target className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-green-600">5/7</div>
-                      <div className="text-sm text-green-500">Weekly Goals</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-br from-purple-50 to-indigo-100 border-purple-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
-                      <Trophy className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-purple-600">{achievements.length}</div>
-                      <div className="text-sm text-purple-500">Achievements</div>
+                      <div className="text-2xl font-bold text-purple-600">{avgSatisfaction.toFixed(1)}</div>
+                      <div className="text-sm text-purple-500">Satisfaction</div>
                     </div>
                   </div>
                 </CardContent>
@@ -601,97 +570,132 @@ const AnalyticsDashboard: React.FC = () => {
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-gradient-to-br from-orange-500 to-amber-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
-                      <CheckCircle className="w-5 h-5 text-white" />
+                      <MessageCircleMore className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-orange-600">2/3</div>
-                      <div className="text-sm text-orange-500">Milestones</div>
+                      <div className="text-2xl font-bold text-orange-600">{Math.round(conversationData.reduce((sum, item) => sum + item.topics, 0) / conversationData.length)}</div>
+                      <div className="text-sm text-orange-500">Avg Topics</div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Milestones */}
+            {/* Conversation Trends */}
             <Card className="bg-white/90 backdrop-blur-sm border border-white/30 hover:shadow-2xl transition-all duration-500 shadow-xl">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-xl">
-                  <Target className="w-6 h-6 text-green-500" />
-                  Learning Milestones
+                  <TrendingUp className="w-6 h-6 text-blue-500" />
+                  Conversation Activity Trends
                 </CardTitle>
                 <CardDescription className="text-base">
-                  Track your progress towards wellness and learning goals
+                  Your conversation patterns and engagement over time
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-6">
-                  {milestones.map((milestone, index) => (
-                    <div 
-                      key={milestone.id} 
-                      className="space-y-3 p-4 rounded-xl hover:bg-gradient-to-r hover:from-gray-50 hover:to-blue-50 transition-all duration-300 border border-gray-100"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <span className="font-semibold text-lg">{milestone.title}</span>
-                          <Badge 
-                            variant="outline" 
-                            className={getCategoryColor(milestone.category)}
-                          >
-                            {milestone.category}
-                          </Badge>
-                          {milestone.completed && (
-                            <CheckCircle className="w-5 h-5 text-green-500 animate-pulse" />
-                          )}
-                        </div>
-                        <div className="text-sm text-muted-foreground font-medium">
-                          {milestone.progress}/{milestone.target}
-                        </div>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{milestone.description}</p>
-                      <Progress value={(milestone.progress / milestone.target) * 100} className="h-3" />
-                      {milestone.completed && milestone.completedDate && (
-                        <p className="text-xs text-green-600 font-medium">
-                          ✅ Completed on {new Date(milestone.completedDate).toLocaleDateString()}
-                        </p>
-                      )}
-                    </div>
-                  ))}
+                <div className="h-80 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={conversationData}>
+                      <defs>
+                        <linearGradient id="sessionsGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/>
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1}/>
+                        </linearGradient>
+                        <linearGradient id="durationGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0.1}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                      <XAxis 
+                        dataKey="date" 
+                        tick={{ fontSize: 12 }}
+                        tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      />
+                      <YAxis tick={{ fontSize: 12 }} />
+                      <Tooltip 
+                        content={({ active, payload, label }) => {
+                          if (active && payload && payload.length) {
+                            return (
+                              <div className="bg-white p-4 border rounded-xl shadow-xl">
+                                <p className="font-medium text-lg">{new Date(label).toLocaleDateString()}</p>
+                                {payload.map((entry, index) => (
+                                  <p key={index} style={{ color: entry.color }} className="text-sm">
+                                    {entry.name}: {entry.value}
+                                  </p>
+                                ))}
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="sessions"
+                        stroke="#3b82f6"
+                        strokeWidth={3}
+                        fill="url(#sessionsGradient)"
+                        name="Sessions"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="duration"
+                        stroke="#10b981"
+                        strokeWidth={3}
+                        name="Duration (min)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Achievements */}
+            {/* Topic Trends */}
             <Card className="bg-white/90 backdrop-blur-sm border border-white/30 hover:shadow-2xl transition-all duration-500 shadow-xl">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-xl">
-                  <Award className="w-6 h-6 text-yellow-500" />
-                  Recent Achievements
+                  <Brain className="w-6 h-6 text-purple-500" />
+                  Topic Discussion Trends
                 </CardTitle>
                 <CardDescription className="text-base">
-                  Celebrate your accomplishments and milestones
+                  How your conversation topics have evolved over time
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {achievements.map((achievement, index) => (
-                    <div 
-                      key={achievement.id}
-                      className="flex items-center gap-4 p-4 border rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300 bg-gradient-to-r from-white to-gray-50"
-                    >
-                      <div className="text-3xl animate-bounce">{achievement.icon}</div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-semibold">{achievement.title}</span>
-                          <Badge 
-                            className={getRarityColor(achievement.rarity)}
-                          >
-                            {achievement.rarity}
-                          </Badge>
+                <div className="space-y-4">
+                  {topicTrendsData.map((topic, index) => (
+                    <div key={index} className="p-4 rounded-lg border hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{topic.topic}</span>
+                          {getTrendIcon(topic.trend)}
                         </div>
-                        <p className="text-sm text-muted-foreground mb-1">{achievement.description}</p>
-                        <p className="text-xs text-muted-foreground">
-                          🎉 Unlocked {new Date(achievement.unlockedDate).toLocaleDateString()}
-                        </p>
+                        <Badge variant="outline" className={`${
+                          topic.trend === 'improving' ? 'text-green-600 border-green-200' :
+                          topic.trend === 'increasing' ? 'text-red-600 border-red-200' :
+                          'text-gray-600 border-gray-200'
+                        }`}>
+                          {topic.trend}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-4 gap-2 text-sm">
+                        <div className="text-center">
+                          <div className="font-semibold">{topic.week1}</div>
+                          <div className="text-gray-500">Week 1</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="font-semibold">{topic.week2}</div>
+                          <div className="text-gray-500">Week 2</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="font-semibold">{topic.week3}</div>
+                          <div className="text-gray-500">Week 3</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="font-semibold">{topic.week4}</div>
+                          <div className="text-gray-500">Week 4</div>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -700,193 +704,230 @@ const AnalyticsDashboard: React.FC = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="quality" className="space-y-6">
-            {/* Quality Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card className="bg-gradient-to-br from-yellow-50 to-amber-100 border-yellow-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
-                      <Star className="w-5 h-5 text-white" />
+          <TabsContent value="engagement" className="space-y-6">
+            {/* Engagement Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {engagementMetrics.map((metric, index) => (
+                <Card key={index} className="bg-white/90 backdrop-blur-sm border border-white/30 hover:shadow-2xl transition-all duration-500 shadow-xl">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-semibold text-lg">{metric.metric}</h3>
+                      <Badge className={getStatusColor(metric.status)}>
+                        {metric.status}
+                      </Badge>
                     </div>
-                    <div>
-                      <div className="text-2xl font-bold text-yellow-600">{averageRating.toFixed(1)}</div>
-                      <div className="text-sm text-yellow-500">Avg Rating</div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Current</span>
+                        <span className="font-medium">
+                          {typeof metric.value === 'number' && metric.value < 10 ? 
+                            metric.value.toFixed(1) : 
+                            metric.value
+                          }
+                          {metric.metric.includes('Rate') ? '%' : 
+                           metric.metric.includes('Duration') ? ' min' :
+                           metric.metric.includes('Days') ? ' days' : ''}
+                        </span>
+                      </div>
+                      <Progress 
+                        value={typeof metric.value === 'number' ? 
+                          (metric.value / (metric.target * 1.2)) * 100 : 
+                          0
+                        } 
+                        className="h-2" 
+                      />
+                      <div className="flex justify-between text-sm text-gray-500">
+                        <span>Target: {metric.target}</span>
+                        <span>
+                          {typeof metric.value === 'number' && metric.value > metric.target ? 
+                            `+${(metric.value - metric.target).toFixed(1)} above target` :
+                            `${(metric.target - metric.value).toFixed(1)} to target`
+                          }
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
-                      <MessageSquare className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-blue-600">127</div>
-                      <div className="text-sm text-blue-500">Total Reviews</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
-                      <Heart className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-green-600">{qualityMetrics.empathy.toFixed(1)}</div>
-                      <div className="text-sm text-green-500">Empathy Score</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-br from-purple-50 to-indigo-100 border-purple-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
-                      <Zap className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-purple-600">{qualityMetrics.engagement.toFixed(1)}</div>
-                      <div className="text-sm text-purple-500">Engagement</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Session Quality Chart */}
-              <Card className="bg-white/90 backdrop-blur-sm border border-white/30 hover:shadow-2xl transition-all duration-500 shadow-xl">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-xl">
-                    <Star className="w-6 h-6 text-yellow-500" />
-                    Session Quality Trend
-                  </CardTitle>
-                  <CardDescription className="text-base">
-                    Quality ratings over your recent sessions
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-64 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={sessionData}>
-                        <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                        <XAxis 
-                          dataKey="date" 
-                          tick={{ fontSize: 12 }}
-                          tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        />
-                        <YAxis domain={[0, 5]} tick={{ fontSize: 12 }} />
-                        <Tooltip 
-                          content={({ active, payload, label }) => {
-                            if (active && payload && payload.length) {
-                              const data = payload[0].payload;
-                              return (
-                                <div className="bg-white p-4 border rounded-xl shadow-xl">
-                                  <p className="font-medium text-lg">{new Date(label).toLocaleDateString()}</p>
-                                  <p className="text-blue-600">Quality: {data.quality}/5</p>
-                                  <p className="text-green-600">Engagement: {data.engagement}/5</p>
-                                  <p className="text-purple-600">Satisfaction: {data.satisfaction}/5</p>
-                                  <p className="text-gray-600">Agent: {data.agentType}</p>
-                                </div>
-                              );
-                            }
-                            return null;
-                          }}
-                        />
-                        <Bar dataKey="quality" fill="#3b82f6" radius={[6, 6, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
+            {/* Engagement Timeline */}
+            <Card className="bg-white/90 backdrop-blur-sm border border-white/30 hover:shadow-2xl transition-all duration-500 shadow-xl">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <Activity className="w-6 h-6 text-green-500" />
+                  Daily Engagement Pattern
+                </CardTitle>
+                <CardDescription className="text-base">
+                  Your interaction patterns throughout the week
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-80 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={conversationData}>
+                      <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                      <XAxis 
+                        dataKey="date" 
+                        tick={{ fontSize: 12 }}
+                        tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { weekday: 'short' })}
+                      />
+                      <YAxis tick={{ fontSize: 12 }} />
+                      <Tooltip 
+                        content={({ active, payload, label }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="bg-white p-4 border rounded-xl shadow-xl">
+                                <p className="font-medium text-lg">{new Date(label).toLocaleDateString()}</p>
+                                <p className="text-blue-600">Sessions: {data.sessions}</p>
+                                <p className="text-green-600">Duration: {data.duration} min</p>
+                                <p className="text-purple-600">Satisfaction: {data.satisfaction}/5</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Bar dataKey="sessions" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-              {/* Quality Metrics Radar */}
+          <TabsContent value="insights" className="space-y-6">
+            {/* AI Performance Insights */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card className="bg-white/90 backdrop-blur-sm border border-white/30 hover:shadow-2xl transition-all duration-500 shadow-xl">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-xl">
                     <Brain className="w-6 h-6 text-purple-500" />
-                    AI Performance Metrics
+                    AI Response Quality
                   </CardTitle>
                   <CardDescription className="text-base">
-                    Detailed breakdown of AI assistant capabilities
+                    How well the AI is understanding and responding to you
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-64 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RadarChart data={radarData}>
-                        <PolarGrid />
-                        <PolarAngleAxis dataKey="subject" tick={{ fontSize: 12 }} />
-                        <PolarRadiusAxis 
-                          angle={90} 
-                          domain={[0, 5]} 
-                          tick={{ fontSize: 10 }}
-                          tickCount={6}
-                        />
-                        <Radar
-                          name="Performance"
-                          dataKey="value"
-                          stroke="#8b5cf6"
-                          fill="#8b5cf6"
-                          fillOpacity={0.3}
-                          strokeWidth={3}
-                        />
-                      </RadarChart>
-                    </ResponsiveContainer>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span>Understanding Accuracy</span>
+                      <div className="flex items-center gap-2">
+                        <Progress value={92} className="w-20 h-2" />
+                        <span className="text-sm font-medium">92%</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Response Relevance</span>
+                      <div className="flex items-center gap-2">
+                        <Progress value={88} className="w-20 h-2" />
+                        <span className="text-sm font-medium">88%</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Emotional Intelligence</span>
+                      <div className="flex items-center gap-2">
+                        <Progress value={95} className="w-20 h-2" />
+                        <span className="text-sm font-medium">95%</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Helpfulness Rating</span>
+                      <div className="flex items-center gap-2">
+                        <Progress value={90} className="w-20 h-2" />
+                        <span className="text-sm font-medium">90%</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white/90 backdrop-blur-sm border border-white/30 hover:shadow-2xl transition-all duration-500 shadow-xl">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <Smile className="w-6 h-6 text-yellow-500" />
+                    Conversation Insights
+                  </CardTitle>
+                  <CardDescription className="text-base">
+                    Key patterns and insights from your conversations
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="flex items-center gap-2 mb-1">
+                        <TrendingUp className="w-4 h-4 text-blue-600" />
+                        <span className="font-medium text-blue-800">Positive Trend</span>
+                      </div>
+                      <p className="text-sm text-blue-700">Your mood scores have improved by 15% over the past month</p>
+                    </div>
+                    
+                    <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                      <div className="flex items-center gap-2 mb-1">
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                        <span className="font-medium text-green-800">Achievement</span>
+                      </div>
+                      <p className="text-sm text-green-700">You've maintained consistent daily check-ins for 2 weeks</p>
+                    </div>
+                    
+                    <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Brain className="w-4 h-4 text-purple-600" />
+                        <span className="font-medium text-purple-800">Insight</span>
+                      </div>
+                      <p className="text-sm text-purple-700">Your stress levels are lowest on weekends and after exercise</p>
+                    </div>
+                    
+                    <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Target className="w-4 h-4 text-orange-600" />
+                        <span className="font-medium text-orange-800">Recommendation</span>
+                      </div>
+                      <p className="text-sm text-orange-700">Consider scheduling more conversations during high-stress periods</p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Recent Sessions */}
+            {/* Personalization Insights */}
             <Card className="bg-white/90 backdrop-blur-sm border border-white/30 hover:shadow-2xl transition-all duration-500 shadow-xl">
               <CardHeader>
-                <CardTitle className="text-xl">Recent Session Feedback</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <Users className="w-6 h-6 text-indigo-500" />
+                  AI Personalization Analysis
+                </CardTitle>
                 <CardDescription className="text-base">
-                  Your latest conversation ratings and feedback
+                  How the AI is adapting to your unique needs and preferences
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {sessionData.slice(-5).map((session, index) => (
-                    <div 
-                      key={index} 
-                      className="flex items-center justify-between p-4 border rounded-xl hover:shadow-md hover:scale-102 transition-all duration-300 bg-gradient-to-r from-white to-gray-50"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="text-sm text-muted-foreground font-medium">
-                          {new Date(session.date).toLocaleDateString()}
-                        </div>
-                        <Badge variant="outline" className="font-medium">{session.agentType}</Badge>
-                        <div className="flex items-center gap-1">
-                          <Clock className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">{session.duration}min</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1">
-                          {[...Array(5)].map((_, i) => (
-                            <Star 
-                              key={i} 
-                              className={`w-4 h-4 ${
-                                i < session.quality 
-                                  ? 'text-yellow-400 fill-current' 
-                                  : 'text-gray-300'
-                              }`} 
-                            />
-                          ))}
-                        </div>
-                        <span className="text-sm font-bold">{session.quality.toFixed(1)}</span>
-                      </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <MessageSquare className="w-8 h-8 text-white" />
                     </div>
-                  ))}
+                    <h3 className="font-semibold mb-2">Communication Style</h3>
+                    <p className="text-sm text-gray-600">The AI has learned you prefer detailed explanations and empathetic responses</p>
+                  </div>
+                  
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <Clock className="w-8 h-8 text-white" />
+                    </div>
+                    <h3 className="font-semibold mb-2">Optimal Timing</h3>
+                    <p className="text-sm text-gray-600">Your most productive conversations happen in the evening between 7-9 PM</p>
+                  </div>
+                  
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <Heart className="w-8 h-8 text-white" />
+                    </div>
+                    <h3 className="font-semibold mb-2">Emotional Patterns</h3>
+                    <p className="text-sm text-gray-600">The AI recognizes your stress triggers and adapts its support approach accordingly</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
