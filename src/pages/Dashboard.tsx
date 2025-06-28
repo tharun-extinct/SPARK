@@ -19,7 +19,8 @@ import {
   BarChart3,
   Sparkles,
   Zap,
-  Star
+  Star,
+  X
 } from "lucide-react";
 import { useAuth } from "@/services/firebaseAuth";
 import { 
@@ -40,6 +41,7 @@ const Dashboard = () => {
   const [connectionError, setConnectionError] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [visibleElements, setVisibleElements] = useState(new Set());
+  const [showWelcomePopup, setShowWelcomePopup] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
   // Intersection Observer for scroll animations
@@ -69,6 +71,29 @@ const Dashboard = () => {
       }
     };
   }, [isLoading]);
+
+  // Welcome popup logic
+  useEffect(() => {
+    // Show welcome popup after dashboard loads
+    if (!isLoading && currentUser) {
+      const timer = setTimeout(() => {
+        setShowWelcomePopup(true);
+      }, 1000); // Show popup 1 second after dashboard loads
+
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, currentUser]);
+
+  // Auto-hide welcome popup
+  useEffect(() => {
+    if (showWelcomePopup) {
+      const timer = setTimeout(() => {
+        setShowWelcomePopup(false);
+      }, 5000); // Hide popup after 5 seconds
+
+      return () => clearTimeout(timer);
+    }
+  }, [showWelcomePopup]);
 
   // Check if we're coming directly from onboarding and ensure Firestore connection
   useEffect(() => {
@@ -240,6 +265,53 @@ const Dashboard = () => {
              style={{ top: '50%', right: '20%' }} />
       </div>
 
+      {/* Welcome Popup */}
+      {showWelcomePopup && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 transform animate-in fade-in-0 zoom-in-95 duration-500">
+            <div className="relative p-8 text-center">
+              <button
+                onClick={() => setShowWelcomePopup(false)}
+                className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+              
+              <div className="w-16 h-16 bg-gradient-to-br from-primary to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                <Sparkles className="w-8 h-8 text-white" />
+              </div>
+              
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-2">
+                Welcome to SPARK! 🎉
+              </h2>
+              
+              <p className="text-gray-600 mb-6">
+                Hello {currentUser?.displayName?.split(' ')[0] || 'there'}! Your wellness journey starts here. 
+                Explore AI conversations, track your progress, and discover new insights about yourself.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button 
+                  onClick={() => {
+                    setShowWelcomePopup(false);
+                    navigate("/conversation/psychiatrist");
+                  }}
+                  className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 transition-all duration-300"
+                >
+                  Start First Chat
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowWelcomePopup(false)}
+                >
+                  Explore Dashboard
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isLoading ? (
         <div className="flex items-center justify-center min-h-screen">
           <div className="flex flex-col items-center space-y-4">
@@ -277,22 +349,7 @@ const Dashboard = () => {
                 : 'opacity-100 translate-y-0'
             }`}
           >
-            <div className="bg-gradient-to-r from-white/80 to-blue-50/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-500">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
-                    Welcome back, {currentUser?.displayName?.split(' ')[0] || 'User'}! 
-                  </h1>
-                  <p className="text-muted-foreground mt-1">Here's your wellness journey overview</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-8 h-8 text-primary animate-pulse" />
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary to-purple-600 rounded-full flex items-center justify-center animate-bounce">
-                    <Star className="w-6 h-6 text-white" />
-                  </div>
-                </div>
-              </div>
-            </div>
+            
           </div>
 
           {/* Dashboard Tabs */}
