@@ -39,7 +39,7 @@ const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [interimTranscript, setInterimTranscript] = useState('');
 
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<any | null>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -48,6 +48,7 @@ const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
 
   // Check for browser support
   useEffect(() => {
+    // @ts-ignore - TypeScript doesn't know about webkitSpeechRecognition
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const speechSynthesis = window.speechSynthesis;
     
@@ -98,6 +99,7 @@ const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
     if (!isSupported) return;
 
     try {
+      // @ts-ignore - TypeScript doesn't know about webkitSpeechRecognition
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       recognitionRef.current = new SpeechRecognition();
       
@@ -113,7 +115,7 @@ const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
         initializeAudioContext();
       };
 
-      recognitionRef.current.onresult = (event) => {
+      recognitionRef.current.onresult = (event: any) => {
         let finalTranscript = '';
         let interimTranscript = '';
 
@@ -135,7 +137,7 @@ const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
         setInterimTranscript(interimTranscript);
       };
 
-      recognitionRef.current.onerror = (event) => {
+      recognitionRef.current.onerror = (event: any) => {
         setError(`Speech recognition error: ${event.error}`);
         setIsListening(false);
       };

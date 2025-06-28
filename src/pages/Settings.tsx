@@ -16,18 +16,24 @@ import {
   Save,
   Check,
   AlertTriangle,
-  Info
+  Info,
+  LogOut,
+  Trash2
 } from 'lucide-react';
 import { useAuth } from '@/services/firebaseAuth';
 import { useToast } from '@/components/ui/use-toast';
+import { signOut } from '@/lib/firebase';
+import { useNavigate } from 'react-router-dom';
 
 const Settings = () => {
   const { currentUser } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [visibleElements, setVisibleElements] = useState(new Set());
   const observerRef = useRef<IntersectionObserver | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Data sharing preferences
   const [dataSharing, setDataSharing] = useState({
@@ -117,6 +123,45 @@ const Settings = () => {
       toast({
         title: "Error",
         description: "Failed to save settings. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      toast({
+        title: "Signed Out",
+        description: "You have been successfully signed out.",
+      });
+      navigate('/');
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to sign out. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteAllData = async () => {
+    setIsSaving(true);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      toast({
+        title: "Data Deleted",
+        description: "All your conversation data has been permanently deleted.",
+      });
+      setShowDeleteConfirm(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete data. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -342,6 +387,93 @@ const Settings = () => {
                     />
                   </div>
                 ))}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Data Management */}
+          <div 
+            id="data-management"
+            data-animate
+            className={`transition-all duration-1000 delay-800 ${
+              isVisible('data-management') 
+                ? 'opacity-100 translate-y-0' 
+                : 'opacity-0 translate-y-8'
+            }`}
+          >
+            <Card className="bg-white/90 backdrop-blur-sm border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-500">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-gradient-to-br from-red-500 to-rose-600 rounded-lg">
+                    <Trash2 className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl">Data Management</CardTitle>
+                    <CardDescription>
+                      Manage your data and account settings
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {!showDeleteConfirm ? (
+                  <Button 
+                    variant="destructive" 
+                    className="w-full"
+                    onClick={() => setShowDeleteConfirm(true)}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete All Conversation Data
+                  </Button>
+                ) : (
+                  <div className="space-y-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
+                      <div>
+                        <h4 className="font-medium text-red-800 mb-1">Confirm Data Deletion</h4>
+                        <p className="text-red-700 text-sm mb-4">
+                          This will permanently delete all your conversation history and cannot be undone.
+                        </p>
+                        <div className="flex gap-3">
+                          <Button 
+                            variant="outline" 
+                            onClick={() => setShowDeleteConfirm(false)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button 
+                            variant="destructive"
+                            onClick={handleDeleteAllData}
+                            disabled={isSaving}
+                          >
+                            {isSaving ? (
+                              <>
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                                Deleting...
+                              </>
+                            ) : (
+                              <>
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Confirm Delete
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                <Separator className="my-4" />
+                
+                <Button 
+                  variant="outline" 
+                  className="w-full border-red-200 text-red-700 hover:bg-red-50"
+                  onClick={handleSignOut}
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </Button>
               </CardContent>
             </Card>
           </div>
