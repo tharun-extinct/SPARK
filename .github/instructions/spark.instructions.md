@@ -56,6 +56,9 @@ applyTo: '**/tavus.ts'
 --
 
 ## Key AI Models & Features
+- **Phoenix-3**: Lifelike avatar generation with natural facial movements
+- **Raven-0**: Advanced emotional perception and ambient awareness
+- **Sparrow-0**: Natural turn-taking and conversation rhythm
 - **Real-time video conversations** with sub-1-second latency
 - **Crisis intervention** with human-in-the-loop escalation
 - **Multilingual support** with cultural adaptation

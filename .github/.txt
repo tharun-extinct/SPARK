@@ -134,9 +134,3 @@ applyTo: '**/src/pages/**'
 - Protected routes using Higher-Order Components (HOCs)
 - User profiles stored in Firestore
 - Error handling and loading states for auth operations
-
-
-
-- **Phoenix-3**: Lifelike avatar generation with natural facial movements
-- **Raven-0**: Advanced emotional perception and ambient awareness
-- **Sparrow-0**: Natural turn-taking and conversation rhythm
