@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { TranscriptSegment, useTranscription } from "@/services/transcriptionService";
 import { useAuth } from "@/services/firebaseAuth";
 import { useAnalytics } from "@/hooks/useAnalytics";
+import { TextShimmer } from "@/components/ui/text-shimmer";
 
 const Conversation = () => {
   const { agentType = "psychiatrist" } = useParams();
@@ -504,7 +505,7 @@ const Conversation = () => {
                 )}
               </div>
               
-              {/* Voice indicator */}
+              {/* Voice indicator with shimmer effect */}
               {isListening && (
                 <div className="px-3 py-2 bg-primary/10 border-t border-primary/20 flex items-center justify-center">
                   <div className="flex items-center space-x-2">
@@ -515,42 +516,59 @@ const Conversation = () => {
                       <div className="w-2 h-5 bg-primary rounded-full animate-pulse delay-300"></div>
                       <div className="w-2 h-2 bg-primary rounded-full animate-pulse delay-150"></div>
                     </div>
-                    <span className="text-sm font-medium text-primary">Listening...</span>
+                    <TextShimmer 
+                      className="text-sm font-medium text-primary"
+                      duration={1.5}
+                    >
+                      Listening...
+                    </TextShimmer>
                   </div>
                 </div>
               )}
               
-              {/* Input area */}
+              {/* Input area with rounded buttons */}
               <div className="p-3 border-t">
-                <div className="flex">
-                  <input
-                    type="text"
-                    value={inputMessage}
-                    onChange={(e) => setInputMessage(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                    placeholder={isListening ? "Listening... or type here" : "Type your message..."}
-                    className="flex-1 border rounded-l-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
+                <div className="flex items-center space-x-2">
+                  <div className="flex-1 relative rounded-full border bg-background overflow-hidden focus-within:ring-2 focus-within:ring-primary/50">
+                    <input
+                      type="text"
+                      value={inputMessage}
+                      onChange={(e) => setInputMessage(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                      placeholder={isListening ? "Listening..." : "Ask anything..."}
+                      className="flex-1 w-full px-4 py-2 bg-transparent border-none focus:outline-none"
+                    />
+                  </div>
+                  
                   <Button 
                     onClick={toggleVoiceInput}
                     variant={isListening ? "destructive" : "default"}
-                    className="rounded-none"
+                    className="rounded-full w-10 h-10 p-0 flex items-center justify-center"
                     title={isListening ? "Stop voice input" : "Start voice input"}
                   >
                     {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                   </Button>
+                  
                   <Button 
                     onClick={handleSendMessage}
-                    className="rounded-l-none"
+                    className="rounded-full w-10 h-10 p-0 flex items-center justify-center"
                     disabled={!inputMessage.trim()}
                     title="Send message"
                   >
                     <Send className="h-4 w-4" />
                   </Button>
                 </div>
-                <div className="mt-2 text-xs text-gray-500 text-center">
+                
+                {/* Helpful instruction text */}
+                <div className="mt-2 text-xs text-center text-gray-500">
                   {isSupported ? (
-                    <span>Press mic button to use voice input or type your message</span>
+                    isListening ? (
+                      <TextShimmer duration={1.8} className="text-primary/80">
+                        Speak clearly, your voice is being transcribed...
+                      </TextShimmer>
+                    ) : (
+                      <span>Use the mic button or type to communicate with {currentAgent.name}</span>
+                    )
                   ) : (
                     <span>Voice input not supported in your browser</span>
                   )}
