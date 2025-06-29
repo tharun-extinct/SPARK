@@ -65,6 +65,8 @@ export const useAnalytics = () => {
       setIsLoading(true);
       setError(null);
 
+      console.log('🔄 Loading analytics data...');
+
       // Load all data in parallel
       const [
         moodScore,
@@ -79,6 +81,13 @@ export const useAnalytics = () => {
         analyticsService.calculateWellnessMetrics(),
         analyticsService.getMoodData(7)
       ]);
+
+      console.log('📊 Analytics data loaded:', {
+        moodScore,
+        streakData,
+        conversationStats,
+        wellnessData
+      });
 
       // Update dashboard metrics
       setDashboardMetrics({
@@ -96,8 +105,10 @@ export const useAnalytics = () => {
       setWellnessMetrics(wellnessData);
       setRecentConversations(conversationStats.conversations.slice(0, 5)); // Last 5 conversations
 
+      console.log('✅ Analytics data updated successfully');
+
     } catch (err) {
-      console.error('Error loading analytics data:', err);
+      console.error('❌ Error loading analytics data:', err);
       setError('Failed to load analytics data');
     } finally {
       setIsLoading(false);
@@ -116,11 +127,15 @@ export const useAnalytics = () => {
     if (!analyticsService) return;
 
     try {
+      console.log('🔄 Recording conversation:', conversationData);
       await analyticsService.recordConversation(conversationData);
+      
+      console.log('✅ Conversation recorded successfully');
+      
       // Reload data to reflect changes
       await loadAnalyticsData();
     } catch (err) {
-      console.error('Error recording conversation:', err);
+      console.error('❌ Error recording conversation:', err);
       setError('Failed to record conversation');
     }
   };
@@ -158,6 +173,7 @@ export const useAnalytics = () => {
   // Refresh all data
   const refreshData = () => {
     if (analyticsService) {
+      console.log('🔄 Refreshing analytics data...');
       loadAnalyticsData();
     }
   };

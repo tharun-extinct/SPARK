@@ -231,6 +231,12 @@ const Conversation = () => {
         const duration = Math.round((endTime.getTime() - sessionStartTime.getTime()) / 60000); // Duration in minutes
         
         console.log('🔄 Recording conversation with enhanced Tavus integration...');
+        console.log('📊 Session details:', {
+          agentType,
+          duration,
+          tavusConversationId: tavusConversationData.conversation_id,
+          messagesCount: messages.length
+        });
         
         await recordConversation({
           agentType: agentType as 'psychiatrist' | 'tutor' | 'doctor',
@@ -248,6 +254,12 @@ const Conversation = () => {
           title: "Session Recorded",
           description: "Your conversation has been saved with comprehensive analytics.",
         });
+        
+        // Force refresh analytics data
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+        
       } catch (error) {
         console.error("Error recording conversation:", error);
         // Still show a toast but don't block navigation
