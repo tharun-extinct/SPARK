@@ -151,13 +151,13 @@ export class AnalyticsService {
   }
 
   // Enhanced method to sync and update Tavus conversation data
-  async syncTavusConversation(tavusConversationId: string, waitForTranscript: boolean = true): Promise<TavusConversationDetails | null> {
+  async syncTavusConversation(tavusConversationId: string, waitForTranscriptFlag: boolean = true): Promise<TavusConversationDetails | null> {
     try {
       console.log('🔄 Syncing Tavus conversation:', tavusConversationId);
       
       let details: TavusConversationDetails;
       
-      if (waitForTranscript) {
+      if (waitForTranscriptFlag) {
         // Wait for transcript to be ready
         const detailsWithTranscript = await waitForTranscript(tavusConversationId, 6, 10000);
         if (detailsWithTranscript) {
@@ -277,9 +277,12 @@ export class AnalyticsService {
       const streakDoc = await getDoc(userStreakRef);
       
       if (streakDoc.exists()) {
-        return streakDoc.data() as StreakData;
+        const data = streakDoc.data() as StreakData;
+        console.log('📈 Retrieved streak data:', data);
+        return data;
       }
       
+      console.log('📈 No streak data found, returning defaults');
       return {
         currentStreak: 0,
         longestStreak: 0,
@@ -303,8 +306,8 @@ export class AnalyticsService {
       const moodSnapshot = await getDocs(moodQuery);
       
       if (moodSnapshot.empty) {
-        // No mood entries, return default
-        return 7.0;
+        console.log('📊 No mood entries found');
+        return 0; // Return 0 instead of hardcoded 7.0
       }
 
       const moodEntries: number[] = [];
@@ -316,21 +319,26 @@ export class AnalyticsService {
       });
 
       if (moodEntries.length === 0) {
-        return 7.0; // Default neutral mood
+        console.log('📊 No valid mood scores found');
+        return 0; // Return 0 instead of hardcoded 7.0
       }
 
       // Calculate simple average of all mood entries
       const totalMood = moodEntries.reduce((sum, mood) => sum + mood, 0);
-      return Math.round((totalMood / moodEntries.length) * 10) / 10;
+      const avgMood = Math.round((totalMood / moodEntries.length) * 10) / 10;
+      console.log('📊 Calculated mood score:', avgMood, 'from', moodEntries.length, 'entries');
+      return avgMood;
     } catch (error) {
       console.error('Error calculating mood score:', error);
-      return 7.0;
+      return 0; // Return 0 instead of hardcoded 7.0
     }
   }
 
-  // Get conversation statistics - ULTRA SIMPLIFIED
+  // Get conversation statistics - ENHANCED WITH REAL DATA
   async getConversationStats(timeRange: 'week' | 'month' | 'quarter' = 'week') {
     try {
+      console.log('📊 Getting conversation stats for timeRange:', timeRange);
+      
       // Use the simplest possible query - just get user's conversations
       const conversationsQuery = query(
         collection(db, 'conversations'),
@@ -339,12 +347,15 @@ export class AnalyticsService {
 
       const snapshot = await getDocs(conversationsQuery);
       
+      console.log('📊 Found', snapshot.size, 'total conversations for user');
+      
       if (snapshot.empty) {
+        console.log('📊 No conversations found, returning empty data');
         // Return default empty data
         return {
           totalSessions: 0,
           totalMinutes: 0,
-          avgSatisfaction: 4.0,
+          avgSatisfaction: 0,
           agentUsageData: [
             { name: 'Mental Health', value: 0, color: '#ef4444', percentage: 0 },
             { name: 'Learning', value: 0, color: '#3b82f6', percentage: 0 },
@@ -384,6 +395,8 @@ export class AnalyticsService {
         });
       });
 
+      console.log('📊 Processed', allConversations.length, 'conversations');
+
       // Filter by time range in memory
       const now = new Date();
       const startDate = new Date();
@@ -401,13 +414,14 @@ export class AnalyticsService {
       }
 
       const conversations = allConversations.filter(conv => conv.startTime >= startDate);
+      console.log('📊 Filtered to', conversations.length, 'conversations in timeRange:', timeRange);
 
       // Calculate statistics
       const totalSessions = conversations.length;
       const totalMinutes = conversations.reduce((sum, conv) => sum + conv.duration, 0);
       const avgSatisfaction = conversations.length > 0 
         ? conversations.reduce((sum, conv) => sum + (conv.satisfaction || 4), 0) / conversations.length 
-        : 4.0;
+        : 0; // Return 0 instead of hardcoded 4.0
 
       // Agent usage breakdown
       const agentUsage = conversations.reduce((acc, conv) => {
@@ -441,20 +455,23 @@ export class AnalyticsService {
         .sort((a, b) => b.startTime.getTime() - a.startTime.getTime())
         .slice(0, 10);
 
-      return {
+      const result = {
         totalSessions,
         totalMinutes,
         avgSatisfaction: Math.round(avgSatisfaction * 10) / 10,
         agentUsageData,
         conversations: sortedConversations
       };
+
+      console.log('📊 Final conversation stats:', result);
+      return result;
     } catch (error) {
       console.error('Error getting conversation stats:', error);
       // Return default data instead of throwing
       return {
         totalSessions: 0,
         totalMinutes: 0,
-        avgSatisfaction: 4.0,
+        avgSatisfaction: 0,
         agentUsageData: [
           { name: 'Mental Health', value: 0, color: '#ef4444', percentage: 0 },
           { name: 'Learning', value: 0, color: '#3b82f6', percentage: 0 },
@@ -471,6 +488,19 @@ export class AnalyticsService {
       const moodScore = await this.calculateMoodScore();
       const stats = await this.getConversationStats('month');
       
+      // Only calculate if we have actual data
+      if (moodScore === 0 && stats.totalSessions === 0) {
+        console.log('📊 No data for wellness metrics, returning zeros');
+        return {
+          overall: 0,
+          emotional: 0,
+          physical: 0,
+          social: 0,
+          mental: 0,
+          spiritual: 0
+        };
+      }
+      
       // Base calculations on mood score and conversation patterns
       const emotional = moodScore;
       const physical = Math.min(10, moodScore + (stats.agentUsageData.find(a => a.name === 'Wellness')?.percentage || 0) / 10);
@@ -480,7 +510,7 @@ export class AnalyticsService {
       
       const overall = (emotional + physical + social + mental + spiritual) / 5;
 
-      return {
+      const result = {
         overall: Math.round(overall * 10) / 10,
         emotional: Math.round(emotional * 10) / 10,
         physical: Math.round(physical * 10) / 10,
@@ -488,22 +518,27 @@ export class AnalyticsService {
         mental: Math.round(mental * 10) / 10,
         spiritual: Math.round(spiritual * 10) / 10
       };
+
+      console.log('📊 Calculated wellness metrics:', result);
+      return result;
     } catch (error) {
       console.error('Error calculating wellness metrics:', error);
       return {
-        overall: 7.0,
-        emotional: 7.0,
-        physical: 7.0,
-        social: 7.0,
-        mental: 7.0,
-        spiritual: 7.0
+        overall: 0,
+        emotional: 0,
+        physical: 0,
+        social: 0,
+        mental: 0,
+        spiritual: 0
       };
     }
   }
 
-  // Get mood data for charts - ULTRA SIMPLIFIED
+  // Get mood data for charts - ENHANCED WITH REAL DATA
   async getMoodData(days: number = 7): Promise<MoodEntry[]> {
     try {
+      console.log('📊 Getting mood data for', days, 'days');
+      
       // Use the simplest possible query
       const moodQuery = query(
         collection(db, 'moodEntries'),
@@ -513,8 +548,9 @@ export class AnalyticsService {
       const snapshot = await getDocs(moodQuery);
       
       if (snapshot.empty) {
-        // Return default data for the past week
-        return this.generateDefaultMoodData(days);
+        console.log('📊 No mood entries found, returning empty array');
+        // Return empty array instead of default data
+        return [];
       }
 
       const allMoodData: MoodEntry[] = [];
@@ -525,11 +561,11 @@ export class AnalyticsService {
         
         allMoodData.push({
           date: entryDate.toISOString().split('T')[0],
-          mood: data.mood || 7,
-          energy: data.energy || 7,
-          stress: data.stress || 3,
-          anxiety: data.anxiety || 3,
-          sleep: data.sleep || 7
+          mood: data.mood || 0,
+          energy: data.energy || 0,
+          stress: data.stress || 0,
+          anxiety: data.anxiety || 0,
+          sleep: data.sleep || 0
         });
       });
 
@@ -541,56 +577,12 @@ export class AnalyticsService {
         .filter(entry => new Date(entry.date) >= cutoffDate)
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-      // If no recent data, return default
-      if (recentMoodData.length === 0) {
-        return this.generateDefaultMoodData(days);
-      }
-
-      // Fill in missing days with neutral values
-      const filledData: MoodEntry[] = [];
-      for (let i = days - 1; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        const dateStr = date.toISOString().split('T')[0];
-        
-        const existingEntry = recentMoodData.find(entry => entry.date === dateStr);
-        if (existingEntry) {
-          filledData.push(existingEntry);
-        } else {
-          filledData.push({
-            date: dateStr,
-            mood: 7,
-            energy: 7,
-            stress: 3,
-            anxiety: 3,
-            sleep: 7
-          });
-        }
-      }
-
-      return filledData;
+      console.log('📊 Found', recentMoodData.length, 'mood entries in date range');
+      return recentMoodData;
     } catch (error) {
       console.error('Error getting mood data:', error);
-      return this.generateDefaultMoodData(days);
+      return []; // Return empty array instead of default data
     }
-  }
-
-  // Generate default mood data
-  private generateDefaultMoodData(days: number): MoodEntry[] {
-    const defaultData: MoodEntry[] = [];
-    for (let i = days - 1; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      defaultData.push({
-        date: date.toISOString().split('T')[0],
-        mood: 7,
-        energy: 7,
-        stress: 3,
-        anxiety: 3,
-        sleep: 7
-      });
-    }
-    return defaultData;
   }
 
   // Record mood entry

@@ -24,26 +24,26 @@ export const useAnalytics = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Dashboard metrics
+  // Dashboard metrics - NO HARDCODED VALUES
   const [dashboardMetrics, setDashboardMetrics] = useState<DashboardMetrics>({
-    moodScore: 7.0,
+    moodScore: 0,
     sessionsThisWeek: 0,
     totalMinutes: 0,
     streakDays: 0,
-    wellnessGoals: 3,
-    completedGoals: 2
+    wellnessGoals: 0,
+    completedGoals: 0
   });
 
-  // Analytics data
+  // Analytics data - NO HARDCODED VALUES
   const [moodData, setMoodData] = useState<MoodEntry[]>([]);
   const [agentUsageData, setAgentUsageData] = useState<AgentUsageData[]>([]);
   const [wellnessMetrics, setWellnessMetrics] = useState<WellnessMetrics>({
-    overall: 7.0,
-    emotional: 7.0,
-    physical: 7.0,
-    social: 7.0,
-    mental: 7.0,
-    spiritual: 7.0
+    overall: 0,
+    emotional: 0,
+    physical: 0,
+    social: 0,
+    mental: 0,
+    spiritual: 0
   });
   const [recentConversations, setRecentConversations] = useState<ConversationRecord[]>([]);
 
@@ -65,7 +65,7 @@ export const useAnalytics = () => {
       setIsLoading(true);
       setError(null);
 
-      console.log('🔄 Loading analytics data...');
+      console.log('🔄 Loading analytics data for user:', currentUser?.uid);
 
       // Load all data in parallel
       const [
@@ -82,24 +82,38 @@ export const useAnalytics = () => {
         analyticsService.getMoodData(7)
       ]);
 
-      console.log('📊 Analytics data loaded:', {
+      console.log('📊 Raw analytics data loaded:', {
         moodScore,
         streakData,
-        conversationStats,
-        wellnessData
+        conversationStats: {
+          totalSessions: conversationStats.totalSessions,
+          totalMinutes: conversationStats.totalMinutes,
+          conversationsCount: conversationStats.conversations.length
+        },
+        wellnessData,
+        moodDataPoints: moodChartData.length
       });
 
-      // Update dashboard metrics
-      setDashboardMetrics({
-        moodScore,
-        sessionsThisWeek: conversationStats.totalSessions,
-        totalMinutes: conversationStats.totalMinutes,
-        streakDays: streakData.currentStreak,
+      // Update dashboard metrics with REAL data
+      const newDashboardMetrics = {
+        moodScore: moodScore || 0,
+        sessionsThisWeek: conversationStats.totalSessions || 0,
+        totalMinutes: conversationStats.totalMinutes || 0,
+        streakDays: streakData.currentStreak || 0,
         wellnessGoals: 3, // This could be dynamic based on user goals
-        completedGoals: Math.min(3, Math.floor(streakData.currentStreak / 7)) // Complete goals based on streak
-      });
+        completedGoals: Math.min(3, Math.floor((streakData.currentStreak || 0) / 7)) // Complete goals based on streak
+      };
 
-      // Update chart data
+      console.log('📈 Setting dashboard metrics:', newDashboardMetrics);
+      setDashboardMetrics(newDashboardMetrics);
+
+      // Update chart data with REAL data
+      console.log('📊 Setting chart data:', {
+        moodDataLength: moodChartData.length,
+        agentUsageLength: conversationStats.agentUsageData.length,
+        conversationsLength: conversationStats.conversations.length
+      });
+      
       setMoodData(moodChartData);
       setAgentUsageData(conversationStats.agentUsageData);
       setWellnessMetrics(wellnessData);
