@@ -144,7 +144,7 @@ export class AnalyticsService {
   // Calculate mood score from recent conversations and mood entries
   async calculateMoodScore(): Promise<number> {
     try {
-      // Try to get mood entries with a simple query
+      // Use only userId filter - no complex queries
       const moodQuery = query(
         collection(db, 'moodEntries'),
         where('userId', '==', this.userId),
@@ -179,18 +179,18 @@ export class AnalyticsService {
     }
   }
 
-  // Get conversation statistics - COMPLETELY SIMPLIFIED
+  // Get conversation statistics - ULTRA SIMPLIFIED
   async getConversationStats(timeRange: 'week' | 'month' | 'quarter' = 'week') {
     try {
-      // Use the simplest possible query - just get user's conversations
+      // ONLY use userId filter - no other filters to avoid index requirements
       const conversationsQuery = query(
         collection(db, 'conversations'),
-        where('userId', '==', this.userId),
-        limit(20) // Just get recent conversations
+        where('userId', '==', this.userId)
+        // NO orderBy, NO additional where clauses
       );
 
       const snapshot = await getDocs(conversationsQuery);
-      const conversations: ConversationRecord[] = [];
+      const allConversations: ConversationRecord[] = [];
 
       // Calculate time range for filtering in memory
       const now = new Date();
@@ -208,27 +208,28 @@ export class AnalyticsService {
           break;
       }
 
+      // Process all conversations and filter in memory
       snapshot.forEach(doc => {
         const data = doc.data();
         const startTime = data.startTime ? data.startTime.toDate() : new Date();
         
-        // Filter by time range in memory
-        if (startTime >= startDate) {
-          conversations.push({
-            id: doc.id,
-            userId: data.userId,
-            agentType: data.agentType,
-            startTime: startTime,
-            endTime: data.endTime ? data.endTime.toDate() : new Date(),
-            duration: data.duration || 0,
-            moodBefore: data.moodBefore,
-            moodAfter: data.moodAfter,
-            topics: data.topics || [],
-            satisfaction: data.satisfaction,
-            notes: data.notes
-          });
-        }
+        allConversations.push({
+          id: doc.id,
+          userId: data.userId,
+          agentType: data.agentType,
+          startTime: startTime,
+          endTime: data.endTime ? data.endTime.toDate() : new Date(),
+          duration: data.duration || 0,
+          moodBefore: data.moodBefore,
+          moodAfter: data.moodAfter,
+          topics: data.topics || [],
+          satisfaction: data.satisfaction,
+          notes: data.notes
+        });
       });
+
+      // Filter by time range in memory
+      const conversations = allConversations.filter(conv => conv.startTime >= startDate);
 
       // Calculate statistics
       const totalSessions = conversations.length;
@@ -269,7 +270,7 @@ export class AnalyticsService {
         totalMinutes,
         avgSatisfaction: Math.round(avgSatisfaction * 10) / 10,
         agentUsageData,
-        conversations
+        conversations: conversations.slice(0, 10) // Return only recent 10
       };
     } catch (error) {
       console.error('Error getting conversation stats:', error);
@@ -324,24 +325,24 @@ export class AnalyticsService {
     }
   }
 
-  // Get mood data for charts - COMPLETELY SIMPLIFIED
+  // Get mood data for charts - ULTRA SIMPLIFIED
   async getMoodData(days: number = 7): Promise<MoodEntry[]> {
     try {
-      // Use the simplest possible query
+      // Use ONLY userId filter - no date filtering in query
       const moodQuery = query(
         collection(db, 'moodEntries'),
-        where('userId', '==', this.userId),
-        limit(days)
+        where('userId', '==', this.userId)
+        // NO orderBy to avoid index requirements
       );
 
       const snapshot = await getDocs(moodQuery);
-      const moodData: MoodEntry[] = [];
+      const allMoodData: MoodEntry[] = [];
 
       snapshot.forEach(doc => {
         const data = doc.data();
         const entryDate = data.date ? data.date.toDate() : data.createdAt?.toDate() || new Date();
         
-        moodData.push({
+        allMoodData.push({
           date: entryDate.toISOString().split('T')[0],
           mood: data.mood || 7,
           energy: data.energy || 7,
@@ -351,8 +352,16 @@ export class AnalyticsService {
         });
       });
 
+      // Filter and sort in memory
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - days);
+      
+      const recentMoodData = allMoodData
+        .filter(entry => new Date(entry.date) >= cutoffDate)
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
       // If no data, return default data for the past week
-      if (moodData.length === 0) {
+      if (recentMoodData.length === 0) {
         const defaultData: MoodEntry[] = [];
         for (let i = 6; i >= 0; i--) {
           const date = new Date();
@@ -369,9 +378,6 @@ export class AnalyticsService {
         return defaultData;
       }
 
-      // Sort by date and fill missing days
-      moodData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
       // Fill in missing days with neutral values
       const filledData: MoodEntry[] = [];
       for (let i = days - 1; i >= 0; i--) {
@@ -379,7 +385,7 @@ export class AnalyticsService {
         date.setDate(date.getDate() - i);
         const dateStr = date.toISOString().split('T')[0];
         
-        const existingEntry = moodData.find(entry => entry.date === dateStr);
+        const existingEntry = recentMoodData.find(entry => entry.date === dateStr);
         if (existingEntry) {
           filledData.push(existingEntry);
         } else {
