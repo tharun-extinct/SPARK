@@ -1,5 +1,5 @@
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, setDoc, Timestamp, orderBy, limit } from 'firebase/firestore';
 
 export interface ConversationRecord {
   id: string;
@@ -144,58 +144,89 @@ export class AnalyticsService {
   // Calculate mood score from recent conversations and mood entries
   async calculateMoodScore(): Promise<number> {
     try {
-      // ONLY use userId filter - absolutely no other filters
+      // Try to get mood entries first
       const moodQuery = query(
         collection(db, 'moodEntries'),
         where('userId', '==', this.userId)
       );
 
       const moodSnapshot = await getDocs(moodQuery);
-      const moodEntries: MoodEntry[] = [];
+      
+      if (moodSnapshot.empty) {
+        // No mood entries, return default
+        return 7.0;
+      }
 
+      const moodEntries: number[] = [];
       moodSnapshot.forEach(doc => {
         const data = doc.data();
-        moodEntries.push({
-          date: data.date ? data.date.toDate().toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-          mood: data.mood || 5,
-          energy: data.energy || 5,
-          stress: data.stress || 5,
-          anxiety: data.anxiety || 5,
-          sleep: data.sleep || 5
-        });
+        if (data.mood && typeof data.mood === 'number') {
+          moodEntries.push(data.mood);
+        }
       });
 
       if (moodEntries.length === 0) {
         return 7.0; // Default neutral mood
       }
 
-      // Sort by date in memory and take most recent 7
-      const sortedEntries = moodEntries
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        .slice(0, 7);
-
-      // Calculate simple average
-      const totalMood = sortedEntries.reduce((sum, entry) => sum + entry.mood, 0);
-      return Math.round((totalMood / sortedEntries.length) * 10) / 10;
+      // Calculate simple average of all mood entries
+      const totalMood = moodEntries.reduce((sum, mood) => sum + mood, 0);
+      return Math.round((totalMood / moodEntries.length) * 10) / 10;
     } catch (error) {
       console.error('Error calculating mood score:', error);
       return 7.0;
     }
   }
 
-  // Get conversation statistics - COMPLETELY SIMPLIFIED
+  // Get conversation statistics - ULTRA SIMPLIFIED
   async getConversationStats(timeRange: 'week' | 'month' | 'quarter' = 'week') {
     try {
-      // ONLY use userId filter - absolutely nothing else
+      // Use the simplest possible query - just get user's conversations
       const conversationsQuery = query(
         collection(db, 'conversations'),
         where('userId', '==', this.userId)
       );
 
       const snapshot = await getDocs(conversationsQuery);
+      
+      if (snapshot.empty) {
+        // Return default empty data
+        return {
+          totalSessions: 0,
+          totalMinutes: 0,
+          avgSatisfaction: 4.0,
+          agentUsageData: [
+            { name: 'Mental Health', value: 0, color: '#ef4444', percentage: 0 },
+            { name: 'Learning', value: 0, color: '#3b82f6', percentage: 0 },
+            { name: 'Wellness', value: 0, color: '#10b981', percentage: 0 }
+          ],
+          conversations: []
+        };
+      }
+
       const allConversations: ConversationRecord[] = [];
 
-      // Calculate time range for filtering in memory
+      // Process all conversations
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const startTime = data.startTime ? data.startTime.toDate() : new Date();
+        
+        allConversations.push({
+          id: doc.id,
+          userId: data.userId,
+          agentType: data.agentType || 'psychiatrist',
+          startTime: startTime,
+          endTime: data.endTime ? data.endTime.toDate() : new Date(),
+          duration: data.duration || 30,
+          moodBefore: data.moodBefore,
+          moodAfter: data.moodAfter,
+          topics: data.topics || [],
+          satisfaction: data.satisfaction || 4,
+          notes: data.notes
+        });
+      });
+
+      // Filter by time range in memory
       const now = new Date();
       const startDate = new Date();
       
@@ -211,27 +242,6 @@ export class AnalyticsService {
           break;
       }
 
-      // Process all conversations and filter in memory
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        const startTime = data.startTime ? data.startTime.toDate() : new Date();
-        
-        allConversations.push({
-          id: doc.id,
-          userId: data.userId,
-          agentType: data.agentType,
-          startTime: startTime,
-          endTime: data.endTime ? data.endTime.toDate() : new Date(),
-          duration: data.duration || 0,
-          moodBefore: data.moodBefore,
-          moodAfter: data.moodAfter,
-          topics: data.topics || [],
-          satisfaction: data.satisfaction,
-          notes: data.notes
-        });
-      });
-
-      // Filter by time range in memory
       const conversations = allConversations.filter(conv => conv.startTime >= startDate);
 
       // Calculate statistics
@@ -268,7 +278,7 @@ export class AnalyticsService {
         }
       ];
 
-      // Sort conversations by date in memory and return recent ones
+      // Sort conversations by date and return recent ones
       const sortedConversations = conversations
         .sort((a, b) => b.startTime.getTime() - a.startTime.getTime())
         .slice(0, 10);
@@ -333,16 +343,22 @@ export class AnalyticsService {
     }
   }
 
-  // Get mood data for charts - COMPLETELY SIMPLIFIED
+  // Get mood data for charts - ULTRA SIMPLIFIED
   async getMoodData(days: number = 7): Promise<MoodEntry[]> {
     try {
-      // Use ONLY userId filter - absolutely no other filters
+      // Use the simplest possible query
       const moodQuery = query(
         collection(db, 'moodEntries'),
         where('userId', '==', this.userId)
       );
 
       const snapshot = await getDocs(moodQuery);
+      
+      if (snapshot.empty) {
+        // Return default data for the past week
+        return this.generateDefaultMoodData(days);
+      }
+
       const allMoodData: MoodEntry[] = [];
 
       snapshot.forEach(doc => {
@@ -367,22 +383,9 @@ export class AnalyticsService {
         .filter(entry => new Date(entry.date) >= cutoffDate)
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-      // If no data, return default data for the past week
+      // If no recent data, return default
       if (recentMoodData.length === 0) {
-        const defaultData: MoodEntry[] = [];
-        for (let i = 6; i >= 0; i--) {
-          const date = new Date();
-          date.setDate(date.getDate() - i);
-          defaultData.push({
-            date: date.toISOString().split('T')[0],
-            mood: 7,
-            energy: 7,
-            stress: 3,
-            anxiety: 3,
-            sleep: 7
-          });
-        }
-        return defaultData;
+        return this.generateDefaultMoodData(days);
       }
 
       // Fill in missing days with neutral values
@@ -410,22 +413,26 @@ export class AnalyticsService {
       return filledData;
     } catch (error) {
       console.error('Error getting mood data:', error);
-      // Return default data for the past week
-      const defaultData: MoodEntry[] = [];
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        defaultData.push({
-          date: date.toISOString().split('T')[0],
-          mood: 7,
-          energy: 7,
-          stress: 3,
-          anxiety: 3,
-          sleep: 7
-        });
-      }
-      return defaultData;
+      return this.generateDefaultMoodData(days);
     }
+  }
+
+  // Generate default mood data
+  private generateDefaultMoodData(days: number): MoodEntry[] {
+    const defaultData: MoodEntry[] = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      defaultData.push({
+        date: date.toISOString().split('T')[0],
+        mood: 7,
+        energy: 7,
+        stress: 3,
+        anxiety: 3,
+        sleep: 7
+      });
+    }
+    return defaultData;
   }
 
   // Record mood entry
