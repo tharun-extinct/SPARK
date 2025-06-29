@@ -22,7 +22,8 @@ import {
   Star,
   X,
   LineChart,
-  PieChart
+  PieChart,
+  RefreshCw
 } from "lucide-react";
 import { useAuth } from "@/services/firebaseAuth";
 import { 
@@ -32,6 +33,7 @@ import {
 } from "@/lib/firebase";
 import { useToast } from "@/components/ui/use-toast";
 import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell } from 'recharts';
+import { useAnalytics } from "@/hooks/useAnalytics";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -47,6 +49,18 @@ const Dashboard = () => {
   const [showDetailedAnalytics, setShowDetailedAnalytics] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
+  // Use analytics hook for real data
+  const {
+    dashboardMetrics,
+    moodData,
+    agentUsageData,
+    wellnessMetrics,
+    recentConversations,
+    isLoading: analyticsLoading,
+    error: analyticsError,
+    refreshData
+  } = useAnalytics();
+
   // Intersection Observer for scroll animations
   useEffect(() => {
     observerRef.current = new IntersectionObserver(
@@ -60,7 +74,6 @@ const Dashboard = () => {
       { threshold: 0.1, rootMargin: '50px' }
     );
 
-    // Observe all animated elements
     const animatedElements = document.querySelectorAll('[data-animate]');
     animatedElements.forEach(el => {
       if (observerRef.current) {
@@ -77,11 +90,10 @@ const Dashboard = () => {
 
   // Welcome popup logic
   useEffect(() => {
-    // Show welcome popup after dashboard loads
     if (!isLoading && currentUser) {
       const timer = setTimeout(() => {
         setShowWelcomePopup(true);
-      }, 1000); // Show popup 1 second after dashboard loads
+      }, 1000);
 
       return () => clearTimeout(timer);
     }
@@ -92,7 +104,7 @@ const Dashboard = () => {
     if (showWelcomePopup) {
       const timer = setTimeout(() => {
         setShowWelcomePopup(false);
-      }, 5000); // Hide popup after 5 seconds
+      }, 5000);
 
       return () => clearTimeout(timer);
     }
@@ -102,26 +114,12 @@ const Dashboard = () => {
   useEffect(() => {
     const fromOnboarding = location.state?.fromOnboarding === true;
     const offlineCompletion = location.state?.offlineCompletion === true;
-    console.log("Dashboard loaded, from onboarding:", fromOnboarding);
-    console.log("Current user:", currentUser?.uid);
     
     const initializeDashboard = async () => {
       try {
-        // Check if we have a fallback completion status in sessionStorage
-        let fallbackOnboardingStatus = false;
-        if (currentUser) {
-          try {
-            fallbackOnboardingStatus = sessionStorage.getItem(`onboarding_complete_${currentUser.uid}`) === 'true';
-          } catch (storageError) {
-            console.error("Failed to read from sessionStorage:", storageError);
-          }
-        }
-        
-        // If we have offline completion or fallback status, handle specially
-        if (offlineCompletion || fallbackOnboardingStatus) {
+        if (offlineCompletion) {
           console.log("Using offline/fallback onboarding completion status");
           
-          // Attempt to update the status in the background
           updateUserOnboardingStatus(currentUser?.uid || '', true)
             .then(success => {
               if (success) {
@@ -129,19 +127,14 @@ const Dashboard = () => {
                 try {
                   sessionStorage.removeItem(`onboarding_complete_${currentUser?.uid}`);
                 } catch (e) {}
-              } else {
-                console.error("Failed to synchronize offline onboarding status");
-                // We'll keep the sessionStorage entry to try again later
               }
             })
             .catch(err => console.error("Error syncing onboarding status:", err));
           
-          // Continue loading the dashboard regardless of synchronization status
           setIsLoading(false);
           return;
         }
         
-        // Standard initialization - try to establish Firestore connection with shorter timeout
         const connectionPromise = ensureFirestoreConnection(2);
         const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(false), 5000));
         
@@ -149,35 +142,13 @@ const Dashboard = () => {
         
         if (!isConnected) {
           console.warn("Could not establish reliable Firestore connection");
+          setConnectionError(true);
           
-          // Check if there's a cached onboarding status
-          try {
-            const cachedStatus = sessionStorage.getItem(`onboarding_complete_${currentUser?.uid}`);
-            if (cachedStatus === 'true') {
-              console.log("Using cached onboarding status due to connection issues");
-              setConnectionError(true);
-              
-              // Show toast to inform the user
-              toast({
-                title: "Limited Connectivity",
-                description: "Using cached data while we try to restore connection. Some features may be unavailable.",
-                variant: "destructive",
-              });
-            } else {
-              setConnectionError(true);
-              
-              // Only show a toast if connection completely failed
-              if (await validateFirestoreConnection() === false) {
-                toast({
-                  title: "Connection Issues",
-                  description: "Having trouble connecting to our servers. Some features may be limited.",
-                  variant: "destructive",
-                });
-              }
-            }
-          } catch (e) {
-            setConnectionError(true);
-          }
+          toast({
+            title: "Limited Connectivity",
+            description: "Using cached data while we try to restore connection.",
+            variant: "destructive",
+          });
         }
         
         if (fromOnboarding) {
@@ -192,87 +163,71 @@ const Dashboard = () => {
         
         toast({
           title: "Connection Error",
-          description: "We're having trouble connecting to our servers. Try again in a moment.",
+          description: "We're having trouble connecting to our servers.",
           variant: "destructive",
         });
       } finally {
-        // Show dashboard regardless of connection state
         setIsLoading(false);
-        
-        // Set up a background reconnection attempt
-        if (connectionError) {
-          setTimeout(() => {
-            validateFirestoreConnection()
-              .then(connected => {
-                if (connected) {
-                  console.log("Background connection attempt succeeded");
-                  setConnectionError(false);
-                  // Attempt to sync any pending onboarding status
-                  if (currentUser && sessionStorage.getItem(`onboarding_complete_${currentUser.uid}`) === 'true') {
-                    updateUserOnboardingStatus(currentUser.uid, true)
-                      .then(success => {
-                        if (success) {
-                          try {
-                            sessionStorage.removeItem(`onboarding_complete_${currentUser.uid}`);
-                          } catch (e) {}
-                        }
-                      });
-                  }
-                }
-              })
-              .catch(() => {}); // Ignore errors in background reconnection
-          }, 10000); // Try to reconnect after 10 seconds
-        }
       }
     };
     
-    // Short loading delay for better UX, then initialize
     const timer = setTimeout(() => {
       initializeDashboard();
     }, 1000);
-      return () => clearTimeout(timer);
-  }, [location, currentUser, toast, connectionError]);
+      
+    return () => clearTimeout(timer);
+  }, [location, currentUser, toast]);
 
   const isVisible = (id: string) => visibleElements.has(id);
 
-  const metrics = {
-    moodScore: 7.2,
-    sessionsThisWeek: 4,
-    totalMinutes: 180,
-    streakDays: 12,
-    wellnessGoals: 3,
-    completedGoals: 2
-  };
-
-  const recentSessions = [
-    { id: 1, agent: "Dr. Sarah", type: "Mental Health", duration: "45 min", mood: "Good", date: "Today", color: "from-pink-500 to-rose-500" },
-    { id: 2, agent: "Alex", type: "Learning", duration: "30 min", mood: "Focused", date: "Yesterday", color: "from-blue-500 to-cyan-500" },
-    { id: 3, agent: "Dr. James", type: "Wellness", duration: "25 min", mood: "Calm", date: "2 days ago", color: "from-green-500 to-emerald-500" },
-  ];
+  // Transform recent conversations for display
+  const recentSessions = recentConversations.slice(0, 3).map((conv, index) => ({
+    id: conv.id,
+    agent: conv.agentType === 'psychiatrist' ? 'Dr. Anna' : conv.agentType === 'tutor' ? 'Alex' : 'Dr. James',
+    type: conv.agentType === 'psychiatrist' ? 'Mental Health' : conv.agentType === 'tutor' ? 'Learning' : 'Wellness',
+    duration: `${conv.duration} min`,
+    mood: conv.moodAfter ? (conv.moodAfter > 7 ? 'Good' : conv.moodAfter > 5 ? 'Okay' : 'Needs attention') : 'Good',
+    date: conv.startTime.toLocaleDateString() === new Date().toLocaleDateString() ? 'Today' : 
+          conv.startTime.toLocaleDateString() === new Date(Date.now() - 86400000).toLocaleDateString() ? 'Yesterday' : 
+          `${Math.floor((Date.now() - conv.startTime.getTime()) / 86400000)} days ago`,
+    color: conv.agentType === 'psychiatrist' ? "from-pink-500 to-rose-500" : 
+           conv.agentType === 'tutor' ? "from-blue-500 to-cyan-500" : 
+           "from-green-500 to-emerald-500"
+  }));
   
   const upcomingGoals = [
-    { id: 1, title: "Daily check-in", progress: 80, target: "7 days", color: "from-purple-500 to-pink-500" },
-    { id: 2, title: "Anxiety management", progress: 60, target: "Practice breathing", color: "from-blue-500 to-indigo-500" },
-    { id: 3, title: "Sleep hygiene", progress: 40, target: "8 hours sleep", color: "from-green-500 to-teal-500" },
+    { 
+      id: 1, 
+      title: "Daily check-in", 
+      progress: Math.min(100, (dashboardMetrics.streakDays / 7) * 100), 
+      target: "7 days", 
+      color: "from-purple-500 to-pink-500" 
+    },
+    { 
+      id: 2, 
+      title: "Weekly sessions", 
+      progress: Math.min(100, (dashboardMetrics.sessionsThisWeek / 5) * 100), 
+      target: "5 sessions", 
+      color: "from-blue-500 to-indigo-500" 
+    },
+    { 
+      id: 3, 
+      title: "Mood tracking", 
+      progress: Math.min(100, (dashboardMetrics.moodScore / 10) * 100), 
+      target: "8+ mood score", 
+      color: "from-green-500 to-teal-500" 
+    },
   ];
 
-  // Sample data for quick insights
-  const moodData = [
-    { date: '2024-01-01', mood: 6.5 },
-    { date: '2024-01-02', mood: 7.1 },
-    { date: '2024-01-03', mood: 6.8 },
-    { date: '2024-01-04', mood: 8.2 },
-    { date: '2024-01-05', mood: 7.9 },
-    { date: '2024-01-06', mood: 8.5 },
-    { date: '2024-01-07', mood: 8.1 },
-  ];
+  // Handle refresh
+  const handleRefresh = () => {
+    refreshData();
+    toast({
+      title: "Data Refreshed",
+      description: "Your analytics have been updated with the latest information.",
+    });
+  };
 
-  const agentUsageData = [
-    { name: 'Mental Health', value: 45, color: '#ef4444' },
-    { name: 'Learning', value: 28, color: '#3b82f6' },
-    { name: 'Wellness', value: 14, color: '#10b981' },
-  ];
-  
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
       {/* Animated background elements */}
@@ -332,7 +287,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      {isLoading ? (
+      {isLoading || analyticsLoading ? (
         <div className="flex items-center justify-center min-h-screen">
           <div className="flex flex-col items-center space-y-4">
             <div className="relative">
@@ -342,30 +297,50 @@ const Dashboard = () => {
             <p className="text-gray-600 animate-pulse">Preparing your dashboard...</p>
           </div>
         </div>
-      ) : connectionError ? (
+      ) : connectionError && analyticsError ? (
         <div className="flex items-center justify-center min-h-screen p-4">
           <div className="bg-gradient-to-br from-red-50 to-rose-100 border border-red-200 rounded-xl p-6 max-w-md shadow-xl">
             <h2 className="text-xl font-bold text-red-700 mb-2">Connection Error</h2>
             <p className="text-red-600 mb-4">
               We're having trouble connecting to our servers. This might be due to your internet connection or a temporary server issue.
             </p>
-            <Button 
-              onClick={() => window.location.reload()}
-              className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
-            >
-              Retry Connection
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => window.location.reload()}
+                className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
+              >
+                Retry Connection
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={handleRefresh}
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Refresh Data
+              </Button>
+            </div>
           </div>
         </div>
       ) : (
         <div className="relative z-10 p-6 space-y-6">
           <div className="max-w-7xl mx-auto">
-            {/* Simplified Header */}
+            {/* Header with Refresh Button */}
             <div 
               id="welcome-header"
               data-animate
               className="text-center mb-8 opacity-100 translate-y-0"
             >
+              <div className="flex items-center justify-between mb-4">
+                <div></div>
+                <Button
+                  variant="outline"
+                  onClick={handleRefresh}
+                  className="bg-white/80 backdrop-blur-sm border border-white/20 hover:bg-gradient-to-r hover:from-primary hover:to-purple-600 hover:text-white transition-all duration-300 shadow-lg"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Refresh Data
+                </Button>
+              </div>
               <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-2">
                 Welcome back, {currentUser?.displayName?.split(' ')[0] || 'there'}! 👋
               </h1>
@@ -374,7 +349,7 @@ const Dashboard = () => {
               </p>
             </div>
 
-            {/* Quick Stats - Always Visible */}
+            {/* Quick Stats - Now with Real Data */}
             <div 
               id="stats-grid"
               data-animate
@@ -388,10 +363,10 @@ const Dashboard = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-rose-600">{metrics.moodScore}/10</div>
+                  <div className="text-2xl font-bold text-rose-600">{dashboardMetrics.moodScore}/10</div>
                   <p className="text-xs text-rose-500 flex items-center gap-1">
                     <TrendingUp className="w-3 h-3" />
-                    +0.5 from last week
+                    Based on recent entries
                   </p>
                 </CardContent>
               </Card>
@@ -404,7 +379,7 @@ const Dashboard = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">{metrics.sessionsThisWeek}</div>
+                  <div className="text-2xl font-bold text-blue-600">{dashboardMetrics.sessionsThisWeek}</div>
                   <p className="text-xs text-blue-500">
                     This week
                   </p>
@@ -419,7 +394,7 @@ const Dashboard = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-green-600">{metrics.totalMinutes}min</div>
+                  <div className="text-2xl font-bold text-green-600">{dashboardMetrics.totalMinutes}min</div>
                   <p className="text-xs text-green-500">
                     Total this week
                   </p>
@@ -434,7 +409,7 @@ const Dashboard = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-orange-600">{metrics.streakDays}</div>
+                  <div className="text-2xl font-bold text-orange-600">{dashboardMetrics.streakDays}</div>
                   <p className="text-xs text-orange-500 flex items-center gap-1">
                     <Star className="w-3 h-3" />
                     Days active
@@ -464,7 +439,7 @@ const Dashboard = () => {
 
               <TabsContent value="overview" className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Recent Sessions */}
+                  {/* Recent Sessions - Now with Real Data */}
                   <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
                     <CardHeader>
                       <CardTitle className="flex items-center">
@@ -479,7 +454,7 @@ const Dashboard = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
-                        {recentSessions.map((session, index) => (
+                        {recentSessions.length > 0 ? recentSessions.map((session, index) => (
                           <div 
                             key={session.id} 
                             className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl hover:shadow-md transition-all duration-300 hover:scale-102 group"
@@ -497,7 +472,13 @@ const Dashboard = () => {
                               <p className="text-xs text-gray-500">{session.date}</p>
                             </div>
                           </div>
-                        ))}
+                        )) : (
+                          <div className="text-center py-8 text-gray-500">
+                            <MessageCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                            <p>No recent sessions</p>
+                            <p className="text-sm">Start a conversation to see your activity here</p>
+                          </div>
+                        )}
                       </div>
                       <Button variant="outline" className="w-full mt-4 hover:bg-gradient-to-r hover:from-primary hover:to-purple-600 hover:text-white transition-all duration-300">
                         View All Sessions
@@ -505,7 +486,7 @@ const Dashboard = () => {
                     </CardContent>
                   </Card>
 
-                  {/* Wellness Goals */}
+                  {/* Wellness Goals - Now with Real Progress */}
                   <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
                     <CardHeader>
                       <CardTitle className="flex items-center">
@@ -524,7 +505,7 @@ const Dashboard = () => {
                           <div key={goal.id} className="space-y-3 p-3 rounded-lg hover:bg-gradient-to-r hover:from-gray-50 hover:to-blue-50 transition-all duration-300">
                             <div className="flex justify-between items-center">
                               <p className="font-medium text-slate-700">{goal.title}</p>
-                              <span className="text-sm text-gray-600 font-semibold">{goal.progress}%</span>
+                              <span className="text-sm text-gray-600 font-semibold">{Math.round(goal.progress)}%</span>
                             </div>
                             <div className="relative">
                               <Progress value={goal.progress} className="h-3" />
@@ -597,7 +578,7 @@ const Dashboard = () => {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Mood Trend - Simplified */}
+                  {/* Mood Trend - Now with Real Data */}
                   <Card className="bg-white/90 backdrop-blur-sm border border-white/30 hover:shadow-2xl transition-all duration-500 shadow-xl">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-xl">
@@ -647,7 +628,7 @@ const Dashboard = () => {
                     </CardContent>
                   </Card>
 
-                  {/* AI Agent Usage - Simplified */}
+                  {/* AI Agent Usage - Now with Real Data */}
                   <Card className="bg-white/90 backdrop-blur-sm border border-white/30 hover:shadow-2xl transition-all duration-500 shadow-xl">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-xl">
@@ -667,7 +648,7 @@ const Dashboard = () => {
                               cx="50%"
                               cy="50%"
                               labelLine={false}
-                              label={({ name, value }) => `${name}: ${value}`}
+                              label={({ name, percentage }) => percentage > 0 ? `${name}: ${percentage}%` : ''}
                               outerRadius={80}
                               fill="#8884d8"
                               dataKey="value"
@@ -680,11 +661,16 @@ const Dashboard = () => {
                           </RechartsPieChart>
                         </ResponsiveContainer>
                       </div>
+                      {agentUsageData.every(agent => agent.value === 0) && (
+                        <div className="text-center text-gray-500 mt-4">
+                          <p>Start conversations to see your usage patterns</p>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </div>
 
-                {/* Key Insights */}
+                {/* Key Insights - Now with Real Data */}
                 <Card className="bg-white/90 backdrop-blur-sm border border-white/30 hover:shadow-2xl transition-all duration-500 shadow-xl">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-xl">
@@ -700,33 +686,53 @@ const Dashboard = () => {
                       <div className="p-4 bg-green-50 rounded-lg border border-green-200">
                         <div className="flex items-center gap-2 mb-2">
                           <TrendingUp className="w-5 h-5 text-green-600" />
-                          <span className="font-medium text-green-800">Positive Trend</span>
+                          <span className="font-medium text-green-800">Current Streak</span>
                         </div>
-                        <p className="text-sm text-green-700">Your mood has improved by 15% this week</p>
+                        <p className="text-sm text-green-700">
+                          {dashboardMetrics.streakDays > 0 
+                            ? `You're on a ${dashboardMetrics.streakDays}-day streak! Keep it up!`
+                            : "Start a conversation today to begin your streak!"
+                          }
+                        </p>
                       </div>
                       
                       <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                         <div className="flex items-center gap-2 mb-2">
                           <Star className="w-5 h-5 text-blue-600" />
-                          <span className="font-medium text-blue-800">Achievement</span>
+                          <span className="font-medium text-blue-800">Weekly Progress</span>
                         </div>
-                        <p className="text-sm text-blue-700">12-day streak of consistent check-ins</p>
+                        <p className="text-sm text-blue-700">
+                          {dashboardMetrics.sessionsThisWeek > 0
+                            ? `${dashboardMetrics.sessionsThisWeek} sessions completed this week`
+                            : "No sessions this week - start your first conversation!"
+                          }
+                        </p>
                       </div>
                       
                       <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
                         <div className="flex items-center gap-2 mb-2">
                           <Brain className="w-5 h-5 text-purple-600" />
-                          <span className="font-medium text-purple-800">Pattern</span>
+                          <span className="font-medium text-purple-800">Mood Insights</span>
                         </div>
-                        <p className="text-sm text-purple-700">You're most active with mental health sessions</p>
+                        <p className="text-sm text-purple-700">
+                          Your current mood score is {dashboardMetrics.moodScore}/10
+                          {dashboardMetrics.moodScore >= 8 ? " - You're doing great!" : 
+                           dashboardMetrics.moodScore >= 6 ? " - Room for improvement" :
+                           " - Consider reaching out for support"}
+                        </p>
                       </div>
                       
                       <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
                         <div className="flex items-center gap-2 mb-2">
                           <Target className="w-5 h-5 text-orange-600" />
-                          <span className="font-medium text-orange-800">Suggestion</span>
+                          <span className="font-medium text-orange-800">Recommendation</span>
                         </div>
-                        <p className="text-sm text-orange-700">Try morning sessions for better consistency</p>
+                        <p className="text-sm text-orange-700">
+                          {dashboardMetrics.sessionsThisWeek < 3 
+                            ? "Try to have at least 3 sessions per week for better wellness"
+                            : "Great job maintaining regular sessions!"
+                          }
+                        </p>
                       </div>
                     </div>
                   </CardContent>

@@ -7,11 +7,16 @@ import { Mic, MicOff, Video, VideoOff, Phone, Settings, Home, AlertTriangle, Ref
 import { createTavusConversation } from "@/lib/tavus";
 import { TavusCVIFrame } from "@/components/ui/TavusCVIFrame";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/services/firebaseAuth";
+import { useAnalytics } from "@/hooks/useAnalytics";
 
 const Conversation = () => {
   const { agentType = "psychiatrist" } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { currentUser } = useAuth();
+  const { recordConversation } = useAnalytics();
+  
   const [isVideoOn, setIsVideoOn] = useState(true);
   const [isAudioOn, setIsAudioOn] = useState(true);
   const [conversationStarted, setConversationStarted] = useState(false);
@@ -22,6 +27,7 @@ const Conversation = () => {
   const [isRetrying, setIsRetrying] = useState(false);
   const [chatMessages, setChatMessages] = useState<Array<{text: string, sender: 'user' | 'ai', timestamp: Date}>>([]);
   const [inputMessage, setInputMessage] = useState("");
+  const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
 
   const MAX_RETRIES = 3;
   const RETRY_DELAY = 2000; // 2 seconds
@@ -72,6 +78,7 @@ const Conversation = () => {
       
       setConversationUrl(url);
       setConversationStarted(true);
+      setSessionStartTime(new Date());
       setIsLoading(false);
       
       toast({
@@ -135,7 +142,32 @@ const Conversation = () => {
     }, RETRY_DELAY);
   };
 
-  const handleReturnToDashboard = () => {
+  const handleReturnToDashboard = async () => {
+    // Record the session if it was started
+    if (sessionStartTime && currentUser) {
+      try {
+        const endTime = new Date();
+        const duration = Math.round((endTime.getTime() - sessionStartTime.getTime()) / 60000); // Duration in minutes
+        
+        await recordConversation({
+          agentType: agentType as 'psychiatrist' | 'tutor' | 'doctor',
+          startTime: sessionStartTime,
+          endTime: endTime,
+          duration: Math.max(1, duration), // Minimum 1 minute
+          topics: chatMessages.map(msg => msg.text).slice(0, 5), // First 5 messages as topics
+          satisfaction: 4, // Default satisfaction
+          notes: `Conversation with ${currentAgent.name}`
+        });
+        
+        toast({
+          title: "Session Recorded",
+          description: "Your conversation has been saved to your analytics.",
+        });
+      } catch (error) {
+        console.error("Error recording conversation:", error);
+      }
+    }
+    
     toast({
       title: "Returning to Dashboard",
       description: "You can try connecting to an AI assistant again from there.",
@@ -285,7 +317,7 @@ const Conversation = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate("/dashboard")}
+              onClick={handleReturnToDashboard}
             >
               <Home className="w-4 h-4 mr-2" />
               Dashboard
