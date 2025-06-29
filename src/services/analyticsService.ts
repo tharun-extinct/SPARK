@@ -1,6 +1,6 @@
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, doc, getDoc, setDoc, Timestamp, orderBy, limit } from 'firebase/firestore';
-import { getTavusConversationDetails, waitForTranscript, TavusConversationDetails } from '@/lib/tavus';
+import { collection, query, where, getDocs, doc, getDoc, setDoc, Timestamp, orderBy, limit, addDoc } from 'firebase/firestore';
+import { getTavusConversationDetails, TavusConversationDetails } from '@/lib/tavus';
 
 export interface ConversationRecord {
   id: string;
@@ -19,10 +19,6 @@ export interface ConversationRecord {
   tavusRecordingUrl?: string;
   tavusTranscript?: string;
   tavusMetadata?: any;
-  tavusShutdownReason?: string;
-  tavusPerceptionAnalysis?: any;
-  tavusReplicaJoinedTime?: string;
-  tavusEvents?: any[];
 }
 
 export interface MoodEntry {
@@ -54,15 +50,20 @@ export class AnalyticsService {
 
   constructor(userId: string) {
     this.userId = userId;
+    console.log('🔧 AnalyticsService initialized for user:', userId);
   }
 
-  // Record a new conversation session with enhanced Tavus integration
-  async recordConversation(data: Omit<ConversationRecord, 'id' | 'userId'>): Promise<void> {
+  // Record a new conversation session with Tavus integration
+  async recordConversation(data: Omit<ConversationRecord, 'id' | 'userId'>): Promise<string> {
     try {
-      const conversationRef = doc(collection(db, 'conversations'));
+      console.log('🔄 Recording conversation to Firestore for user:', this.userId);
+      console.log('📊 Input conversation data:', data);
+      
+      // Use addDoc instead of doc+setDoc to let Firestore generate the ID
+      const conversationsCollection = collection(db, 'conversations');
       
       // Prepare the base conversation data
-      const conversationData = {
+      const conversationData: any = {
         ...data,
         userId: this.userId,
         startTime: Timestamp.fromDate(data.startTime),
@@ -70,60 +71,80 @@ export class AnalyticsService {
         createdAt: Timestamp.now()
       };
 
-      // If we have a Tavus conversation ID, fetch comprehensive details
+      console.log('💾 Saving conversation data to Firestore:', {
+        userId: conversationData.userId,
+        agentType: conversationData.agentType,
+        duration: conversationData.duration,
+        tavusConversationId: conversationData.tavusConversationId,
+        topics: conversationData.topics,
+        startTime: conversationData.startTime,
+        endTime: conversationData.endTime
+      });
+
+      // If we have a Tavus conversation ID, fetch additional details
       if (data.tavusConversationId) {
         try {
-          console.log('🔄 Fetching comprehensive Tavus conversation details for ID:', data.tavusConversationId);
+          console.log('🔄 Fetching Tavus conversation details for ID:', data.tavusConversationId);
+          const tavusDetails = await getTavusConversationDetails(data.tavusConversationId);
           
-          // First, try to get immediate details
-          let tavusDetails = await getTavusConversationDetails(data.tavusConversationId, true);
-          
-          // If no transcript yet, wait for it to be processed
-          if (!tavusDetails.transcript || tavusDetails.transcript.trim() === '') {
-            console.log('⏳ Transcript not ready, waiting for processing...');
-            const detailsWithTranscript = await waitForTranscript(data.tavusConversationId, 6, 10000); // Wait up to 1 minute
-            if (detailsWithTranscript) {
-              tavusDetails = detailsWithTranscript;
-            }
+          // Merge Tavus data with our conversation record - only add fields that exist
+          if (tavusDetails.recording_url) {
+            conversationData.tavusRecordingUrl = tavusDetails.recording_url;
           }
           
-          // Merge comprehensive Tavus data with our conversation record
-          conversationData.tavusRecordingUrl = tavusDetails.recording_url;
-          conversationData.tavusTranscript = tavusDetails.transcript;
-          conversationData.tavusMetadata = tavusDetails.metadata;
-          conversationData.tavusShutdownReason = tavusDetails.shutdown_reason;
-          conversationData.tavusPerceptionAnalysis = tavusDetails.perception_analysis;
-          conversationData.tavusReplicaJoinedTime = tavusDetails.replica_joined_time;
-          conversationData.tavusEvents = tavusDetails.events;
+          if (tavusDetails.transcript) {
+            conversationData.tavusTranscript = tavusDetails.transcript;
+          }
+          
+          if (tavusDetails.metadata) {
+            conversationData.tavusMetadata = tavusDetails.metadata;
+          }
           
           // Update duration if Tavus provides more accurate data
           if (tavusDetails.duration && tavusDetails.duration > 0) {
             conversationData.duration = Math.round(tavusDetails.duration / 60); // Convert seconds to minutes
           }
           
-          // Update start/end times if Tavus provides more accurate data
-          if (tavusDetails.start_time) {
-            conversationData.startTime = Timestamp.fromDate(new Date(tavusDetails.start_time));
-          }
-          if (tavusDetails.end_time) {
-            conversationData.endTime = Timestamp.fromDate(new Date(tavusDetails.end_time));
-          }
-          
-          console.log('✅ Successfully enriched conversation with comprehensive Tavus data');
-          console.log('📝 Transcript length:', tavusDetails.transcript?.length || 0);
-          console.log('🧠 Perception analysis available:', !!tavusDetails.perception_analysis);
-          console.log('🛑 Shutdown reason:', tavusDetails.shutdown_reason);
+          console.log('✅ Successfully enriched conversation with Tavus data');
         } catch (tavusError) {
           console.warn('⚠️ Failed to fetch Tavus conversation details, proceeding without:', tavusError);
           // Continue saving the conversation even if Tavus API fails
+          
+          // Remove any undefined fields that might cause Firestore errors
+          if (conversationData.tavusRecordingUrl === undefined) {
+            delete conversationData.tavusRecordingUrl;
+          }
+          if (conversationData.tavusTranscript === undefined) {
+            delete conversationData.tavusTranscript;
+          }
+          if (conversationData.tavusMetadata === undefined) {
+            delete conversationData.tavusMetadata;
+          }
         }
       }
 
-      await setDoc(conversationRef, conversationData);
-      console.log('💾 Conversation saved to Firebase with ID:', conversationRef.id);
+      // Actually save to Firestore using addDoc
+      const docRef = await addDoc(conversationsCollection, conversationData);
+      console.log('✅ Conversation saved to Firestore with ID:', docRef.id);
+
+      // Verify the save by reading it back
+      try {
+        const savedDoc = await getDoc(docRef);
+        if (savedDoc.exists()) {
+          console.log('✅ Verified: Conversation document exists in Firestore');
+          console.log('📊 Saved document data:', savedDoc.data());
+        } else {
+          console.error('❌ ERROR: Conversation document was not saved to Firestore!');
+        }
+      } catch (verifyError) {
+        console.error('❌ Error verifying saved conversation:', verifyError);
+      }
 
       // Update streak after recording conversation
       await this.updateStreak();
+      console.log('✅ Streak updated after conversation');
+      
+      return docRef.id;
     } catch (error) {
       console.error('❌ Error recording conversation:', error);
       throw error;
@@ -133,44 +154,37 @@ export class AnalyticsService {
   // Store Tavus conversation ID for later retrieval
   async storeTavusConversationId(conversationId: string, agentType: string): Promise<string> {
     try {
-      const tavusRef = doc(collection(db, 'tavusConversations'));
-      await setDoc(tavusRef, {
+      console.log('🔄 Storing Tavus conversation ID:', conversationId, 'for user:', this.userId);
+      
+      // Use addDoc instead of doc+setDoc to let Firestore generate the ID
+      const tavusCollection = collection(db, 'tavusConversations');
+      const tavusData = {
         userId: this.userId,
         tavusConversationId: conversationId,
         agentType,
         createdAt: Timestamp.now(),
         status: 'active'
-      });
+      };
       
-      console.log('💾 Stored Tavus conversation ID:', conversationId);
-      return tavusRef.id;
+      const docRef = await addDoc(tavusCollection, tavusData);
+      
+      console.log('✅ Tavus conversation ID stored with ref ID:', docRef.id);
+      console.log('📊 Stored data:', tavusData);
+      return docRef.id;
     } catch (error) {
       console.error('❌ Error storing Tavus conversation ID:', error);
       throw error;
     }
   }
 
-  // Enhanced method to sync and update Tavus conversation data
-  async syncTavusConversation(tavusConversationId: string, waitForTranscriptFlag: boolean = true): Promise<TavusConversationDetails | null> {
+  // Retrieve and sync Tavus conversation data
+  async syncTavusConversation(tavusConversationId: string): Promise<TavusConversationDetails | null> {
     try {
       console.log('🔄 Syncing Tavus conversation:', tavusConversationId);
       
-      let details: TavusConversationDetails;
+      const details = await getTavusConversationDetails(tavusConversationId);
       
-      if (waitForTranscriptFlag) {
-        // Wait for transcript to be ready
-        const detailsWithTranscript = await waitForTranscript(tavusConversationId, 6, 10000);
-        if (detailsWithTranscript) {
-          details = detailsWithTranscript;
-        } else {
-          // Fallback to immediate fetch if transcript wait fails
-          details = await getTavusConversationDetails(tavusConversationId, true);
-        }
-      } else {
-        details = await getTavusConversationDetails(tavusConversationId, true);
-      }
-      
-      // Update the stored conversation record with comprehensive Tavus data
+      // Update the stored conversation record with Tavus data
       const conversationsQuery = query(
         collection(db, 'conversations'),
         where('userId', '==', this.userId),
@@ -182,31 +196,29 @@ export class AnalyticsService {
       if (!snapshot.empty) {
         const conversationDoc = snapshot.docs[0];
         const updateData: any = {
-          tavusRecordingUrl: details.recording_url,
-          tavusTranscript: details.transcript,
-          tavusMetadata: details.metadata,
-          tavusShutdownReason: details.shutdown_reason,
-          tavusPerceptionAnalysis: details.perception_analysis,
-          tavusReplicaJoinedTime: details.replica_joined_time,
-          tavusEvents: details.events,
           lastSyncedAt: Timestamp.now()
         };
+
+        // Only add fields that exist and are not undefined
+        if (details.recording_url) {
+          updateData.tavusRecordingUrl = details.recording_url;
+        }
+        
+        if (details.transcript) {
+          updateData.tavusTranscript = details.transcript;
+        }
+        
+        if (details.metadata) {
+          updateData.tavusMetadata = details.metadata;
+        }
 
         // Update duration if Tavus provides more accurate data
         if (details.duration && details.duration > 0) {
           updateData.duration = Math.round(details.duration / 60);
         }
 
-        // Update start/end times if available
-        if (details.start_time) {
-          updateData.startTime = Timestamp.fromDate(new Date(details.start_time));
-        }
-        if (details.end_time) {
-          updateData.endTime = Timestamp.fromDate(new Date(details.end_time));
-        }
-
         await setDoc(conversationDoc.ref, updateData, { merge: true });
-        console.log('✅ Successfully synced comprehensive Tavus conversation data');
+        console.log('✅ Successfully synced Tavus conversation data');
       }
 
       return details;
@@ -277,12 +289,9 @@ export class AnalyticsService {
       const streakDoc = await getDoc(userStreakRef);
       
       if (streakDoc.exists()) {
-        const data = streakDoc.data() as StreakData;
-        console.log('📈 Retrieved streak data:', data);
-        return data;
+        return streakDoc.data() as StreakData;
       }
       
-      console.log('📈 No streak data found, returning defaults');
       return {
         currentStreak: 0,
         longestStreak: 0,
@@ -306,8 +315,8 @@ export class AnalyticsService {
       const moodSnapshot = await getDocs(moodQuery);
       
       if (moodSnapshot.empty) {
-        console.log('📊 No mood entries found');
-        return 0; // Return 0 instead of hardcoded 7.0
+        // No mood entries, return default
+        return 7.0;
       }
 
       const moodEntries: number[] = [];
@@ -319,43 +328,42 @@ export class AnalyticsService {
       });
 
       if (moodEntries.length === 0) {
-        console.log('📊 No valid mood scores found');
-        return 0; // Return 0 instead of hardcoded 7.0
+        return 7.0; // Default neutral mood
       }
 
       // Calculate simple average of all mood entries
       const totalMood = moodEntries.reduce((sum, mood) => sum + mood, 0);
-      const avgMood = Math.round((totalMood / moodEntries.length) * 10) / 10;
-      console.log('📊 Calculated mood score:', avgMood, 'from', moodEntries.length, 'entries');
-      return avgMood;
+      return Math.round((totalMood / moodEntries.length) * 10) / 10;
     } catch (error) {
       console.error('Error calculating mood score:', error);
-      return 0; // Return 0 instead of hardcoded 7.0
+      return 7.0;
     }
   }
 
-  // Get conversation statistics - ENHANCED WITH REAL DATA
+  // Get conversation statistics with simplified query (no orderBy to avoid index requirement)
   async getConversationStats(timeRange: 'week' | 'month' | 'quarter' = 'week') {
     try {
-      console.log('📊 Getting conversation stats for timeRange:', timeRange);
+      console.log('🔄 Getting conversation stats for timeRange:', timeRange);
+      console.log('🔍 Querying conversations for user ID:', this.userId);
       
-      // Use the simplest possible query - just get user's conversations
+      // Use simple query without orderBy to avoid index requirement
       const conversationsQuery = query(
         collection(db, 'conversations'),
         where('userId', '==', this.userId)
       );
 
+      console.log('🔍 Executing Firestore query for conversations...');
       const snapshot = await getDocs(conversationsQuery);
       
-      console.log('📊 Found', snapshot.size, 'total conversations for user');
+      console.log('📊 Found', snapshot.size, 'total conversations in database for user:', this.userId);
       
       if (snapshot.empty) {
-        console.log('📊 No conversations found, returning empty data');
+        console.log('⚠️ No conversations found, returning default data');
         // Return default empty data
         return {
           totalSessions: 0,
           totalMinutes: 0,
-          avgSatisfaction: 0,
+          avgSatisfaction: 4.0,
           agentUsageData: [
             { name: 'Mental Health', value: 0, color: '#ef4444', percentage: 0 },
             { name: 'Learning', value: 0, color: '#3b82f6', percentage: 0 },
@@ -372,6 +380,15 @@ export class AnalyticsService {
         const data = doc.data();
         const startTime = data.startTime ? data.startTime.toDate() : new Date();
         
+        console.log('📝 Processing conversation:', {
+          id: doc.id,
+          agentType: data.agentType,
+          startTime: startTime,
+          duration: data.duration,
+          tavusConversationId: data.tavusConversationId,
+          userId: data.userId
+        });
+        
         allConversations.push({
           id: doc.id,
           userId: data.userId,
@@ -387,17 +404,13 @@ export class AnalyticsService {
           tavusConversationId: data.tavusConversationId,
           tavusRecordingUrl: data.tavusRecordingUrl,
           tavusTranscript: data.tavusTranscript,
-          tavusMetadata: data.tavusMetadata,
-          tavusShutdownReason: data.tavusShutdownReason,
-          tavusPerceptionAnalysis: data.tavusPerceptionAnalysis,
-          tavusReplicaJoinedTime: data.tavusReplicaJoinedTime,
-          tavusEvents: data.tavusEvents
+          tavusMetadata: data.tavusMetadata
         });
       });
 
       console.log('📊 Processed', allConversations.length, 'conversations');
 
-      // Filter by time range in memory
+      // Filter by time range in memory and sort by date
       const now = new Date();
       const startDate = new Date();
       
@@ -413,21 +426,26 @@ export class AnalyticsService {
           break;
       }
 
-      const conversations = allConversations.filter(conv => conv.startTime >= startDate);
-      console.log('📊 Filtered to', conversations.length, 'conversations in timeRange:', timeRange);
+      const conversations = allConversations
+        .filter(conv => conv.startTime >= startDate)
+        .sort((a, b) => b.startTime.getTime() - a.startTime.getTime()); // Sort by date descending in memory
+      
+      console.log('📊 Filtered to', conversations.length, 'conversations for timeRange:', timeRange);
 
       // Calculate statistics
       const totalSessions = conversations.length;
       const totalMinutes = conversations.reduce((sum, conv) => sum + conv.duration, 0);
       const avgSatisfaction = conversations.length > 0 
         ? conversations.reduce((sum, conv) => sum + (conv.satisfaction || 4), 0) / conversations.length 
-        : 0; // Return 0 instead of hardcoded 4.0
+        : 4.0;
 
       // Agent usage breakdown
       const agentUsage = conversations.reduce((acc, conv) => {
         acc[conv.agentType] = (acc[conv.agentType] || 0) + 1;
         return acc;
       }, {} as Record<string, number>);
+
+      console.log('📊 Agent usage breakdown:', agentUsage);
 
       const agentUsageData = [
         { 
@@ -450,28 +468,26 @@ export class AnalyticsService {
         }
       ];
 
-      // Sort conversations by date and return recent ones
-      const sortedConversations = conversations
-        .sort((a, b) => b.startTime.getTime() - a.startTime.getTime())
-        .slice(0, 10);
+      // Return recent conversations (already sorted)
+      const recentConversations = conversations.slice(0, 10);
 
       const result = {
         totalSessions,
         totalMinutes,
         avgSatisfaction: Math.round(avgSatisfaction * 10) / 10,
         agentUsageData,
-        conversations: sortedConversations
+        conversations: recentConversations
       };
 
-      console.log('📊 Final conversation stats:', result);
+      console.log('✅ Conversation stats calculated:', result);
       return result;
     } catch (error) {
-      console.error('Error getting conversation stats:', error);
+      console.error('❌ Error getting conversation stats:', error);
       // Return default data instead of throwing
       return {
         totalSessions: 0,
         totalMinutes: 0,
-        avgSatisfaction: 0,
+        avgSatisfaction: 4.0,
         agentUsageData: [
           { name: 'Mental Health', value: 0, color: '#ef4444', percentage: 0 },
           { name: 'Learning', value: 0, color: '#3b82f6', percentage: 0 },
@@ -488,19 +504,6 @@ export class AnalyticsService {
       const moodScore = await this.calculateMoodScore();
       const stats = await this.getConversationStats('month');
       
-      // Only calculate if we have actual data
-      if (moodScore === 0 && stats.totalSessions === 0) {
-        console.log('📊 No data for wellness metrics, returning zeros');
-        return {
-          overall: 0,
-          emotional: 0,
-          physical: 0,
-          social: 0,
-          mental: 0,
-          spiritual: 0
-        };
-      }
-      
       // Base calculations on mood score and conversation patterns
       const emotional = moodScore;
       const physical = Math.min(10, moodScore + (stats.agentUsageData.find(a => a.name === 'Wellness')?.percentage || 0) / 10);
@@ -510,7 +513,7 @@ export class AnalyticsService {
       
       const overall = (emotional + physical + social + mental + spiritual) / 5;
 
-      const result = {
+      return {
         overall: Math.round(overall * 10) / 10,
         emotional: Math.round(emotional * 10) / 10,
         physical: Math.round(physical * 10) / 10,
@@ -518,27 +521,22 @@ export class AnalyticsService {
         mental: Math.round(mental * 10) / 10,
         spiritual: Math.round(spiritual * 10) / 10
       };
-
-      console.log('📊 Calculated wellness metrics:', result);
-      return result;
     } catch (error) {
       console.error('Error calculating wellness metrics:', error);
       return {
-        overall: 0,
-        emotional: 0,
-        physical: 0,
-        social: 0,
-        mental: 0,
-        spiritual: 0
+        overall: 7.0,
+        emotional: 7.0,
+        physical: 7.0,
+        social: 7.0,
+        mental: 7.0,
+        spiritual: 7.0
       };
     }
   }
 
-  // Get mood data for charts - ENHANCED WITH REAL DATA
+  // Get mood data for charts - ULTRA SIMPLIFIED
   async getMoodData(days: number = 7): Promise<MoodEntry[]> {
     try {
-      console.log('📊 Getting mood data for', days, 'days');
-      
       // Use the simplest possible query
       const moodQuery = query(
         collection(db, 'moodEntries'),
@@ -548,9 +546,8 @@ export class AnalyticsService {
       const snapshot = await getDocs(moodQuery);
       
       if (snapshot.empty) {
-        console.log('📊 No mood entries found, returning empty array');
-        // Return empty array instead of default data
-        return [];
+        // Return default data for the past week
+        return this.generateDefaultMoodData(days);
       }
 
       const allMoodData: MoodEntry[] = [];
@@ -561,11 +558,11 @@ export class AnalyticsService {
         
         allMoodData.push({
           date: entryDate.toISOString().split('T')[0],
-          mood: data.mood || 0,
-          energy: data.energy || 0,
-          stress: data.stress || 0,
-          anxiety: data.anxiety || 0,
-          sleep: data.sleep || 0
+          mood: data.mood || 7,
+          energy: data.energy || 7,
+          stress: data.stress || 3,
+          anxiety: data.anxiety || 3,
+          sleep: data.sleep || 7
         });
       });
 
@@ -577,12 +574,56 @@ export class AnalyticsService {
         .filter(entry => new Date(entry.date) >= cutoffDate)
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-      console.log('📊 Found', recentMoodData.length, 'mood entries in date range');
-      return recentMoodData;
+      // If no recent data, return default
+      if (recentMoodData.length === 0) {
+        return this.generateDefaultMoodData(days);
+      }
+
+      // Fill in missing days with neutral values
+      const filledData: MoodEntry[] = [];
+      for (let i = days - 1; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        const existingEntry = recentMoodData.find(entry => entry.date === dateStr);
+        if (existingEntry) {
+          filledData.push(existingEntry);
+        } else {
+          filledData.push({
+            date: dateStr,
+            mood: 7,
+            energy: 7,
+            stress: 3,
+            anxiety: 3,
+            sleep: 7
+          });
+        }
+      }
+
+      return filledData;
     } catch (error) {
       console.error('Error getting mood data:', error);
-      return []; // Return empty array instead of default data
+      return this.generateDefaultMoodData(days);
     }
+  }
+
+  // Generate default mood data
+  private generateDefaultMoodData(days: number): MoodEntry[] {
+    const defaultData: MoodEntry[] = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      defaultData.push({
+        date: date.toISOString().split('T')[0],
+        mood: 7,
+        energy: 7,
+        stress: 3,
+        anxiety: 3,
+        sleep: 7
+      });
+    }
+    return defaultData;
   }
 
   // Record mood entry
