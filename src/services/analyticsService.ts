@@ -53,7 +53,7 @@ export class AnalyticsService {
   }
 
   // Record a new conversation session with Tavus integration
-  async recordConversation(data: Omit<ConversationRecord, 'id' | 'userId'>): Promise<void> {
+  async recordConversation(data: Omit<ConversationRecord, 'id' | 'userId'>): Promise<string> {
     try {
       console.log('🔄 Recording conversation to Firestore:', data);
       
@@ -68,7 +68,16 @@ export class AnalyticsService {
         createdAt: Timestamp.now()
       };
 
-      console.log('💾 Saving conversation data:', conversationData);
+      console.log('💾 Saving conversation data to Firestore with ID:', conversationRef.id);
+      console.log('📊 Conversation data being saved:', {
+        userId: conversationData.userId,
+        agentType: conversationData.agentType,
+        duration: conversationData.duration,
+        tavusConversationId: conversationData.tavusConversationId,
+        topics: conversationData.topics,
+        startTime: conversationData.startTime,
+        endTime: conversationData.endTime
+      });
 
       // If we have a Tavus conversation ID, fetch additional details
       if (data.tavusConversationId) {
@@ -99,6 +108,8 @@ export class AnalyticsService {
       // Update streak after recording conversation
       await this.updateStreak();
       console.log('✅ Streak updated after conversation');
+      
+      return conversationRef.id;
     } catch (error) {
       console.error('❌ Error recording conversation:', error);
       throw error;
@@ -111,15 +122,18 @@ export class AnalyticsService {
       console.log('🔄 Storing Tavus conversation ID:', conversationId);
       
       const tavusRef = doc(collection(db, 'tavusConversations'));
-      await setDoc(tavusRef, {
+      const tavusData = {
         userId: this.userId,
         tavusConversationId: conversationId,
         agentType,
         createdAt: Timestamp.now(),
         status: 'active'
-      });
+      };
+      
+      await setDoc(tavusRef, tavusData);
       
       console.log('✅ Tavus conversation ID stored with ref ID:', tavusRef.id);
+      console.log('📊 Stored data:', tavusData);
       return tavusRef.id;
     } catch (error) {
       console.error('❌ Error storing Tavus conversation ID:', error);
@@ -294,7 +308,7 @@ export class AnalyticsService {
       console.log('🔍 Executing Firestore query for conversations...');
       const snapshot = await getDocs(conversationsQuery);
       
-      console.log('📊 Found', snapshot.size, 'total conversations in database');
+      console.log('📊 Found', snapshot.size, 'total conversations in database for user:', this.userId);
       
       if (snapshot.empty) {
         console.log('⚠️ No conversations found, returning default data');
@@ -324,7 +338,8 @@ export class AnalyticsService {
           agentType: data.agentType,
           startTime: startTime,
           duration: data.duration,
-          tavusConversationId: data.tavusConversationId
+          tavusConversationId: data.tavusConversationId,
+          userId: data.userId
         });
         
         allConversations.push({

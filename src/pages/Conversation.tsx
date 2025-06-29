@@ -151,11 +151,12 @@ const Conversation = () => {
       // Store the Tavus conversation ID in our analytics system
       if (analyticsService && tavusResponse.conversation_id) {
         try {
-          await analyticsService.storeTavusConversationId(
+          console.log('🔄 Storing Tavus conversation ID in Firebase:', tavusResponse.conversation_id);
+          const firebaseRefId = await analyticsService.storeTavusConversationId(
             tavusResponse.conversation_id, 
             agentType as string
           );
-          console.log('✅ Tavus conversation ID stored successfully');
+          console.log('✅ Tavus conversation ID stored successfully with Firebase ref:', firebaseRefId);
         } catch (storageError) {
           console.warn('⚠️ Failed to store Tavus conversation ID:', storageError);
           // Don't fail the conversation if storage fails
@@ -238,14 +239,15 @@ const Conversation = () => {
           duration,
           agentType,
           tavusConversationId: tavusConversationData.conversation_id,
-          messagesCount: messages.length
+          messagesCount: messages.length,
+          userId: currentUser.uid
         });
         
         // Sync with Tavus to get the latest conversation details
         let tavusDetails = null;
         if (analyticsService && tavusConversationData.conversation_id) {
           try {
-            console.log('🔄 Syncing with Tavus...');
+            console.log('🔄 Syncing with Tavus for conversation ID:', tavusConversationData.conversation_id);
             tavusDetails = await analyticsService.syncTavusConversation(tavusConversationData.conversation_id);
             console.log('✅ Synced Tavus conversation details:', tavusDetails);
           } catch (syncError) {
@@ -253,7 +255,7 @@ const Conversation = () => {
           }
         }
         
-        // Prepare conversation data
+        // Prepare conversation data with all required fields
         const conversationData = {
           agentType: agentType as 'psychiatrist' | 'tutor' | 'doctor',
           startTime: sessionStartTime,
@@ -269,11 +271,11 @@ const Conversation = () => {
           tavusMetadata: tavusDetails?.metadata
         };
         
-        console.log('💾 Recording conversation:', conversationData);
+        console.log('💾 Recording conversation with data:', conversationData);
         
         await recordConversation(conversationData);
         
-        console.log('✅ Conversation recorded successfully');
+        console.log('✅ Conversation recorded successfully to Firebase');
         
         toast({
           title: "Session Recorded",
@@ -289,7 +291,11 @@ const Conversation = () => {
         });
       }
     } else {
-      console.log('⚠️ No session data to record');
+      console.log('⚠️ No session data to record - missing required data:', {
+        sessionStartTime: !!sessionStartTime,
+        currentUser: !!currentUser,
+        tavusConversationData: !!tavusConversationData
+      });
     }
     
     toast({
