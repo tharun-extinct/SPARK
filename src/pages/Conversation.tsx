@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Mic, MicOff, Video, VideoOff, Phone, Settings, Home, AlertTriangle, RefreshCw, Send, Copy, Download } from "lucide-react";
 import { createTavusConversation, TavusConversationResponse } from "@/lib/tavus";
-import { TavusCVIFrame } from "@/components/ui/TavusCVIFrame";
+import TavusCVIFrame from "@/components/ui/TavusCVIFrame";
 import { useToast } from "@/components/ui/use-toast";
 import { TranscriptSegment, useTranscription } from "@/services/transcriptionService";
 import { useAuth } from "@/services/firebaseAuth";
