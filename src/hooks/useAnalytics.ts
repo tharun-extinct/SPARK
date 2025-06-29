@@ -50,16 +50,21 @@ export const useAnalytics = () => {
   // Initialize analytics service when user changes
   useEffect(() => {
     if (currentUser) {
+      console.log('🔄 Initializing AnalyticsService for user:', currentUser.uid);
       const service = new AnalyticsService(currentUser.uid);
       setAnalyticsService(service);
     } else {
+      console.log('⚠️ No current user, clearing AnalyticsService');
       setAnalyticsService(null);
     }
   }, [currentUser]);
 
   // Load all analytics data
   const loadAnalyticsData = async () => {
-    if (!analyticsService) return;
+    if (!analyticsService) {
+      console.log('⚠️ No analytics service available');
+      return;
+    }
 
     try {
       setIsLoading(true);
@@ -147,18 +152,30 @@ export const useAnalytics = () => {
 
   // Record a new conversation with Tavus integration
   const recordConversation = async (conversationData: Omit<ConversationRecord, 'id' | 'userId'>) => {
-    if (!analyticsService) return;
+    if (!analyticsService) {
+      console.error('❌ No analytics service available for recording conversation');
+      return;
+    }
+
+    if (!currentUser) {
+      console.error('❌ No current user available for recording conversation');
+      return;
+    }
 
     try {
-      console.log('🔄 Recording conversation:', conversationData);
-      await analyticsService.recordConversation(conversationData);
+      console.log('🔄 Recording conversation with useAnalytics hook');
+      console.log('📊 Current user ID:', currentUser.uid);
+      console.log('📊 Conversation data to record:', conversationData);
       
-      console.log('✅ Conversation recorded successfully');
+      const documentId = await analyticsService.recordConversation(conversationData);
+      
+      console.log('✅ Conversation recorded successfully with document ID:', documentId);
       
       // Reload data to reflect changes
+      console.log('🔄 Reloading analytics data after conversation recording...');
       await loadAnalyticsData();
     } catch (err) {
-      console.error('❌ Error recording conversation:', err);
+      console.error('❌ Error recording conversation in useAnalytics:', err);
       setError('Failed to record conversation');
     }
   };

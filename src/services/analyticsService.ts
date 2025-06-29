@@ -50,12 +50,14 @@ export class AnalyticsService {
 
   constructor(userId: string) {
     this.userId = userId;
+    console.log('🔧 AnalyticsService initialized for user:', userId);
   }
 
   // Record a new conversation session with Tavus integration
   async recordConversation(data: Omit<ConversationRecord, 'id' | 'userId'>): Promise<string> {
     try {
-      console.log('🔄 Recording conversation to Firestore:', data);
+      console.log('🔄 Recording conversation to Firestore for user:', this.userId);
+      console.log('📊 Input conversation data:', data);
       
       const conversationRef = doc(collection(db, 'conversations'));
       
@@ -102,8 +104,22 @@ export class AnalyticsService {
         }
       }
 
+      // Actually save to Firestore
       await setDoc(conversationRef, conversationData);
       console.log('✅ Conversation saved to Firestore with ID:', conversationRef.id);
+
+      // Verify the save by reading it back
+      try {
+        const savedDoc = await getDoc(conversationRef);
+        if (savedDoc.exists()) {
+          console.log('✅ Verified: Conversation document exists in Firestore');
+          console.log('📊 Saved document data:', savedDoc.data());
+        } else {
+          console.error('❌ ERROR: Conversation document was not saved to Firestore!');
+        }
+      } catch (verifyError) {
+        console.error('❌ Error verifying saved conversation:', verifyError);
+      }
 
       // Update streak after recording conversation
       await this.updateStreak();
@@ -119,7 +135,7 @@ export class AnalyticsService {
   // Store Tavus conversation ID for later retrieval
   async storeTavusConversationId(conversationId: string, agentType: string): Promise<string> {
     try {
-      console.log('🔄 Storing Tavus conversation ID:', conversationId);
+      console.log('🔄 Storing Tavus conversation ID:', conversationId, 'for user:', this.userId);
       
       const tavusRef = doc(collection(db, 'tavusConversations'));
       const tavusData = {
@@ -298,6 +314,7 @@ export class AnalyticsService {
   async getConversationStats(timeRange: 'week' | 'month' | 'quarter' = 'week') {
     try {
       console.log('🔄 Getting conversation stats for timeRange:', timeRange);
+      console.log('🔍 Querying conversations for user ID:', this.userId);
       
       // Use simple query without orderBy to avoid index requirement
       const conversationsQuery = query(
