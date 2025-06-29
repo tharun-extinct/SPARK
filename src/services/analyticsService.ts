@@ -1,5 +1,5 @@
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, doc, getDoc, setDoc, Timestamp, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, setDoc, Timestamp, orderBy, limit, addDoc } from 'firebase/firestore';
 import { getTavusConversationDetails, TavusConversationDetails } from '@/lib/tavus';
 
 export interface ConversationRecord {
@@ -59,7 +59,8 @@ export class AnalyticsService {
       console.log('🔄 Recording conversation to Firestore for user:', this.userId);
       console.log('📊 Input conversation data:', data);
       
-      const conversationRef = doc(collection(db, 'conversations'));
+      // Use addDoc instead of doc+setDoc to let Firestore generate the ID
+      const conversationsCollection = collection(db, 'conversations');
       
       // Prepare the base conversation data
       const conversationData = {
@@ -70,8 +71,7 @@ export class AnalyticsService {
         createdAt: Timestamp.now()
       };
 
-      console.log('💾 Saving conversation data to Firestore with ID:', conversationRef.id);
-      console.log('📊 Conversation data being saved:', {
+      console.log('💾 Saving conversation data to Firestore:', {
         userId: conversationData.userId,
         agentType: conversationData.agentType,
         duration: conversationData.duration,
@@ -104,13 +104,13 @@ export class AnalyticsService {
         }
       }
 
-      // Actually save to Firestore
-      await setDoc(conversationRef, conversationData);
-      console.log('✅ Conversation saved to Firestore with ID:', conversationRef.id);
+      // Actually save to Firestore using addDoc
+      const docRef = await addDoc(conversationsCollection, conversationData);
+      console.log('✅ Conversation saved to Firestore with ID:', docRef.id);
 
       // Verify the save by reading it back
       try {
-        const savedDoc = await getDoc(conversationRef);
+        const savedDoc = await getDoc(docRef);
         if (savedDoc.exists()) {
           console.log('✅ Verified: Conversation document exists in Firestore');
           console.log('📊 Saved document data:', savedDoc.data());
@@ -125,7 +125,7 @@ export class AnalyticsService {
       await this.updateStreak();
       console.log('✅ Streak updated after conversation');
       
-      return conversationRef.id;
+      return docRef.id;
     } catch (error) {
       console.error('❌ Error recording conversation:', error);
       throw error;
@@ -137,7 +137,8 @@ export class AnalyticsService {
     try {
       console.log('🔄 Storing Tavus conversation ID:', conversationId, 'for user:', this.userId);
       
-      const tavusRef = doc(collection(db, 'tavusConversations'));
+      // Use addDoc instead of doc+setDoc to let Firestore generate the ID
+      const tavusCollection = collection(db, 'tavusConversations');
       const tavusData = {
         userId: this.userId,
         tavusConversationId: conversationId,
@@ -146,11 +147,11 @@ export class AnalyticsService {
         status: 'active'
       };
       
-      await setDoc(tavusRef, tavusData);
+      const docRef = await addDoc(tavusCollection, tavusData);
       
-      console.log('✅ Tavus conversation ID stored with ref ID:', tavusRef.id);
+      console.log('✅ Tavus conversation ID stored with ref ID:', docRef.id);
       console.log('📊 Stored data:', tavusData);
-      return tavusRef.id;
+      return docRef.id;
     } catch (error) {
       console.error('❌ Error storing Tavus conversation ID:', error);
       throw error;

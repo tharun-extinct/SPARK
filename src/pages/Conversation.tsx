@@ -149,9 +149,11 @@ const Conversation = () => {
       setIsLoading(false);
       
       // Store the Tavus conversation ID in our analytics system
-      if (analyticsService && tavusResponse.conversation_id) {
+      if (analyticsService && tavusResponse.conversation_id && currentUser) {
         try {
           console.log('🔄 Storing Tavus conversation ID in Firebase:', tavusResponse.conversation_id);
+          console.log('👤 Current user ID:', currentUser.uid);
+          
           const firebaseRefId = await analyticsService.storeTavusConversationId(
             tavusResponse.conversation_id, 
             agentType as string
@@ -161,6 +163,12 @@ const Conversation = () => {
           console.warn('⚠️ Failed to store Tavus conversation ID:', storageError);
           // Don't fail the conversation if storage fails
         }
+      } else {
+        console.warn('⚠️ Missing required data to store Tavus conversation ID:', {
+          analyticsService: !!analyticsService,
+          tavusConversationId: tavusResponse.conversation_id,
+          currentUser: !!currentUser
+        });
       }
       
       toast({
