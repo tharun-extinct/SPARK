@@ -35,6 +35,34 @@ service cloud.firestore {
       allow update, delete: if request.auth != null && 
                            resource.data.userId == request.auth.uid;
     }
+
+    // User streaks - users can only access their own streak data
+    match /userStreaks/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Mood entries - users can only access their own mood data
+    match /moodEntries/{entryId} {
+      allow read: if request.auth != null && 
+                 (resource.data.userId == request.auth.uid || 
+                  resource == null);
+      allow create: if request.auth != null && 
+                   request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && 
+                           resource.data.userId == request.auth.uid;
+    }
+
+    // Tavus conversations - users can only access their own Tavus conversation records
+    match /tavusConversations/{conversationId} {
+      allow read: if request.auth != null && 
+                 (resource.data.userId == request.auth.uid || 
+                  resource == null);
+      allow create: if request.auth != null && 
+                   request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && 
+                           resource.data.userId == request.auth.uid;
+    }
     
     // Shared content accessible to all authenticated users
     match /content/{contentId} {

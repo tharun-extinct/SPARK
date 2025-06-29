@@ -1,5 +1,6 @@
 import { db } from '@/lib/firebase';
-import { collection, query, where, orderBy, limit, getDocs, doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, setDoc, Timestamp, orderBy, limit } from 'firebase/firestore';
+import { getTavusConversationDetails, TavusConversationDetails } from '@/lib/tavus';
 
 export interface ConversationRecord {
   id: string;
@@ -13,6 +14,11 @@ export interface ConversationRecord {
   topics: string[];
   satisfaction?: number;
   notes?: string;
+  // Tavus-specific fields
+  tavusConversationId?: string;
+  tavusRecordingUrl?: string;
+  tavusTranscript?: string;
+  tavusMetadata?: any;
 }
 
 export interface MoodEntry {
@@ -46,23 +52,108 @@ export class AnalyticsService {
     this.userId = userId;
   }
 
-  // Record a new conversation session
+  // Record a new conversation session with Tavus integration
   async recordConversation(data: Omit<ConversationRecord, 'id' | 'userId'>): Promise<void> {
     try {
       const conversationRef = doc(collection(db, 'conversations'));
-      await setDoc(conversationRef, {
+      
+      // Prepare the base conversation data
+      const conversationData = {
         ...data,
         userId: this.userId,
         startTime: Timestamp.fromDate(data.startTime),
         endTime: Timestamp.fromDate(data.endTime),
         createdAt: Timestamp.now()
-      });
+      };
+
+      // If we have a Tavus conversation ID, fetch additional details
+      if (data.tavusConversationId) {
+        try {
+          console.log('Fetching Tavus conversation details for ID:', data.tavusConversationId);
+          const tavusDetails = await getTavusConversationDetails(data.tavusConversationId);
+          
+          // Merge Tavus data with our conversation record
+          conversationData.tavusRecordingUrl = tavusDetails.recording_url;
+          conversationData.tavusTranscript = tavusDetails.transcript;
+          conversationData.tavusMetadata = tavusDetails.metadata;
+          
+          // Update duration if Tavus provides more accurate data
+          if (tavusDetails.duration && tavusDetails.duration > 0) {
+            conversationData.duration = Math.round(tavusDetails.duration / 60); // Convert seconds to minutes
+          }
+          
+          console.log('Successfully enriched conversation with Tavus data');
+        } catch (tavusError) {
+          console.warn('Failed to fetch Tavus conversation details, proceeding without:', tavusError);
+          // Continue saving the conversation even if Tavus API fails
+        }
+      }
+
+      await setDoc(conversationRef, conversationData);
 
       // Update streak after recording conversation
       await this.updateStreak();
     } catch (error) {
       console.error('Error recording conversation:', error);
       throw error;
+    }
+  }
+
+  // Store Tavus conversation ID for later retrieval
+  async storeTavusConversationId(conversationId: string, agentType: string): Promise<string> {
+    try {
+      const tavusRef = doc(collection(db, 'tavusConversations'));
+      await setDoc(tavusRef, {
+        userId: this.userId,
+        tavusConversationId: conversationId,
+        agentType,
+        createdAt: Timestamp.now(),
+        status: 'active'
+      });
+      
+      return tavusRef.id;
+    } catch (error) {
+      console.error('Error storing Tavus conversation ID:', error);
+      throw error;
+    }
+  }
+
+  // Retrieve and sync Tavus conversation data
+  async syncTavusConversation(tavusConversationId: string): Promise<TavusConversationDetails | null> {
+    try {
+      const details = await getTavusConversationDetails(tavusConversationId);
+      
+      // Update the stored conversation record with Tavus data
+      const conversationsQuery = query(
+        collection(db, 'conversations'),
+        where('userId', '==', this.userId),
+        where('tavusConversationId', '==', tavusConversationId)
+      );
+
+      const snapshot = await getDocs(conversationsQuery);
+      
+      if (!snapshot.empty) {
+        const conversationDoc = snapshot.docs[0];
+        const updateData: any = {
+          tavusRecordingUrl: details.recording_url,
+          tavusTranscript: details.transcript,
+          tavusMetadata: details.metadata,
+          lastSyncedAt: Timestamp.now()
+        };
+
+        // Update duration if Tavus provides more accurate data
+        if (details.duration && details.duration > 0) {
+          updateData.duration = Math.round(details.duration / 60);
+        }
+
+        await setDoc(conversationDoc.ref, updateData, { merge: true });
+        console.log('Successfully synced Tavus conversation data');
+      }
+
+      return details;
+    } catch (error) {
+      console.error('Error syncing Tavus conversation:', error);
+      return null;
     }
   }
 
@@ -144,58 +235,93 @@ export class AnalyticsService {
   // Calculate mood score from recent conversations and mood entries
   async calculateMoodScore(): Promise<number> {
     try {
-      // Get recent mood entries (last 7 days)
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
+      // Try to get mood entries first
       const moodQuery = query(
         collection(db, 'moodEntries'),
-        where('userId', '==', this.userId),
-        where('date', '>=', Timestamp.fromDate(sevenDaysAgo)),
-        orderBy('date', 'desc'),
-        limit(7)
+        where('userId', '==', this.userId)
       );
 
       const moodSnapshot = await getDocs(moodQuery);
-      const moodEntries: MoodEntry[] = [];
+      
+      if (moodSnapshot.empty) {
+        // No mood entries, return default
+        return 7.0;
+      }
 
+      const moodEntries: number[] = [];
       moodSnapshot.forEach(doc => {
         const data = doc.data();
-        moodEntries.push({
-          date: data.date.toDate().toISOString().split('T')[0],
-          mood: data.mood || 5,
-          energy: data.energy || 5,
-          stress: data.stress || 5,
-          anxiety: data.anxiety || 5,
-          sleep: data.sleep || 5
-        });
+        if (data.mood && typeof data.mood === 'number') {
+          moodEntries.push(data.mood);
+        }
       });
 
       if (moodEntries.length === 0) {
         return 7.0; // Default neutral mood
       }
 
-      // Calculate weighted average (recent entries have more weight)
-      let totalScore = 0;
-      let totalWeight = 0;
-
-      moodEntries.forEach((entry, index) => {
-        const weight = moodEntries.length - index; // More recent = higher weight
-        const entryScore = (entry.mood + entry.energy + (10 - entry.stress) + (10 - entry.anxiety) + entry.sleep) / 5;
-        totalScore += entryScore * weight;
-        totalWeight += weight;
-      });
-
-      return Math.round((totalScore / totalWeight) * 10) / 10;
+      // Calculate simple average of all mood entries
+      const totalMood = moodEntries.reduce((sum, mood) => sum + mood, 0);
+      return Math.round((totalMood / moodEntries.length) * 10) / 10;
     } catch (error) {
       console.error('Error calculating mood score:', error);
       return 7.0;
     }
   }
 
-  // Get conversation statistics
+  // Get conversation statistics - ULTRA SIMPLIFIED
   async getConversationStats(timeRange: 'week' | 'month' | 'quarter' = 'week') {
     try {
+      // Use the simplest possible query - just get user's conversations
+      const conversationsQuery = query(
+        collection(db, 'conversations'),
+        where('userId', '==', this.userId)
+      );
+
+      const snapshot = await getDocs(conversationsQuery);
+      
+      if (snapshot.empty) {
+        // Return default empty data
+        return {
+          totalSessions: 0,
+          totalMinutes: 0,
+          avgSatisfaction: 4.0,
+          agentUsageData: [
+            { name: 'Mental Health', value: 0, color: '#ef4444', percentage: 0 },
+            { name: 'Learning', value: 0, color: '#3b82f6', percentage: 0 },
+            { name: 'Wellness', value: 0, color: '#10b981', percentage: 0 }
+          ],
+          conversations: []
+        };
+      }
+
+      const allConversations: ConversationRecord[] = [];
+
+      // Process all conversations
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const startTime = data.startTime ? data.startTime.toDate() : new Date();
+        
+        allConversations.push({
+          id: doc.id,
+          userId: data.userId,
+          agentType: data.agentType || 'psychiatrist',
+          startTime: startTime,
+          endTime: data.endTime ? data.endTime.toDate() : new Date(),
+          duration: data.duration || 30,
+          moodBefore: data.moodBefore,
+          moodAfter: data.moodAfter,
+          topics: data.topics || [],
+          satisfaction: data.satisfaction || 4,
+          notes: data.notes,
+          tavusConversationId: data.tavusConversationId,
+          tavusRecordingUrl: data.tavusRecordingUrl,
+          tavusTranscript: data.tavusTranscript,
+          tavusMetadata: data.tavusMetadata
+        });
+      });
+
+      // Filter by time range in memory
       const now = new Date();
       const startDate = new Date();
       
@@ -211,32 +337,7 @@ export class AnalyticsService {
           break;
       }
 
-      const conversationsQuery = query(
-        collection(db, 'conversations'),
-        where('userId', '==', this.userId),
-        where('startTime', '>=', Timestamp.fromDate(startDate)),
-        orderBy('startTime', 'desc')
-      );
-
-      const snapshot = await getDocs(conversationsQuery);
-      const conversations: ConversationRecord[] = [];
-
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        conversations.push({
-          id: doc.id,
-          userId: data.userId,
-          agentType: data.agentType,
-          startTime: data.startTime.toDate(),
-          endTime: data.endTime.toDate(),
-          duration: data.duration,
-          moodBefore: data.moodBefore,
-          moodAfter: data.moodAfter,
-          topics: data.topics || [],
-          satisfaction: data.satisfaction,
-          notes: data.notes
-        });
-      });
+      const conversations = allConversations.filter(conv => conv.startTime >= startDate);
 
       // Calculate statistics
       const totalSessions = conversations.length;
@@ -272,15 +373,21 @@ export class AnalyticsService {
         }
       ];
 
+      // Sort conversations by date and return recent ones
+      const sortedConversations = conversations
+        .sort((a, b) => b.startTime.getTime() - a.startTime.getTime())
+        .slice(0, 10);
+
       return {
         totalSessions,
         totalMinutes,
         avgSatisfaction: Math.round(avgSatisfaction * 10) / 10,
         agentUsageData,
-        conversations
+        conversations: sortedConversations
       };
     } catch (error) {
       console.error('Error getting conversation stats:', error);
+      // Return default data instead of throwing
       return {
         totalSessions: 0,
         totalMinutes: 0,
@@ -331,33 +438,50 @@ export class AnalyticsService {
     }
   }
 
-  // Get mood data for charts
+  // Get mood data for charts - ULTRA SIMPLIFIED
   async getMoodData(days: number = 7): Promise<MoodEntry[]> {
     try {
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
-
+      // Use the simplest possible query
       const moodQuery = query(
         collection(db, 'moodEntries'),
-        where('userId', '==', this.userId),
-        where('date', '>=', Timestamp.fromDate(startDate)),
-        orderBy('date', 'asc')
+        where('userId', '==', this.userId)
       );
 
       const snapshot = await getDocs(moodQuery);
-      const moodData: MoodEntry[] = [];
+      
+      if (snapshot.empty) {
+        // Return default data for the past week
+        return this.generateDefaultMoodData(days);
+      }
+
+      const allMoodData: MoodEntry[] = [];
 
       snapshot.forEach(doc => {
         const data = doc.data();
-        moodData.push({
-          date: data.date.toDate().toISOString().split('T')[0],
-          mood: data.mood || 5,
-          energy: data.energy || 5,
-          stress: data.stress || 5,
-          anxiety: data.anxiety || 5,
-          sleep: data.sleep || 5
+        const entryDate = data.date ? data.date.toDate() : data.createdAt?.toDate() || new Date();
+        
+        allMoodData.push({
+          date: entryDate.toISOString().split('T')[0],
+          mood: data.mood || 7,
+          energy: data.energy || 7,
+          stress: data.stress || 3,
+          anxiety: data.anxiety || 3,
+          sleep: data.sleep || 7
         });
       });
+
+      // Filter and sort in memory
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - days);
+      
+      const recentMoodData = allMoodData
+        .filter(entry => new Date(entry.date) >= cutoffDate)
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+      // If no recent data, return default
+      if (recentMoodData.length === 0) {
+        return this.generateDefaultMoodData(days);
+      }
 
       // Fill in missing days with neutral values
       const filledData: MoodEntry[] = [];
@@ -366,7 +490,7 @@ export class AnalyticsService {
         date.setDate(date.getDate() - i);
         const dateStr = date.toISOString().split('T')[0];
         
-        const existingEntry = moodData.find(entry => entry.date === dateStr);
+        const existingEntry = recentMoodData.find(entry => entry.date === dateStr);
         if (existingEntry) {
           filledData.push(existingEntry);
         } else {
@@ -384,8 +508,26 @@ export class AnalyticsService {
       return filledData;
     } catch (error) {
       console.error('Error getting mood data:', error);
-      return [];
+      return this.generateDefaultMoodData(days);
     }
+  }
+
+  // Generate default mood data
+  private generateDefaultMoodData(days: number): MoodEntry[] {
+    const defaultData: MoodEntry[] = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      defaultData.push({
+        date: date.toISOString().split('T')[0],
+        mood: 7,
+        energy: 7,
+        stress: 3,
+        anxiety: 3,
+        sleep: 7
+      });
+    }
+    return defaultData;
   }
 
   // Record mood entry
