@@ -22,6 +22,16 @@ export interface TavusConversationDetails {
   recording_url?: string;
   transcript?: string;
   metadata?: any;
+  events?: TavusEvent[];
+  shutdown_reason?: string;
+  perception_analysis?: any;
+  replica_joined_time?: string;
+}
+
+export interface TavusEvent {
+  event_type: string;
+  timestamp: string;
+  properties?: any;
 }
 
 export const createTavusConversation = async ({
@@ -83,9 +93,10 @@ export const createTavusConversation = async ({
   }
 };
 
-export const getTavusConversationDetails = async (conversationId: string): Promise<TavusConversationDetails> => {
+export const getTavusConversationDetails = async (conversationId: string, verbose: boolean = true): Promise<TavusConversationDetails> => {
   try {
-    const response = await fetch(`https://tavusapi.com/v2/conversations/${conversationId}?verbose=true`, {
+    const url = `https://tavusapi.com/v2/conversations/${conversationId}${verbose ? '?verbose=true' : ''}`;
+    const response = await fetch(url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -102,7 +113,8 @@ export const getTavusConversationDetails = async (conversationId: string): Promi
 
     const data = await response.json();
     
-    return {
+    // Process events if verbose data is available
+    let processedData: TavusConversationDetails = {
       conversation_id: data.conversation_id,
       status: data.status,
       duration: data.duration,
@@ -111,12 +123,89 @@ export const getTavusConversationDetails = async (conversationId: string): Promi
       participant_count: data.participant_count,
       recording_url: data.recording_url,
       transcript: data.transcript,
-      metadata: data.metadata
+      metadata: data.metadata,
+      events: data.events
     };
+
+    // Extract specific event data if events are available
+    if (data.events && Array.isArray(data.events)) {
+      const events = data.events;
+      
+      // Find specific events
+      const shutdownEvent = events.find((e: TavusEvent) => e.event_type === 'system.shutdown');
+      const transcriptionEvent = events.find((e: TavusEvent) => e.event_type === 'application.transcription_ready');
+      const perceptionEvent = events.find((e: TavusEvent) => e.event_type === 'application.perception_analysis');
+      const replicaJoinedEvent = events.find((e: TavusEvent) => e.event_type === 'system.replica_joined');
+
+      // Extract specific fields from their properties
+      if (shutdownEvent) {
+        processedData.shutdown_reason = shutdownEvent.properties?.shutdown_reason;
+        processedData.end_time = shutdownEvent.timestamp;
+      }
+
+      if (transcriptionEvent) {
+        processedData.transcript = transcriptionEvent.properties?.transcript;
+      }
+
+      if (perceptionEvent) {
+        processedData.perception_analysis = perceptionEvent.properties?.analysis;
+      }
+
+      if (replicaJoinedEvent) {
+        processedData.replica_joined_time = replicaJoinedEvent.timestamp;
+        processedData.start_time = replicaJoinedEvent.timestamp;
+      }
+
+      console.log('🛑 Shutdown Reason:', processedData.shutdown_reason);
+      console.log('⏱️ End Time:', processedData.end_time);
+      console.log('🧠 Perception Analysis:', processedData.perception_analysis);
+      console.log('🤖 Replica Joined:', processedData.replica_joined_time);
+      console.log('📝 Transcript:', processedData.transcript);
+    }
+    
+    return processedData;
   } catch (error) {
     console.error("Error fetching Tavus conversation details:", error);
     throw error;
   }
+};
+
+// Helper function to wait for transcript to be ready
+export const waitForTranscript = async (conversationId: string, maxAttempts: number = 10, delayMs: number = 5000): Promise<TavusConversationDetails | null> => {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      console.log(`Checking for transcript (attempt ${attempt}/${maxAttempts})...`);
+      const details = await getTavusConversationDetails(conversationId, true);
+      
+      // Check if transcript is available
+      if (details.transcript && details.transcript.trim() !== '') {
+        console.log('✅ Transcript is ready!');
+        return details;
+      }
+      
+      // Check if transcription event exists in events
+      if (details.events) {
+        const transcriptionEvent = details.events.find(e => e.event_type === 'application.transcription_ready');
+        if (transcriptionEvent && transcriptionEvent.properties?.transcript) {
+          console.log('✅ Transcript found in events!');
+          return details;
+        }
+      }
+      
+      if (attempt < maxAttempts) {
+        console.log(`⏳ Transcript not ready yet, waiting ${delayMs/1000} seconds...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    } catch (error) {
+      console.error(`Error on attempt ${attempt}:`, error);
+      if (attempt < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  
+  console.log('⚠️ Transcript not available after maximum attempts');
+  return null;
 };
 
 export default createTavusConversation;

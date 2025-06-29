@@ -1,6 +1,6 @@
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc, setDoc, Timestamp, orderBy, limit } from 'firebase/firestore';
-import { getTavusConversationDetails, TavusConversationDetails } from '@/lib/tavus';
+import { getTavusConversationDetails, waitForTranscript, TavusConversationDetails } from '@/lib/tavus';
 
 export interface ConversationRecord {
   id: string;
@@ -19,6 +19,10 @@ export interface ConversationRecord {
   tavusRecordingUrl?: string;
   tavusTranscript?: string;
   tavusMetadata?: any;
+  tavusShutdownReason?: string;
+  tavusPerceptionAnalysis?: any;
+  tavusReplicaJoinedTime?: string;
+  tavusEvents?: any[];
 }
 
 export interface MoodEntry {
@@ -52,7 +56,7 @@ export class AnalyticsService {
     this.userId = userId;
   }
 
-  // Record a new conversation session with Tavus integration
+  // Record a new conversation session with enhanced Tavus integration
   async recordConversation(data: Omit<ConversationRecord, 'id' | 'userId'>): Promise<void> {
     try {
       const conversationRef = doc(collection(db, 'conversations'));
@@ -66,35 +70,62 @@ export class AnalyticsService {
         createdAt: Timestamp.now()
       };
 
-      // If we have a Tavus conversation ID, fetch additional details
+      // If we have a Tavus conversation ID, fetch comprehensive details
       if (data.tavusConversationId) {
         try {
-          console.log('Fetching Tavus conversation details for ID:', data.tavusConversationId);
-          const tavusDetails = await getTavusConversationDetails(data.tavusConversationId);
+          console.log('🔄 Fetching comprehensive Tavus conversation details for ID:', data.tavusConversationId);
           
-          // Merge Tavus data with our conversation record
+          // First, try to get immediate details
+          let tavusDetails = await getTavusConversationDetails(data.tavusConversationId, true);
+          
+          // If no transcript yet, wait for it to be processed
+          if (!tavusDetails.transcript || tavusDetails.transcript.trim() === '') {
+            console.log('⏳ Transcript not ready, waiting for processing...');
+            const detailsWithTranscript = await waitForTranscript(data.tavusConversationId, 6, 10000); // Wait up to 1 minute
+            if (detailsWithTranscript) {
+              tavusDetails = detailsWithTranscript;
+            }
+          }
+          
+          // Merge comprehensive Tavus data with our conversation record
           conversationData.tavusRecordingUrl = tavusDetails.recording_url;
           conversationData.tavusTranscript = tavusDetails.transcript;
           conversationData.tavusMetadata = tavusDetails.metadata;
+          conversationData.tavusShutdownReason = tavusDetails.shutdown_reason;
+          conversationData.tavusPerceptionAnalysis = tavusDetails.perception_analysis;
+          conversationData.tavusReplicaJoinedTime = tavusDetails.replica_joined_time;
+          conversationData.tavusEvents = tavusDetails.events;
           
           // Update duration if Tavus provides more accurate data
           if (tavusDetails.duration && tavusDetails.duration > 0) {
             conversationData.duration = Math.round(tavusDetails.duration / 60); // Convert seconds to minutes
           }
           
-          console.log('Successfully enriched conversation with Tavus data');
+          // Update start/end times if Tavus provides more accurate data
+          if (tavusDetails.start_time) {
+            conversationData.startTime = Timestamp.fromDate(new Date(tavusDetails.start_time));
+          }
+          if (tavusDetails.end_time) {
+            conversationData.endTime = Timestamp.fromDate(new Date(tavusDetails.end_time));
+          }
+          
+          console.log('✅ Successfully enriched conversation with comprehensive Tavus data');
+          console.log('📝 Transcript length:', tavusDetails.transcript?.length || 0);
+          console.log('🧠 Perception analysis available:', !!tavusDetails.perception_analysis);
+          console.log('🛑 Shutdown reason:', tavusDetails.shutdown_reason);
         } catch (tavusError) {
-          console.warn('Failed to fetch Tavus conversation details, proceeding without:', tavusError);
+          console.warn('⚠️ Failed to fetch Tavus conversation details, proceeding without:', tavusError);
           // Continue saving the conversation even if Tavus API fails
         }
       }
 
       await setDoc(conversationRef, conversationData);
+      console.log('💾 Conversation saved to Firebase with ID:', conversationRef.id);
 
       // Update streak after recording conversation
       await this.updateStreak();
     } catch (error) {
-      console.error('Error recording conversation:', error);
+      console.error('❌ Error recording conversation:', error);
       throw error;
     }
   }
@@ -111,19 +142,35 @@ export class AnalyticsService {
         status: 'active'
       });
       
+      console.log('💾 Stored Tavus conversation ID:', conversationId);
       return tavusRef.id;
     } catch (error) {
-      console.error('Error storing Tavus conversation ID:', error);
+      console.error('❌ Error storing Tavus conversation ID:', error);
       throw error;
     }
   }
 
-  // Retrieve and sync Tavus conversation data
-  async syncTavusConversation(tavusConversationId: string): Promise<TavusConversationDetails | null> {
+  // Enhanced method to sync and update Tavus conversation data
+  async syncTavusConversation(tavusConversationId: string, waitForTranscript: boolean = true): Promise<TavusConversationDetails | null> {
     try {
-      const details = await getTavusConversationDetails(tavusConversationId);
+      console.log('🔄 Syncing Tavus conversation:', tavusConversationId);
       
-      // Update the stored conversation record with Tavus data
+      let details: TavusConversationDetails;
+      
+      if (waitForTranscript) {
+        // Wait for transcript to be ready
+        const detailsWithTranscript = await waitForTranscript(tavusConversationId, 6, 10000);
+        if (detailsWithTranscript) {
+          details = detailsWithTranscript;
+        } else {
+          // Fallback to immediate fetch if transcript wait fails
+          details = await getTavusConversationDetails(tavusConversationId, true);
+        }
+      } else {
+        details = await getTavusConversationDetails(tavusConversationId, true);
+      }
+      
+      // Update the stored conversation record with comprehensive Tavus data
       const conversationsQuery = query(
         collection(db, 'conversations'),
         where('userId', '==', this.userId),
@@ -138,6 +185,10 @@ export class AnalyticsService {
           tavusRecordingUrl: details.recording_url,
           tavusTranscript: details.transcript,
           tavusMetadata: details.metadata,
+          tavusShutdownReason: details.shutdown_reason,
+          tavusPerceptionAnalysis: details.perception_analysis,
+          tavusReplicaJoinedTime: details.replica_joined_time,
+          tavusEvents: details.events,
           lastSyncedAt: Timestamp.now()
         };
 
@@ -146,13 +197,21 @@ export class AnalyticsService {
           updateData.duration = Math.round(details.duration / 60);
         }
 
+        // Update start/end times if available
+        if (details.start_time) {
+          updateData.startTime = Timestamp.fromDate(new Date(details.start_time));
+        }
+        if (details.end_time) {
+          updateData.endTime = Timestamp.fromDate(new Date(details.end_time));
+        }
+
         await setDoc(conversationDoc.ref, updateData, { merge: true });
-        console.log('Successfully synced Tavus conversation data');
+        console.log('✅ Successfully synced comprehensive Tavus conversation data');
       }
 
       return details;
     } catch (error) {
-      console.error('Error syncing Tavus conversation:', error);
+      console.error('❌ Error syncing Tavus conversation:', error);
       return null;
     }
   }
@@ -317,7 +376,11 @@ export class AnalyticsService {
           tavusConversationId: data.tavusConversationId,
           tavusRecordingUrl: data.tavusRecordingUrl,
           tavusTranscript: data.tavusTranscript,
-          tavusMetadata: data.tavusMetadata
+          tavusMetadata: data.tavusMetadata,
+          tavusShutdownReason: data.tavusShutdownReason,
+          tavusPerceptionAnalysis: data.tavusPerceptionAnalysis,
+          tavusReplicaJoinedTime: data.tavusReplicaJoinedTime,
+          tavusEvents: data.tavusEvents
         });
       });
 

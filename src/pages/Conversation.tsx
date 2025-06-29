@@ -230,16 +230,7 @@ const Conversation = () => {
         const endTime = new Date();
         const duration = Math.round((endTime.getTime() - sessionStartTime.getTime()) / 60000); // Duration in minutes
         
-        // Sync with Tavus to get the latest conversation details
-        let tavusDetails = null;
-        if (analyticsService && tavusConversationData.conversation_id) {
-          try {
-            tavusDetails = await analyticsService.syncTavusConversation(tavusConversationData.conversation_id);
-            console.log('Synced Tavus conversation details:', tavusDetails);
-          } catch (syncError) {
-            console.warn('Failed to sync Tavus conversation details:', syncError);
-          }
-        }
+        console.log('🔄 Recording conversation with enhanced Tavus integration...');
         
         await recordConversation({
           agentType: agentType as 'psychiatrist' | 'tutor' | 'doctor',
@@ -249,16 +240,13 @@ const Conversation = () => {
           topics: messages.filter(msg => msg.sender === 'user').map(msg => msg.text).slice(0, 5), // First 5 user messages as topics
           satisfaction: 4, // Default satisfaction
           notes: `Conversation with ${currentAgent.name}`,
-          // Include Tavus data
+          // Include Tavus data - the recordConversation method will fetch comprehensive details
           tavusConversationId: tavusConversationData.conversation_id,
-          tavusRecordingUrl: tavusDetails?.recording_url,
-          tavusTranscript: tavusDetails?.transcript,
-          tavusMetadata: tavusDetails?.metadata
         });
         
         toast({
           title: "Session Recorded",
-          description: "Your conversation has been saved to your analytics.",
+          description: "Your conversation has been saved with comprehensive analytics.",
         });
       } catch (error) {
         console.error("Error recording conversation:", error);
