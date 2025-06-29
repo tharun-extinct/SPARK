@@ -3,9 +3,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Mic, MicOff, Video, VideoOff, Phone, Settings, Home, AlertTriangle, RefreshCw, Send } from "lucide-react";
+import { Mic, MicOff, Video, VideoOff, Phone, Settings, Home, AlertTriangle, RefreshCw, Send, Copy, Download } from "lucide-react";
 import { createTavusConversation, TavusConversationResponse } from "@/lib/tavus";
-import { TavusCVIFrame } from "@/components/ui/TavusCVIFrame";
+import TavusCVIFrame from "@/components/ui/TavusCVIFrame";
 import { useToast } from "@/components/ui/use-toast";
 import { TranscriptSegment, useTranscription } from "@/services/transcriptionService";
 import { useAuth } from "@/services/firebaseAuth";
@@ -32,6 +32,17 @@ const Conversation = () => {
   const tavusCVIFrameRef = useRef<HTMLIFrameElement>(null);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
   const [tavusConversationData, setTavusConversationData] = useState<TavusConversationResponse | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Add transcription hook
+  const {
+    transcript,
+    isListening,
+    isSupported,
+    startListening,
+    stopListening,
+    resetTranscript
+  } = useTranscription();
 
   const MAX_RETRIES = 3;
   const RETRY_DELAY = 2000; // 2 seconds
@@ -83,7 +94,7 @@ const Conversation = () => {
       
       resetTranscript();
     }
-  }, [transcript]);
+  }, [transcript, resetTranscript]);
 
   // Scroll to bottom of messages when new messages arrive
   useEffect(() => {
