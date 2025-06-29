@@ -24,7 +24,7 @@ export const useAnalytics = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Dashboard metrics - NO HARDCODED VALUES
+  // Dashboard metrics - initialized with zeros, will be populated with real data
   const [dashboardMetrics, setDashboardMetrics] = useState<DashboardMetrics>({
     moodScore: 0,
     sessionsThisWeek: 0,
@@ -34,7 +34,7 @@ export const useAnalytics = () => {
     completedGoals: 0
   });
 
-  // Analytics data - NO HARDCODED VALUES
+  // Analytics data - initialized with empty arrays/objects, will be populated with real data
   const [moodData, setMoodData] = useState<MoodEntry[]>([]);
   const [agentUsageData, setAgentUsageData] = useState<AgentUsageData[]>([]);
   const [wellnessMetrics, setWellnessMetrics] = useState<WellnessMetrics>({
@@ -113,6 +113,15 @@ export const useAnalytics = () => {
         agentUsageLength: conversationStats.agentUsageData.length,
         conversationsLength: conversationStats.conversations.length
       });
+      
+      // Log recent conversations for debugging
+      console.log('🗣️ Recent conversations:', conversationStats.conversations.map(c => ({
+        id: c.id,
+        agentType: c.agentType,
+        startTime: c.startTime,
+        duration: c.duration,
+        tavusId: c.tavusConversationId
+      })));
       
       setMoodData(moodChartData);
       setAgentUsageData(conversationStats.agentUsageData);
