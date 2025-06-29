@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Mic, MicOff, Video, VideoOff, Phone, Settings, Home, AlertTriangle, RefreshCw, Send, Copy, Download } from "lucide-react";
+import { Mic, MicOff, Video, VideoOff, Phone, Settings, Home, AlertTriangle, RefreshCw, Send, Copy, Download, Check, X } from "lucide-react";
 import { createTavusConversation, TavusConversationResponse } from "@/lib/tavus";
 import TavusCVIFrame from "@/components/ui/TavusCVIFrame";
 import { useToast } from "@/components/ui/use-toast";
@@ -315,21 +315,50 @@ const Conversation = () => {
     navigate("/dashboard");
   };
 
-  // Toggle voice input
-  const toggleVoiceInput = () => {
-    if (isListening) {
-      stopListening();
+  // Start voice input
+  const startVoiceInput = () => {
+    startListening();
+    toast({
+      title: "Voice input started",
+      description: "Speak clearly, then use the check button to send."
+    });
+  };
+  
+  // Cancel voice input
+  const cancelVoiceInput = () => {
+    stopListening();
+    resetTranscript();
+    toast({
+      title: "Voice input canceled",
+      description: "Voice input has been discarded."
+    });
+  };
+  
+  // Send voice input
+  const sendVoiceInput = () => {
+    if (transcript && transcript.trim()) {
+      // Add user voice message
+      const userMessage = {
+        text: transcript.trim(),
+        sender: 'user' as const,
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, userMessage]);
+      
       toast({
-        title: "Voice input stopped",
-        description: "You can now type your messages or click the mic to resume voice input."
+        title: "Message sent",
+        description: "Your voice message has been sent."
       });
     } else {
-      startListening();
       toast({
-        title: "Voice input started",
-        description: "Speak clearly, your voice will be transcribed automatically."
+        title: "No voice detected",
+        description: "Please speak or type your message."
       });
     }
+    
+    stopListening();
+    resetTranscript();
   };
 
   // Handle sending text messages
@@ -589,74 +618,84 @@ const Conversation = () => {
                 )}
               </div>
               
-              {/* Voice indicator with shimmer effect */}
-              {isListening && (
-                <div className="px-3 py-2 bg-primary/10 border-t border-primary/20 flex items-center justify-center">
-                  <div className="flex items-center space-x-2">
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-4 bg-primary rounded-full animate-pulse"></div>
-                      <div className="w-2 h-6 bg-primary rounded-full animate-pulse delay-75"></div>
-                      <div className="w-2 h-3 bg-primary rounded-full animate-pulse delay-150"></div>
-                      <div className="w-2 h-5 bg-primary rounded-full animate-pulse delay-300"></div>
-                      <div className="w-2 h-2 bg-primary rounded-full animate-pulse delay-150"></div>
-                    </div>
-                    <TextShimmer 
-                      className="text-sm font-medium text-primary"
-                      duration={1.5}
-                    >
-                      Listening...
-                    </TextShimmer>
-                  </div>
-                </div>
-              )}
+              {/* Voice indicator removed as requested */}
               
               {/* Input area with rounded buttons */}
               <div className="p-3 border-t">
                 <div className="flex items-center space-x-2">
                   <div className="flex-1 relative rounded-full border bg-background overflow-hidden focus-within:ring-2 focus-within:ring-primary/50">
-                    <input
-                      type="text"
-                      value={inputMessage}
-                      onChange={(e) => setInputMessage(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                      placeholder={isListening ? "Listening..." : "Ask anything..."}
-                      className="flex-1 w-full px-4 py-2 bg-transparent border-none focus:outline-none"
-                    />
+                    {isListening ? (
+                      <div className="flex items-center px-4 py-2 w-full">
+                        <div className="flex space-x-1 mr-2">
+                          <div className="w-1.5 h-3 bg-primary rounded-full" style={{animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'}}></div>
+                          <div className="w-1.5 h-5 bg-primary rounded-full" style={{animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) 0.3s infinite'}}></div>
+                          <div className="w-1.5 h-2 bg-primary rounded-full" style={{animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) 0.6s infinite'}}></div>
+                          <div className="w-1.5 h-4 bg-primary rounded-full" style={{animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) 0.9s infinite'}}></div>
+                          <div className="w-1.5 h-3 bg-primary rounded-full" style={{animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) 1.2s infinite'}}></div>
+                        </div>
+                        <TextShimmer 
+                          className="text-sm font-medium text-primary flex-1"
+                          duration={3.5}
+                        >
+                          Listening...
+                        </TextShimmer>
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        value={inputMessage}
+                        onChange={(e) => setInputMessage(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                        placeholder="Ask anything..."
+                        className="flex-1 w-full px-4 py-2 bg-transparent border-none focus:outline-none"
+                      />
+                    )}
                   </div>
                   
-                  <Button 
-                    onClick={toggleVoiceInput}
-                    variant={isListening ? "destructive" : "default"}
-                    className="rounded-full w-10 h-10 p-0 flex items-center justify-center"
-                    title={isListening ? "Stop voice input" : "Start voice input"}
-                  >
-                    {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                  </Button>
-                  
-                  <Button 
-                    onClick={handleSendMessage}
-                    className="rounded-full w-10 h-10 p-0 flex items-center justify-center"
-                    disabled={!inputMessage.trim()}
-                    title="Send message"
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
-                
-                {/* Helpful instruction text */}
-                <div className="mt-2 text-xs text-center text-gray-500">
-                  {isSupported ? (
-                    isListening ? (
-                      <TextShimmer duration={1.8} className="text-primary/80">
-                        Speak clearly, your voice is being transcribed...
-                      </TextShimmer>
-                    ) : (
-                      <span>Use the mic button or type to communicate with {currentAgent.name}</span>
-                    )
+                  {isListening ? (
+                    <>
+                      <Button 
+                        onClick={cancelVoiceInput}
+                        variant="destructive"
+                        className="rounded-full w-10 h-10 p-0 flex items-center justify-center"
+                        title="Cancel recording"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                      
+                      <Button 
+                        onClick={sendVoiceInput}
+                        variant="default"
+                        className="rounded-full w-10 h-10 p-0 flex items-center justify-center bg-green-500 hover:bg-green-600"
+                        title="Send voice message"
+                      >
+                        <Check className="h-4 w-4 text-white" />
+                      </Button>
+                    </>
                   ) : (
-                    <span>Voice input not supported in your browser</span>
+                    <>
+                      <Button 
+                        onClick={startVoiceInput}
+                        variant="default"
+                        className="rounded-full w-10 h-10 p-0 flex items-center justify-center"
+                        title="Start voice input"
+                      >
+                        <Mic className="h-4 w-4" />
+                      </Button>
+                      
+                      <Button 
+                        onClick={handleSendMessage}
+                        className="rounded-full w-10 h-10 p-0 flex items-center justify-center"
+                        disabled={!inputMessage.trim()}
+                        title="Send message"
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </>
                   )}
                 </div>
+                
+                {/* Removed instruction text as requested */}
               </div>
             </div>
           </div>
