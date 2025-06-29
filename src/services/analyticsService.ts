@@ -1,5 +1,5 @@
 import { db } from '@/lib/firebase';
-import { collection, query, where, orderBy, limit, getDocs, doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 
 export interface ConversationRecord {
   id: string;
@@ -144,11 +144,10 @@ export class AnalyticsService {
   // Calculate mood score from recent conversations and mood entries
   async calculateMoodScore(): Promise<number> {
     try {
-      // Use only userId filter - no complex queries
+      // ONLY use userId filter - absolutely no other filters
       const moodQuery = query(
         collection(db, 'moodEntries'),
-        where('userId', '==', this.userId),
-        limit(7)
+        where('userId', '==', this.userId)
       );
 
       const moodSnapshot = await getDocs(moodQuery);
@@ -170,23 +169,27 @@ export class AnalyticsService {
         return 7.0; // Default neutral mood
       }
 
+      // Sort by date in memory and take most recent 7
+      const sortedEntries = moodEntries
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 7);
+
       // Calculate simple average
-      const totalMood = moodEntries.reduce((sum, entry) => sum + entry.mood, 0);
-      return Math.round((totalMood / moodEntries.length) * 10) / 10;
+      const totalMood = sortedEntries.reduce((sum, entry) => sum + entry.mood, 0);
+      return Math.round((totalMood / sortedEntries.length) * 10) / 10;
     } catch (error) {
       console.error('Error calculating mood score:', error);
       return 7.0;
     }
   }
 
-  // Get conversation statistics - ULTRA SIMPLIFIED
+  // Get conversation statistics - COMPLETELY SIMPLIFIED
   async getConversationStats(timeRange: 'week' | 'month' | 'quarter' = 'week') {
     try {
-      // ONLY use userId filter - no other filters to avoid index requirements
+      // ONLY use userId filter - absolutely nothing else
       const conversationsQuery = query(
         collection(db, 'conversations'),
         where('userId', '==', this.userId)
-        // NO orderBy, NO additional where clauses
       );
 
       const snapshot = await getDocs(conversationsQuery);
@@ -265,12 +268,17 @@ export class AnalyticsService {
         }
       ];
 
+      // Sort conversations by date in memory and return recent ones
+      const sortedConversations = conversations
+        .sort((a, b) => b.startTime.getTime() - a.startTime.getTime())
+        .slice(0, 10);
+
       return {
         totalSessions,
         totalMinutes,
         avgSatisfaction: Math.round(avgSatisfaction * 10) / 10,
         agentUsageData,
-        conversations: conversations.slice(0, 10) // Return only recent 10
+        conversations: sortedConversations
       };
     } catch (error) {
       console.error('Error getting conversation stats:', error);
@@ -325,14 +333,13 @@ export class AnalyticsService {
     }
   }
 
-  // Get mood data for charts - ULTRA SIMPLIFIED
+  // Get mood data for charts - COMPLETELY SIMPLIFIED
   async getMoodData(days: number = 7): Promise<MoodEntry[]> {
     try {
-      // Use ONLY userId filter - no date filtering in query
+      // Use ONLY userId filter - absolutely no other filters
       const moodQuery = query(
         collection(db, 'moodEntries'),
         where('userId', '==', this.userId)
-        // NO orderBy to avoid index requirements
       );
 
       const snapshot = await getDocs(moodQuery);
