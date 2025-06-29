@@ -1,12 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Mic, MicOff, Video, VideoOff, Phone, Settings, Home, AlertTriangle, RefreshCw, Send } from "lucide-react";
+import { Send, Mic, MicOff, Video, VideoOff, Phone, Settings, Home, AlertTriangle, RefreshCw, Download, Copy } from "lucide-react";
 import { createTavusConversation } from "@/lib/tavus";
-import { TavusCVIFrame } from "@/components/ui/TavusCVIFrame";
+import TavusCVIFrame from "@/components/ui/TavusCVIFrame";
 import { useToast } from "@/components/ui/use-toast";
+import { TranscriptSegment, useTranscription } from "@/services/transcriptionService";
 import { useAuth } from "@/services/firebaseAuth";
 import { useAnalytics } from "@/hooks/useAnalytics";
 
@@ -25,9 +26,21 @@ const Conversation = () => {
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [isRetrying, setIsRetrying] = useState(false);
-  const [chatMessages, setChatMessages] = useState<Array<{text: string, sender: 'user' | 'ai', timestamp: Date}>>([]);
+  const [messages, setMessages] = useState<Array<{text: string, sender: 'user' | 'ai', timestamp: Date}>>([]);
   const [inputMessage, setInputMessage] = useState("");
+  const tavusCVIFrameRef = useRef<HTMLIFrameElement>(null);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Speech recognition integration
+  const {
+    transcript,
+    isListening,
+    startListening,
+    stopListening,
+    resetTranscript,
+    isSupported
+  } = useTranscription();
 
   const MAX_RETRIES = 3;
   const RETRY_DELAY = 2000; // 2 seconds
@@ -60,6 +73,53 @@ const Conversation = () => {
   };
 
   const currentAgent = agentInfo[agentType as keyof typeof agentInfo] || agentInfo.psychiatrist;
+
+  // Handle user voice input from speech recognition
+  useEffect(() => {
+    if (transcript && transcript.trim() !== '') {
+      console.log("Speech recognition transcript:", transcript);
+      
+      // Only add significant transcripts as messages (avoid fragments)
+      if (transcript.trim().length > 3) {
+        const userMessage = {
+          text: transcript.trim(),
+          sender: 'user' as const,
+          timestamp: new Date()
+        };
+        
+        setMessages(prev => [...prev, userMessage]);
+      }
+      
+      resetTranscript();
+    }
+  }, [transcript]);
+
+  // Scroll to bottom of messages when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Add greeting message from AI when conversation starts
+  useEffect(() => {
+    if (conversationStarted && messages.length === 0) {
+      setMessages([{
+        text: currentAgent.greeting,
+        sender: 'ai',
+        timestamp: new Date()
+      }]);
+    }
+  }, [conversationStarted, currentAgent.greeting]);
+
+  // Initialize conversation when component mounts or agent changes
+  useEffect(() => {
+    initializeConversation();
+    return () => {
+      // Cleanup speech recognition on unmount
+      if (isListening) {
+        stopListening();
+      }
+    };
+  }, [agentType]);
 
   const initializeConversation = async () => {
     try {
@@ -154,7 +214,7 @@ const Conversation = () => {
           startTime: sessionStartTime,
           endTime: endTime,
           duration: Math.max(1, duration), // Minimum 1 minute
-          topics: chatMessages.map(msg => msg.text).slice(0, 5), // First 5 messages as topics
+          topics: messages.filter(msg => msg.sender === 'user').map(msg => msg.text).slice(0, 5), // First 5 user messages as topics
           satisfaction: 4, // Default satisfaction
           notes: `Conversation with ${currentAgent.name}`
         });
@@ -168,6 +228,11 @@ const Conversation = () => {
       }
     }
     
+    // Stop speech recognition if active
+    if (isListening) {
+      stopListening();
+    }
+    
     toast({
       title: "Returning to Dashboard",
       description: "You can try connecting to an AI assistant again from there.",
@@ -176,7 +241,24 @@ const Conversation = () => {
     navigate("/dashboard");
   };
 
-  // Add a function to handle sending messages
+  // Toggle voice input
+  const toggleVoiceInput = () => {
+    if (isListening) {
+      stopListening();
+      toast({
+        title: "Voice input stopped",
+        description: "You can now type your messages or click the mic to resume voice input."
+      });
+    } else {
+      startListening();
+      toast({
+        title: "Voice input started",
+        description: "Speak clearly, your voice will be transcribed automatically."
+      });
+    }
+  };
+
+  // Handle sending text messages
   const handleSendMessage = () => {
     if (!inputMessage.trim()) return;
     
@@ -187,34 +269,60 @@ const Conversation = () => {
       timestamp: new Date()
     };
     
-    setChatMessages(prev => [...prev, userMessage]);
+    setMessages(prev => [...prev, userMessage]);
     setInputMessage("");
     
-    // Simulate AI response after a short delay
-    setTimeout(() => {
-      const aiMessage = {
-        text: `I'm processing your message: "${inputMessage.trim()}"`,
-        sender: 'ai' as const,
-        timestamp: new Date()
-      };
-      setChatMessages(prev => [...prev, aiMessage]);
-    }, 1000);
+    // If speech recognition is on, turn it off when sending typed message
+    if (isListening) {
+      stopListening();
+    }
+  };
+  
+  // Handle transcript received from Tavus
+  const handleTranscriptReceived = (text: string) => {
+    console.log("Transcript received from Tavus:", text);
+    
+    if (!text || text.trim() === '') return;
+    
+    const aiMessage = {
+      text: text.trim(),
+      sender: 'ai' as const,
+      timestamp: new Date()
+    };
+    
+    setMessages(prev => [...prev, aiMessage]);
   };
 
-  useEffect(() => {
-    initializeConversation();
-  }, [agentType]); // Re-initialize if agent type changes
+  // Copy conversation to clipboard
+  const copyConversation = () => {
+    const text = messages.map(msg => `${msg.sender === 'ai' ? currentAgent.name : 'You'}: ${msg.text}`).join('\n\n');
+    navigator.clipboard.writeText(text);
+    
+    toast({
+      title: "Copied to clipboard",
+      description: "The conversation has been copied to your clipboard."
+    });
+  };
 
-  // Add initial greeting message from AI
-  useEffect(() => {
-    if (conversationStarted && chatMessages.length === 0) {
-      setChatMessages([{
-        text: currentAgent.greeting,
-        sender: 'ai',
-        timestamp: new Date()
-      }]);
-    }
-  }, [conversationStarted, currentAgent.greeting]);
+  // Download conversation as text file
+  const downloadConversation = () => {
+    const text = messages.map(msg => 
+      `${msg.sender === 'ai' ? currentAgent.name : 'You'} (${msg.timestamp.toLocaleTimeString()}): ${msg.text}`
+    ).join('\n\n');
+    
+    const element = document.createElement('a');
+    const file = new Blob([text], {type: 'text/plain'});
+    element.href = URL.createObjectURL(file);
+    element.download = `conversation-with-${currentAgent.name.toLowerCase()}-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+    
+    toast({
+      title: "Conversation downloaded",
+      description: "Your conversation has been saved to your downloads."
+    });
+  };
 
   // Loading State
   if (isLoading || isRetrying) {
@@ -290,7 +398,7 @@ const Conversation = () => {
                 <p className="text-xs text-gray-500 mt-4">
                   If this problem persists, please contact support or try again later.
                 </p>
-                )}
+              )}
             </div>
           </CardContent>
         </Card>
@@ -301,7 +409,8 @@ const Conversation = () => {
   // Success State - Show the conversation
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}      <div className="bg-white border-b px-4 py-3">
+      {/* Header */}      
+      <div className="bg-white border-b px-4 py-3">
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
@@ -317,36 +426,61 @@ const Conversation = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleReturnToDashboard}
+              onClick={copyConversation}
+              title="Copy conversation"
+              disabled={messages.length === 0}
             >
-              <Home className="w-4 h-4 mr-2" />
-              Dashboard
+              <Copy className="w-4 h-4 mr-1" /> Copy
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={downloadConversation}
+              title="Download conversation"
+              disabled={messages.length === 0}
+            >
+              <Download className="w-4 h-4 mr-1" /> Save
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleReturnToDashboard}
+              title="Return to dashboard"
+            >
+              <Home className="w-4 h-4 mr-1" /> Exit
             </Button>
           </div>
         </div>
-      </div>      {/* Main Content */}
+      </div>
+      
+      {/* Main Content */}
       <div className="w-full max-w-none px-4 py-2 flex-1 flex flex-col">
         {conversationUrl ? (
-          <div className="flex h-[calc(100vh-100px)] w-full mx-auto gap-4">            {/* Video conversation */}
-            <div className="flex-1 bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg shadow-lg overflow-hidden">
-              <TavusCVIFrame url={conversationUrl} />
+          <div className="flex h-[calc(100vh-100px)] w-full mx-auto gap-4">
+            {/* Video conversation */}
+            <div className="flex-1 flex flex-col bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg shadow-lg overflow-hidden">
+              <TavusCVIFrame 
+                ref={tavusCVIFrameRef}
+                url={conversationUrl} 
+                onTranscriptReceived={handleTranscriptReceived}
+              />
             </div>
             
-            {/* Chat interface */}
+            {/* Unified chat interface */}
             <div className="w-96 bg-white rounded-lg shadow-sm overflow-hidden flex flex-col">
               <div className="p-3 border-b">
-                <h2 className="font-semibold">Chat with {currentAgent.name}</h2>
+                <h2 className="font-semibold">Conversation with {currentAgent.name}</h2>
               </div>
               
               {/* Messages container */}
               <div className="flex-1 p-3 overflow-y-auto">
-                {chatMessages.length === 0 ? (
+                {messages.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-gray-400 text-sm">
-                    <p>Your chat messages will appear here</p>
+                    <p>Start your conversation with {currentAgent.name}</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {chatMessages.map((msg, index) => (
+                    {messages.map((msg, index) => (
                       <div 
                         key={index} 
                         className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -365,9 +499,26 @@ const Conversation = () => {
                         </div>
                       </div>
                     ))}
+                    <div ref={messagesEndRef} />
                   </div>
                 )}
               </div>
+              
+              {/* Voice indicator */}
+              {isListening && (
+                <div className="px-3 py-2 bg-primary/10 border-t border-primary/20 flex items-center justify-center">
+                  <div className="flex items-center space-x-2">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-4 bg-primary rounded-full animate-pulse"></div>
+                      <div className="w-2 h-6 bg-primary rounded-full animate-pulse delay-75"></div>
+                      <div className="w-2 h-3 bg-primary rounded-full animate-pulse delay-150"></div>
+                      <div className="w-2 h-5 bg-primary rounded-full animate-pulse delay-300"></div>
+                      <div className="w-2 h-2 bg-primary rounded-full animate-pulse delay-150"></div>
+                    </div>
+                    <span className="text-sm font-medium text-primary">Listening...</span>
+                  </div>
+                </div>
+              )}
               
               {/* Input area */}
               <div className="p-3 border-t">
@@ -377,14 +528,32 @@ const Conversation = () => {
                     value={inputMessage}
                     onChange={(e) => setInputMessage(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                    placeholder="Type your message..."
+                    placeholder={isListening ? "Listening... or type here" : "Type your message..."}
                     className="flex-1 border rounded-l-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                  />                  <Button 
+                  />
+                  <Button 
+                    onClick={toggleVoiceInput}
+                    variant={isListening ? "destructive" : "default"}
+                    className="rounded-none"
+                    title={isListening ? "Stop voice input" : "Start voice input"}
+                  >
+                    {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                  </Button>
+                  <Button 
                     onClick={handleSendMessage}
                     className="rounded-l-none"
+                    disabled={!inputMessage.trim()}
+                    title="Send message"
                   >
-                    <Send className="h-4 w-4 mr-2" />
+                    <Send className="h-4 w-4" />
                   </Button>
+                </div>
+                <div className="mt-2 text-xs text-gray-500 text-center">
+                  {isSupported ? (
+                    <span>Press mic button to use voice input or type your message</span>
+                  ) : (
+                    <span>Voice input not supported in your browser</span>
+                  )}
                 </div>
               </div>
             </div>

@@ -1,14 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, forwardRef } from 'react';
 
 interface TavusCVIFrameProps {
   url: string;
   className?: string;
+  onTranscriptReceived?: (text: string) => void;
 }
 
-export const TavusCVIFrame: React.FC<TavusCVIFrameProps> = ({ url, className = "" }) => {
+const TavusCVIFrame = forwardRef<HTMLIFrameElement, TavusCVIFrameProps>(({ 
+  url, 
+  className = "",
+  onTranscriptReceived 
+}, ref) => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasInteracted, setHasInteracted] = useState(false);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const internalIframeRef = useRef<HTMLIFrameElement>(null);
+  
+  // Use the forwarded ref if provided, otherwise use internal ref
+  const iframeRef = (ref as React.RefObject<HTMLIFrameElement>) || internalIframeRef;
   
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -19,14 +27,86 @@ export const TavusCVIFrame: React.FC<TavusCVIFrameProps> = ({ url, className = "
     
     return () => clearTimeout(timer);
   }, []);
+  
+  // Listen for transcript messages from Tavus
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // Log all message events to help with debugging
+      console.log("TavusCVIFrame received message:", event.origin);
+      
+      try {
+        // Handle different message formats
+        let data;
+        if (typeof event.data === 'string') {
+          try {
+            data = JSON.parse(event.data);
+            console.log("Parsed string message data:", data);
+          } catch (e) {
+            // If it's not valid JSON, use as-is (might be plain text)
+            console.log("Using raw message text:", event.data);
+            data = { text: event.data, type: 'speech' };
+          }
+        } else {
+          data = event.data;
+          console.log("Received object message data:", data);
+        }
+        
+        // Process various transcript formats
+        if (data && onTranscriptReceived) {
+          let transcript = null;
+          
+          // Check all possible transcript formats
+          if (data.type === 'speech' && data.text) {
+            transcript = data.text;
+          } else if (data.event === 'speech' && data.text) {
+            transcript = data.text;
+          } else if (data.type === 'transcript' && data.text) {
+            transcript = data.text;
+          } else if (data.content && data.content.text) {
+            transcript = data.content.text;
+          } else if (data.message && typeof data.message === 'string') {
+            transcript = data.message;
+          } else if (typeof data === 'string' && data.trim().length > 0) {
+            // Maybe it's just a plain text message
+            transcript = data;
+          }
+          
+          if (transcript) {
+            console.log("TavusCVIFrame sending transcript to parent:", transcript);
+            onTranscriptReceived(transcript);
+          }
+        }
+      } catch (error) {
+        console.error('Error processing message in TavusCVIFrame:', error);
+      }
+    };
+    
+    // Listen for messages from the iframe
+    window.addEventListener('message', handleMessage);
+    
+    // Test logging to verify event listener is working
+    console.log("TavusCVIFrame message listener installed");
+    
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      console.log("TavusCVIFrame message listener removed");
+    };
+  }, [onTranscriptReceived]);
 
   const handleIframeLoad = () => {
     setIsLoading(false);
+    console.log("TavusCVIFrame iframe loaded successfully");
   };
   
   const handleInteraction = () => {
     if (!hasInteracted) {
       setHasInteracted(true);
+      console.log("User interacted with TavusCVIFrame");
+      
+      // Attempt to get focus for the iframe
+      if (iframeRef && iframeRef.current) {
+        iframeRef.current.focus();
+      }
     }
   };
   
@@ -70,6 +150,8 @@ export const TavusCVIFrame: React.FC<TavusCVIFrameProps> = ({ url, className = "
       )}
     </div>
   );
-};
+});
+
+TavusCVIFrame.displayName = 'TavusCVIFrame';
 
 export default TavusCVIFrame;

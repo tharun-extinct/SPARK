@@ -53,8 +53,7 @@ const Navigation = () => {
 
   const menuItems = [
     { name: 'Dashboard', path: '/dashboard', icon: <BarChart className="w-5 h-5" /> },
-    { name: 'Chat', path: '/conversation/default', icon: <MessageSquare className="w-5 h-5" /> },
-    { name: 'Settings', path: '/settings', icon: <Settings className="w-5 h-5" /> },
+    { name: 'Chat', path: '/conversation/default', icon: <MessageSquare className="w-5 h-5" /> }
   ];
 
   return (
@@ -121,6 +120,10 @@ const Navigation = () => {
                   <DropdownMenuItem onClick={() => navigate('/support')}>
                     <HelpCircle className="w-4 h-4 mr-2" />
                     Support
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/settings')}>
+                    <Settings className="w-4 h-4 mr-2" />
+                    Settings
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleSignOut}>
