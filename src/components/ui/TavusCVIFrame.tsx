@@ -93,6 +93,7 @@ const TavusCVIFrame = forwardRef<HTMLIFrameElement, TavusCVIFrameProps>(({
     };
   }, [onTranscriptReceived]);
 
+  // Handle iframe load event
   const handleIframeLoad = () => {
     setIsLoading(false);
     console.log("TavusCVIFrame iframe loaded successfully");

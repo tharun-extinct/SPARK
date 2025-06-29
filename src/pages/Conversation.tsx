@@ -274,9 +274,10 @@ const Conversation = () => {
           notes: `Conversation with ${currentAgent.name}`,
           // Include Tavus data
           tavusConversationId: tavusConversationData.conversation_id,
-          tavusRecordingUrl: tavusDetails?.recording_url,
-          tavusTranscript: tavusDetails?.transcript,
-          tavusMetadata: tavusDetails?.metadata
+          // Only include fields that exist
+          ...(tavusDetails?.recording_url && { tavusRecordingUrl: tavusDetails.recording_url }),
+          ...(tavusDetails?.transcript && { tavusTranscript: tavusDetails.transcript }),
+          ...(tavusDetails?.metadata && { tavusMetadata: tavusDetails.metadata })
         };
         
         console.log('💾 Recording conversation with data:', conversationData);

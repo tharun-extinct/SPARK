@@ -63,7 +63,7 @@ export class AnalyticsService {
       const conversationsCollection = collection(db, 'conversations');
       
       // Prepare the base conversation data
-      const conversationData = {
+      const conversationData: any = {
         ...data,
         userId: this.userId,
         startTime: Timestamp.fromDate(data.startTime),
@@ -87,10 +87,18 @@ export class AnalyticsService {
           console.log('🔄 Fetching Tavus conversation details for ID:', data.tavusConversationId);
           const tavusDetails = await getTavusConversationDetails(data.tavusConversationId);
           
-          // Merge Tavus data with our conversation record
-          conversationData.tavusRecordingUrl = tavusDetails.recording_url;
-          conversationData.tavusTranscript = tavusDetails.transcript;
-          conversationData.tavusMetadata = tavusDetails.metadata;
+          // Merge Tavus data with our conversation record - only add fields that exist
+          if (tavusDetails.recording_url) {
+            conversationData.tavusRecordingUrl = tavusDetails.recording_url;
+          }
+          
+          if (tavusDetails.transcript) {
+            conversationData.tavusTranscript = tavusDetails.transcript;
+          }
+          
+          if (tavusDetails.metadata) {
+            conversationData.tavusMetadata = tavusDetails.metadata;
+          }
           
           // Update duration if Tavus provides more accurate data
           if (tavusDetails.duration && tavusDetails.duration > 0) {
@@ -101,6 +109,17 @@ export class AnalyticsService {
         } catch (tavusError) {
           console.warn('⚠️ Failed to fetch Tavus conversation details, proceeding without:', tavusError);
           // Continue saving the conversation even if Tavus API fails
+          
+          // Remove any undefined fields that might cause Firestore errors
+          if (conversationData.tavusRecordingUrl === undefined) {
+            delete conversationData.tavusRecordingUrl;
+          }
+          if (conversationData.tavusTranscript === undefined) {
+            delete conversationData.tavusTranscript;
+          }
+          if (conversationData.tavusMetadata === undefined) {
+            delete conversationData.tavusMetadata;
+          }
         }
       }
 
@@ -177,11 +196,21 @@ export class AnalyticsService {
       if (!snapshot.empty) {
         const conversationDoc = snapshot.docs[0];
         const updateData: any = {
-          tavusRecordingUrl: details.recording_url,
-          tavusTranscript: details.transcript,
-          tavusMetadata: details.metadata,
           lastSyncedAt: Timestamp.now()
         };
+
+        // Only add fields that exist and are not undefined
+        if (details.recording_url) {
+          updateData.tavusRecordingUrl = details.recording_url;
+        }
+        
+        if (details.transcript) {
+          updateData.tavusTranscript = details.transcript;
+        }
+        
+        if (details.metadata) {
+          updateData.tavusMetadata = details.metadata;
+        }
 
         // Update duration if Tavus provides more accurate data
         if (details.duration && details.duration > 0) {
