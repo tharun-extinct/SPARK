@@ -111,7 +111,7 @@ export const useAnalytics = () => {
     }
   }, [analyticsService]);
 
-  // Record a new conversation
+  // Record a new conversation with Tavus integration
   const recordConversation = async (conversationData: Omit<ConversationRecord, 'id' | 'userId'>) => {
     if (!analyticsService) return;
 
@@ -139,6 +139,22 @@ export const useAnalytics = () => {
     }
   };
 
+  // Sync Tavus conversation data
+  const syncTavusConversation = async (tavusConversationId: string) => {
+    if (!analyticsService) return null;
+
+    try {
+      const details = await analyticsService.syncTavusConversation(tavusConversationId);
+      // Reload data to reflect changes
+      await loadAnalyticsData();
+      return details;
+    } catch (err) {
+      console.error('Error syncing Tavus conversation:', err);
+      setError('Failed to sync conversation data');
+      return null;
+    }
+  };
+
   // Refresh all data
   const refreshData = () => {
     if (analyticsService) {
@@ -161,6 +177,7 @@ export const useAnalytics = () => {
     // Actions
     recordConversation,
     recordMoodEntry,
+    syncTavusConversation,
     refreshData,
     
     // Service

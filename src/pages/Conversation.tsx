@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Mic, MicOff, Video, VideoOff, Phone, Settings, Home, AlertTriangle, RefreshCw, Send } from "lucide-react";
-import { createTavusConversation } from "@/lib/tavus";
+import { createTavusConversation, TavusConversationResponse } from "@/lib/tavus";
 import { TavusCVIFrame } from "@/components/ui/TavusCVIFrame";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/services/firebaseAuth";
@@ -15,7 +15,7 @@ const Conversation = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { currentUser } = useAuth();
-  const { recordConversation } = useAnalytics();
+  const { recordConversation, analyticsService } = useAnalytics();
   
   const [isVideoOn, setIsVideoOn] = useState(true);
   const [isAudioOn, setIsAudioOn] = useState(true);
@@ -28,6 +28,7 @@ const Conversation = () => {
   const [chatMessages, setChatMessages] = useState<Array<{text: string, sender: 'user' | 'ai', timestamp: Date}>>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
+  const [tavusConversationData, setTavusConversationData] = useState<TavusConversationResponse | null>(null);
 
   const MAX_RETRIES = 3;
   const RETRY_DELAY = 2000; // 2 seconds
@@ -68,7 +69,8 @@ const Conversation = () => {
       
       console.log(`Initializing conversation with ${currentAgent.name}...`);
       
-      const url = await createTavusConversation({
+      // Create Tavus conversation and get full response including conversation_id
+      const tavusResponse = await createTavusConversation({
         replicaId: currentAgent.replicaId,
         personaId: currentAgent.personaId,
         name: `${currentAgent.name} Conversation`,
@@ -76,10 +78,28 @@ const Conversation = () => {
         greeting: currentAgent.greeting,
       });
       
-      setConversationUrl(url);
+      console.log('Tavus conversation created:', tavusResponse);
+      
+      // Store the full Tavus response
+      setTavusConversationData(tavusResponse);
+      setConversationUrl(tavusResponse.conversation_url);
       setConversationStarted(true);
       setSessionStartTime(new Date());
       setIsLoading(false);
+      
+      // Store the Tavus conversation ID in our analytics system
+      if (analyticsService && tavusResponse.conversation_id) {
+        try {
+          await analyticsService.storeTavusConversationId(
+            tavusResponse.conversation_id, 
+            agentType as string
+          );
+          console.log('Tavus conversation ID stored successfully');
+        } catch (storageError) {
+          console.warn('Failed to store Tavus conversation ID:', storageError);
+          // Don't fail the conversation if storage fails
+        }
+      }
       
       toast({
         title: "Connection Established",
@@ -144,10 +164,21 @@ const Conversation = () => {
 
   const handleReturnToDashboard = async () => {
     // Record the session if it was started
-    if (sessionStartTime && currentUser) {
+    if (sessionStartTime && currentUser && tavusConversationData) {
       try {
         const endTime = new Date();
         const duration = Math.round((endTime.getTime() - sessionStartTime.getTime()) / 60000); // Duration in minutes
+        
+        // Sync with Tavus to get the latest conversation details
+        let tavusDetails = null;
+        if (analyticsService && tavusConversationData.conversation_id) {
+          try {
+            tavusDetails = await analyticsService.syncTavusConversation(tavusConversationData.conversation_id);
+            console.log('Synced Tavus conversation details:', tavusDetails);
+          } catch (syncError) {
+            console.warn('Failed to sync Tavus conversation details:', syncError);
+          }
+        }
         
         await recordConversation({
           agentType: agentType as 'psychiatrist' | 'tutor' | 'doctor',
@@ -156,7 +187,12 @@ const Conversation = () => {
           duration: Math.max(1, duration), // Minimum 1 minute
           topics: chatMessages.map(msg => msg.text).slice(0, 5), // First 5 messages as topics
           satisfaction: 4, // Default satisfaction
-          notes: `Conversation with ${currentAgent.name}`
+          notes: `Conversation with ${currentAgent.name}`,
+          // Include Tavus data
+          tavusConversationId: tavusConversationData.conversation_id,
+          tavusRecordingUrl: tavusDetails?.recording_url,
+          tavusTranscript: tavusDetails?.transcript,
+          tavusMetadata: tavusDetails?.metadata
         });
         
         toast({
@@ -165,6 +201,12 @@ const Conversation = () => {
         });
       } catch (error) {
         console.error("Error recording conversation:", error);
+        // Still show a toast but don't block navigation
+        toast({
+          title: "Session Ended",
+          description: "There was an issue saving your session data, but your conversation is complete.",
+          variant: "destructive",
+        });
       }
     }
     
@@ -235,6 +277,11 @@ const Conversation = () => {
               <p className="text-gray-600">
                 {isRetrying ? "Attempting to reconnect..." : "Establishing secure connection..."}
               </p>
+              {tavusConversationData && (
+                <p className="text-xs text-gray-500">
+                  Conversation ID: {tavusConversationData.conversation_id}
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -310,6 +357,9 @@ const Conversation = () => {
             <div>
               <h1 className="text-lg font-semibold">{currentAgent.name}</h1>
               <p className="text-sm text-gray-600">AI Assistant</p>
+              {tavusConversationData && (
+                <p className="text-xs text-gray-400">ID: {tavusConversationData.conversation_id.slice(0, 8)}...</p>
+              )}
             </div>
           </div>
           
@@ -336,6 +386,9 @@ const Conversation = () => {
             <div className="w-96 bg-white rounded-lg shadow-sm overflow-hidden flex flex-col">
               <div className="p-3 border-b">
                 <h2 className="font-semibold">Chat with {currentAgent.name}</h2>
+                {tavusConversationData && (
+                  <p className="text-xs text-gray-500">Session: {tavusConversationData.conversation_id.slice(-8)}</p>
+                )}
               </div>
               
               {/* Messages container */}
