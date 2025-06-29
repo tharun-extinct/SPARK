@@ -554,15 +554,15 @@ const Conversation = () => {
                   <div className="flex-1 relative rounded-full border bg-background overflow-hidden focus-within:ring-2 focus-within:ring-primary/50">
                     {isListening ? (
                       <div className="flex items-center px-4 py-2 w-full">
-                        <div className="flex space-x-1 mr-2">
+                        {/*<div className="flex space-x-1 mr-2">
                           <div className="w-1.5 h-3 bg-primary rounded-full animate-pulse"></div>
                           <div className="w-1.5 h-5 bg-primary rounded-full animate-pulse delay-75"></div>
                           <div className="w-1.5 h-2 bg-primary rounded-full animate-pulse delay-150"></div>
                           <div className="w-1.5 h-4 bg-primary rounded-full animate-pulse delay-300"></div>
                           <div className="w-1.5 h-3 bg-primary rounded-full animate-pulse delay-150"></div>
-                        </div>
+                        </div>*/}
                         <TextShimmer 
-                          className="text-sm font-medium text-primary flex-1"
+                          className="text-sm font-medium text-primary flex-1 ml-1"
                           duration={1.5}
                         >
                           Listening...
