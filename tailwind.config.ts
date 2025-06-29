@@ -19,7 +19,7 @@ export default {
 		},
 		extend: {
 			animation: {
-				"text-shimmer": "text-shimmer 3.5s ease-out infinite alternate",
+				"text-shimmer": "text-shimmer 3.s ease-out infinite alternate",
 			},
 			keyframes: {
 				"text-shimmer": {
