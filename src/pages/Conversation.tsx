@@ -3,9 +3,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Mic, MicOff, Video, VideoOff, Phone, Settings, Home, AlertTriangle, RefreshCw, Send, Copy, Download, Check } from "lucide-react";
+import { Mic, MicOff, Video, VideoOff, Phone, Settings, Home, AlertTriangle, RefreshCw, Send, Copy, Download } from "lucide-react";
 import { createTavusConversation, TavusConversationResponse } from "@/lib/tavus";
-import TavusCVIFrame from "@/components/ui/TavusCVIFrame";
+import { TavusCVIFrame } from "@/components/ui/TavusCVIFrame";
 import { useToast } from "@/components/ui/use-toast";
 import { TranscriptSegment, useTranscription } from "@/services/transcriptionService";
 import { useAuth } from "@/services/firebaseAuth";
@@ -34,18 +34,18 @@ const Conversation = () => {
   const [tavusConversationData, setTavusConversationData] = useState<TavusConversationResponse | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Add transcription hook
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY = 2000; // 2 seconds
+
+  // Speech recognition
   const {
     transcript,
     isListening,
-    isSupported,
     startListening,
     stopListening,
-    resetTranscript
+    resetTranscript,
+    isSupported,
   } = useTranscription();
-
-  const MAX_RETRIES = 3;
-  const RETRY_DELAY = 2000; // 2 seconds
 
   const agentInfo = {
     psychiatrist: {
@@ -77,13 +77,24 @@ const Conversation = () => {
   const currentAgent = agentInfo[agentType as keyof typeof agentInfo] || agentInfo.psychiatrist;
 
   // Handle user voice input from speech recognition
-  // No longer automatically adding transcript to messages as per request
-  // Messages will only be sent when the tick/check button is clicked
   useEffect(() => {
     if (transcript && transcript.trim() !== '') {
       console.log("Speech recognition transcript:", transcript);
+      
+      // Only add significant transcripts as messages (avoid fragments)
+      if (transcript.trim().length > 3) {
+        const userMessage = {
+          text: transcript.trim(),
+          sender: 'user' as const,
+          timestamp: new Date()
+        };
+        
+        setMessages(prev => [...prev, userMessage]);
+      }
+      
+      resetTranscript();
     }
-  }, [transcript]);
+  }, [transcript, resetTranscript]);
 
   // Scroll to bottom of messages when new messages arrive
   useEffect(() => {
@@ -99,7 +110,7 @@ const Conversation = () => {
         timestamp: new Date()
       }]);
     }
-  }, [conversationStarted, currentAgent.greeting]);
+  }, [conversationStarted, currentAgent.greeting, messages.length]);
 
   // Initialize conversation when component mounts or agent changes
   useEffect(() => {
@@ -128,7 +139,7 @@ const Conversation = () => {
         greeting: currentAgent.greeting,
       });
       
-      console.log('Tavus conversation created:', tavusResponse);
+      console.log('✅ Tavus conversation created:', tavusResponse);
       
       // Store the full Tavus response
       setTavusConversationData(tavusResponse);
@@ -144,9 +155,9 @@ const Conversation = () => {
             tavusResponse.conversation_id, 
             agentType as string
           );
-          console.log('Tavus conversation ID stored successfully');
+          console.log('✅ Tavus conversation ID stored successfully');
         } catch (storageError) {
-          console.warn('Failed to store Tavus conversation ID:', storageError);
+          console.warn('⚠️ Failed to store Tavus conversation ID:', storageError);
           // Don't fail the conversation if storage fails
         }
       }
@@ -157,7 +168,7 @@ const Conversation = () => {
       });
       
     } catch (err: any) {
-      console.error("Failed to start conversation:", err);
+      console.error("❌ Failed to start conversation:", err);
       
       let errorMessage = "Unable to connect to the AI assistant.";
       
@@ -213,21 +224,37 @@ const Conversation = () => {
   };
 
   const handleReturnToDashboard = async () => {
+    console.log('🔄 Ending session and recording conversation...');
+    
     // Record the session if it was started
     if (sessionStartTime && currentUser && tavusConversationData) {
       try {
         const endTime = new Date();
         const duration = Math.round((endTime.getTime() - sessionStartTime.getTime()) / 60000); // Duration in minutes
         
-        console.log('🔄 Recording conversation with enhanced Tavus integration...');
         console.log('📊 Session details:', {
-          agentType,
+          startTime: sessionStartTime,
+          endTime,
           duration,
+          agentType,
           tavusConversationId: tavusConversationData.conversation_id,
           messagesCount: messages.length
         });
         
-        await recordConversation({
+        // Sync with Tavus to get the latest conversation details
+        let tavusDetails = null;
+        if (analyticsService && tavusConversationData.conversation_id) {
+          try {
+            console.log('🔄 Syncing with Tavus...');
+            tavusDetails = await analyticsService.syncTavusConversation(tavusConversationData.conversation_id);
+            console.log('✅ Synced Tavus conversation details:', tavusDetails);
+          } catch (syncError) {
+            console.warn('⚠️ Failed to sync Tavus conversation details:', syncError);
+          }
+        }
+        
+        // Prepare conversation data
+        const conversationData = {
           agentType: agentType as 'psychiatrist' | 'tutor' | 'doctor',
           startTime: sessionStartTime,
           endTime: endTime,
@@ -235,22 +262,25 @@ const Conversation = () => {
           topics: messages.filter(msg => msg.sender === 'user').map(msg => msg.text).slice(0, 5), // First 5 user messages as topics
           satisfaction: 4, // Default satisfaction
           notes: `Conversation with ${currentAgent.name}`,
-          // Include Tavus data - the recordConversation method will fetch comprehensive details
+          // Include Tavus data
           tavusConversationId: tavusConversationData.conversation_id,
-        });
+          tavusRecordingUrl: tavusDetails?.recording_url,
+          tavusTranscript: tavusDetails?.transcript,
+          tavusMetadata: tavusDetails?.metadata
+        };
+        
+        console.log('💾 Recording conversation:', conversationData);
+        
+        await recordConversation(conversationData);
+        
+        console.log('✅ Conversation recorded successfully');
         
         toast({
           title: "Session Recorded",
-          description: "Your conversation has been saved with comprehensive analytics.",
+          description: "Your conversation has been saved to your analytics.",
         });
-        
-        // Force refresh analytics data
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
-        
       } catch (error) {
-        console.error("Error recording conversation:", error);
+        console.error("❌ Error recording conversation:", error);
         // Still show a toast but don't block navigation
         toast({
           title: "Session Ended",
@@ -258,6 +288,8 @@ const Conversation = () => {
           variant: "destructive",
         });
       }
+    } else {
+      console.log('⚠️ No session data to record');
     }
     
     toast({
@@ -272,28 +304,15 @@ const Conversation = () => {
   const toggleVoiceInput = () => {
     if (isListening) {
       stopListening();
-      
-      // Only send the message if there is a transcript
-      if (transcript && transcript.trim()) {
-        const userMessage = {
-          text: transcript.trim(),
-          sender: 'user' as const,
-          timestamp: new Date()
-        };
-        
-        setMessages(prev => [...prev, userMessage]);
-        resetTranscript();
-      }
-      
       toast({
         title: "Voice input stopped",
-        description: "Your message has been sent."
+        description: "You can now type your messages or click the mic to resume voice input."
       });
     } else {
       startListening();
       toast({
         title: "Voice input started",
-        description: "Speak clearly, then click the stop button to send."
+        description: "Speak clearly, your voice will be transcribed automatically."
       });
     }
   };
@@ -320,8 +339,17 @@ const Conversation = () => {
   
   // Handle transcript received from Tavus
   const handleTranscriptReceived = (text: string) => {
-    // No longer displaying AI transcripts in chat as requested
     console.log("Transcript received from Tavus:", text);
+    
+    if (!text || text.trim() === '') return;
+    
+    const aiMessage = {
+      text: text.trim(),
+      sender: 'ai' as const,
+      timestamp: new Date()
+    };
+    
+    setMessages(prev => [...prev, aiMessage]);
   };
 
   // Copy conversation to clipboard
@@ -546,47 +574,48 @@ const Conversation = () => {
                 )}
               </div>
               
-              {/* Voice indicator removed as requested */}
+              {/* Voice indicator with shimmer effect */}
+              {isListening && (
+                <div className="px-3 py-2 bg-primary/10 border-t border-primary/20 flex items-center justify-center">
+                  <div className="flex items-center space-x-2">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-4 bg-primary rounded-full animate-pulse"></div>
+                      <div className="w-2 h-6 bg-primary rounded-full animate-pulse delay-75"></div>
+                      <div className="w-2 h-3 bg-primary rounded-full animate-pulse delay-150"></div>
+                      <div className="w-2 h-5 bg-primary rounded-full animate-pulse delay-300"></div>
+                      <div className="w-2 h-2 bg-primary rounded-full animate-pulse delay-150"></div>
+                    </div>
+                    <TextShimmer 
+                      className="text-sm font-medium text-primary"
+                      duration={1.5}
+                    >
+                      Listening...
+                    </TextShimmer>
+                  </div>
+                </div>
+              )}
               
               {/* Input area with rounded buttons */}
               <div className="p-3 border-t">
                 <div className="flex items-center space-x-2">
                   <div className="flex-1 relative rounded-full border bg-background overflow-hidden focus-within:ring-2 focus-within:ring-primary/50">
-                    {isListening ? (
-                      <div className="flex items-center px-4 py-2 w-full">
-                        <div className="flex space-x-1 mr-2">
-                          <div className="w-1.5 h-3 bg-primary rounded-full animate-pulse"></div>
-                          <div className="w-1.5 h-5 bg-primary rounded-full animate-pulse delay-75"></div>
-                          <div className="w-1.5 h-2 bg-primary rounded-full animate-pulse delay-150"></div>
-                          <div className="w-1.5 h-4 bg-primary rounded-full animate-pulse delay-300"></div>
-                          <div className="w-1.5 h-3 bg-primary rounded-full animate-pulse delay-150"></div>
-                        </div>
-                        <TextShimmer 
-                          className="text-sm font-medium text-primary flex-1"
-                          duration={1.5}
-                        >
-                          Listening...
-                        </TextShimmer>
-                      </div>
-                    ) : (
-                      <input
-                        type="text"
-                        value={inputMessage}
-                        onChange={(e) => setInputMessage(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                        placeholder="Ask anything..."
-                        className="flex-1 w-full px-4 py-2 bg-transparent border-none focus:outline-none"
-                      />
-                    )}
+                    <input
+                      type="text"
+                      value={inputMessage}
+                      onChange={(e) => setInputMessage(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                      placeholder={isListening ? "Listening..." : "Ask anything..."}
+                      className="flex-1 w-full px-4 py-2 bg-transparent border-none focus:outline-none"
+                    />
                   </div>
                   
                   <Button 
                     onClick={toggleVoiceInput}
-                    variant={isListening ? "default" : "default"}
-                    className={`rounded-full w-10 h-10 p-0 flex items-center justify-center ${isListening ? "bg-green-500 hover:bg-green-600" : ""}`}
-                    title={isListening ? "Click to send voice message" : "Start voice input"}
+                    variant={isListening ? "destructive" : "default"}
+                    className="rounded-full w-10 h-10 p-0 flex items-center justify-center"
+                    title={isListening ? "Stop voice input" : "Start voice input"}
                   >
-                    {isListening ? <Check className="h-4 w-4 text-white" /> : <Mic className="h-4 w-4" />}
+                    {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                   </Button>
                   
                   <Button 
@@ -599,7 +628,20 @@ const Conversation = () => {
                   </Button>
                 </div>
                 
-                {/* Removed instruction text as requested */}
+                {/* Helpful instruction text */}
+                <div className="mt-2 text-xs text-center text-gray-500">
+                  {isSupported ? (
+                    isListening ? (
+                      <TextShimmer duration={1.8} className="text-primary/80">
+                        Speak clearly, your voice is being transcribed...
+                      </TextShimmer>
+                    ) : (
+                      <span>Use the mic button or type to communicate with {currentAgent.name}</span>
+                    )
+                  ) : (
+                    <span>Voice input not supported in your browser</span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
