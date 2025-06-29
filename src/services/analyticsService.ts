@@ -280,16 +280,15 @@ export class AnalyticsService {
     }
   }
 
-  // Get conversation statistics with detailed logging
+  // Get conversation statistics with simplified query (no orderBy to avoid index requirement)
   async getConversationStats(timeRange: 'week' | 'month' | 'quarter' = 'week') {
     try {
       console.log('🔄 Getting conversation stats for timeRange:', timeRange);
       
-      // Use the simplest possible query - just get user's conversations
+      // Use simple query without orderBy to avoid index requirement
       const conversationsQuery = query(
         collection(db, 'conversations'),
-        where('userId', '==', this.userId),
-        orderBy('createdAt', 'desc')
+        where('userId', '==', this.userId)
       );
 
       console.log('🔍 Executing Firestore query for conversations...');
@@ -349,7 +348,7 @@ export class AnalyticsService {
 
       console.log('📊 Processed', allConversations.length, 'conversations');
 
-      // Filter by time range in memory
+      // Filter by time range in memory and sort by date
       const now = new Date();
       const startDate = new Date();
       
@@ -365,7 +364,10 @@ export class AnalyticsService {
           break;
       }
 
-      const conversations = allConversations.filter(conv => conv.startTime >= startDate);
+      const conversations = allConversations
+        .filter(conv => conv.startTime >= startDate)
+        .sort((a, b) => b.startTime.getTime() - a.startTime.getTime()); // Sort by date descending in memory
+      
       console.log('📊 Filtered to', conversations.length, 'conversations for timeRange:', timeRange);
 
       // Calculate statistics
@@ -404,17 +406,15 @@ export class AnalyticsService {
         }
       ];
 
-      // Sort conversations by date and return recent ones
-      const sortedConversations = conversations
-        .sort((a, b) => b.startTime.getTime() - a.startTime.getTime())
-        .slice(0, 10);
+      // Return recent conversations (already sorted)
+      const recentConversations = conversations.slice(0, 10);
 
       const result = {
         totalSessions,
         totalMinutes,
         avgSatisfaction: Math.round(avgSatisfaction * 10) / 10,
         agentUsageData,
-        conversations: sortedConversations
+        conversations: recentConversations
       };
 
       console.log('✅ Conversation stats calculated:', result);
