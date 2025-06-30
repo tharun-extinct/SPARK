@@ -568,9 +568,9 @@ const Dashboard = () => {
                           </div>
                         ))}
                       </div>
-                      <Button variant="outline" className="w-full mt-4 hover:bg-gradient-to-r hover:from-green-500 hover:to-teal-600 hover:text-white transition-all duration-300">
+                      {/*<Button variant="outline" className="w-full mt-4 hover:bg-gradient-to-r hover:from-green-500 hover:to-teal-600 hover:text-white transition-all duration-300">
                         Set New Goal
-                      </Button>
+                      </Button>*/}
                     </CardContent>
                   </Card>
                 </div>
