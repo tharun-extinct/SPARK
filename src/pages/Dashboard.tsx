@@ -34,6 +34,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell } from 'recharts';
 import { useAnalytics } from "@/hooks/useAnalytics";
+import AnalyticsDashboard from "@/components/analytics/AnalyticsDashboard";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -372,64 +373,68 @@ const Dashboard = () => {
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 opacity-100 translate-y-0"
             >
               <Card className="bg-gradient-to-br from-rose-50 to-pink-100 border-rose-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-rose-700">Mood Score</CardTitle>
-                  <div className="p-2 bg-gradient-to-br from-rose-500 to-pink-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
-                    <Heart className="h-4 w-4 text-white" />
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-gradient-to-br from-rose-500 to-pink-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
+                      <Heart className="h-4 w-4 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-rose-600">{dashboardMetrics.moodScore}/10</div>
+                      <p className="text-xs text-rose-500 flex items-center gap-1">
+                        <TrendingUp className="w-3 h-3" />
+                        Based on recent entries
+                      </p>
+                    </div>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-rose-600">{dashboardMetrics.moodScore}/10</div>
-                  <p className="text-xs text-rose-500 flex items-center gap-1">
-                    <TrendingUp className="w-3 h-3" />
-                    Based on recent entries
-                  </p>
                 </CardContent>
               </Card>
 
               <Card className="bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-blue-700">Sessions</CardTitle>
-                  <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
-                    <MessageCircle className="h-4 w-4 text-white" />
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
+                      <MessageCircle className="h-4 w-4 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-blue-600">{dashboardMetrics.sessionsThisWeek}</div>
+                      <p className="text-xs text-blue-500">
+                        This week
+                      </p>
+                    </div>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">{dashboardMetrics.sessionsThisWeek}</div>
-                  <p className="text-xs text-blue-500">
-                    This week
-                  </p>
                 </CardContent>
               </Card>
 
               <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-green-700">Time Spent</CardTitle>
-                  <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
-                    <Clock className="h-4 w-4 text-white" />
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
+                      <Clock className="h-4 w-4 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-green-600">{dashboardMetrics.totalMinutes}min</div>
+                      <p className="text-xs text-green-500">
+                        Total this week
+                      </p>
+                    </div>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-green-600">{dashboardMetrics.totalMinutes}min</div>
-                  <p className="text-xs text-green-500">
-                    Total this week
-                  </p>
                 </CardContent>
               </Card>
 
               <Card className="bg-gradient-to-br from-orange-50 to-amber-100 border-orange-200 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-orange-700">Streak</CardTitle>
-                  <div className="p-2 bg-gradient-to-br from-orange-500 to-amber-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
-                    <Zap className="h-4 w-4 text-white" />
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-gradient-to-br from-orange-500 to-amber-600 rounded-lg group-hover:rotate-12 transition-transform duration-300">
+                      <Zap className="h-4 w-4 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-orange-600">{dashboardMetrics.streakDays}</div>
+                      <p className="text-xs text-orange-500 flex items-center gap-1">
+                        <Star className="w-3 h-3" />
+                        Days active
+                      </p>
+                    </div>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-orange-600">{dashboardMetrics.streakDays}</div>
-                  <p className="text-xs text-orange-500 flex items-center gap-1">
-                    <Star className="w-3 h-3" />
-                    Days active
-                  </p>
                 </CardContent>
               </Card>
             </div>
@@ -775,7 +780,7 @@ const Dashboard = () => {
       {showDetailedAnalytics && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-auto">
-            <div className="sticky top-0 bg-white border-b p-6 flex items-center justify-between">
+            <div className="sticky top-0 bg-white border-b p-6 flex items-center justify-between z-10">
               <h2 className="text-2xl font-bold">Detailed Analytics</h2>
               <Button
                 variant="ghost"
@@ -786,10 +791,7 @@ const Dashboard = () => {
               </Button>
             </div>
             <div className="p-6">
-              <p className="text-center text-muted-foreground">
-                Comprehensive analytics dashboard would be loaded here with all the detailed charts and metrics.
-                This keeps the main dashboard clean while providing access to deeper insights when needed.
-              </p>
+              <AnalyticsDashboard />
             </div>
           </div>
         </div>
