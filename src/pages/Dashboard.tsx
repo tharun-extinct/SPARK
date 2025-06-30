@@ -88,16 +88,22 @@ const Dashboard = () => {
     };
   }, [isLoading]);
 
-  // Welcome popup logic
+  // Welcome popup logic - only show on first login or signup
   useEffect(() => {
     if (!isLoading && currentUser) {
-      const timer = setTimeout(() => {
+      // Check if this is the first time visiting dashboard in this session
+      const hasSeenWelcome = sessionStorage.getItem(`welcome_seen_${currentUser.uid}`);
+      const fromOnboarding = location.state?.fromOnboarding === true;
+      const isNewSignup = location.state?.newSignup === true;
+      
+      // Only show welcome popup if coming from onboarding, new signup, or first visit in session
+      if (fromOnboarding || isNewSignup || !hasSeenWelcome) {
         setShowWelcomePopup(true);
-      }, 1000);
-
-      return () => clearTimeout(timer);
+        // Mark as seen for this session
+        sessionStorage.setItem(`welcome_seen_${currentUser.uid}`, 'true');
+      }
     }
-  }, [isLoading, currentUser]);
+  }, [isLoading, currentUser, location.state]);
 
   // Auto-hide welcome popup
   useEffect(() => {
