@@ -16,6 +16,7 @@ import Rewards from "./pages/Rewards";
 import Support from "./pages/Support";
 import Settings from "./pages/Settings";
 import AllSessions from "./pages/AllSessions";
+import MindGame from "./pages/MindGame";
 import NotFound from "./pages/NotFound";
 import Navigation from "./pages/Navigation";
 
@@ -30,6 +31,7 @@ const ProtectedRewards = withAuth(Rewards);
 const ProtectedSupport = withAuth(Support);
 const ProtectedSettings = withAuth(Settings);
 const ProtectedAllSessions = withAuth(AllSessions);
+const ProtectedMindGame = withAuth(MindGame);
 
 // Component to handle conditional navigation rendering
 const AppContent = () => {
@@ -52,6 +54,7 @@ const AppContent = () => {
         <Route path="/support" element={<ProtectedSupport />} />
         <Route path="/settings" element={<ProtectedSettings />} />
         <Route path="/sessions" element={<ProtectedAllSessions />} />
+        <Route path="/mind-games" element={<ProtectedMindGame />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>

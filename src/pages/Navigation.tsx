@@ -12,7 +12,8 @@ import {
   BarChart,
   Settings,
   Gift,
-  HelpCircle } from 'lucide-react';
+  HelpCircle,
+  Gamepad2 } from 'lucide-react';
 import { useAuth } from '@/services/firebaseAuth';
 import { signOut } from '@/lib/firebase';
 import { useToast } from '@/components/ui/use-toast';
@@ -52,8 +53,9 @@ const Navigation = () => {
   };
 
   const menuItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: <BarChart className="w-5 h-5" /> },
-    { name: 'Chat', path: '/conversation/default', icon: <MessageSquare className="w-5 h-5" /> }
+    { name: 'Dashboard', path: '/dashboard', icon: <Home className="w-5 h-5" /> },
+    { name: 'Chat', path: '/conversation/psychiatrist', icon: <MessageSquare className="w-5 h-5" /> },
+    { name: 'Mind Games', path: '/mind-games', icon: <Gamepad2 className="w-5 h-5" /> }
   ];
 
   return (

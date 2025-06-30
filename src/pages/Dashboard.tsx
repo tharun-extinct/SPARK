@@ -24,7 +24,8 @@ import {
   LineChart,
   PieChart,
   RefreshCw,
-  ChevronRight
+  ChevronRight,
+  Gamepad2
 } from "lucide-react";
 import { useAuth } from "@/services/firebaseAuth";
 import { 
@@ -589,7 +590,7 @@ const Dashboard = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <Button 
                         onClick={() => navigate("/conversation/psychiatrist")}
                         className="h-24 flex flex-col items-center justify-center space-y-2 bg-gradient-to-br from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
@@ -610,6 +611,13 @@ const Dashboard = () => {
                       >
                         <Activity className="w-6 h-6" />
                         <span>Wellness Check</span>
+                      </Button>
+                      <Button 
+                        onClick={() => navigate("/mind-games")}
+                        className="h-24 flex flex-col items-center justify-center space-y-2 bg-gradient-to-br from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-white"
+                      >
+                        <Gamepad2 className="w-6 h-6" />
+                        <span>Mind Games</span>
                       </Button>
                     </div>
                   </CardContent>
