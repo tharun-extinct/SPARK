@@ -48,7 +48,7 @@ const Conversation = () => {
   } = useTranscription();
 
   const agentInfo = {
-    psychiatrist: {
+    doctor: {
       name: "Dr. Anna",
       context: "You are a helpful virtual doctor called Dr. Anna giving mental health advice. Be empathetic and supportive.",
       avatar: "👩‍⚕️",
@@ -64,7 +64,7 @@ const Conversation = () => {
       replicaId: "rc2146c13e81",
       personaId: "peebe852d86b"
     },
-    doctor: {
+    psychiatrist: {
       name: "Dr. James",
       context: "You are a helpful virtual wellness coach called Dr. James providing physical health and wellness advice.",
       avatar: "👨‍⚕️",
