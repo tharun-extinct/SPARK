@@ -78,6 +78,7 @@ const MindGame = () => {
     const [gameCompleted, setGameCompleted] = useState(false);
     const [time, setTime] = useState(0);
     const [difficulty, setDifficulty] = useState('medium');
+    const [isProcessing, setIsProcessing] = useState(false); // Add processing state to prevent multiple flips
     const timerRef = useRef<NodeJS.Timeout | null>(null);
 
     const difficulties = {
@@ -105,9 +106,11 @@ const MindGame = () => {
       setTime(0);
       setGameStarted(false);
       setGameCompleted(false);
+      setIsProcessing(false);
       
       if (timerRef.current) {
         clearInterval(timerRef.current);
+        timerRef.current = null;
       }
     };
 
@@ -119,14 +122,17 @@ const MindGame = () => {
     };
 
     const handleCardClick = (cardId: number) => {
+      // Don't allow clicks if we're processing a match/mismatch or if the card is already flipped/matched
+      if (isProcessing || flippedCards.length === 2) return;
+      if (flippedCards.includes(cardId)) return;
+      if (cards[cardId].isMatched) return;
+
+      // Start the game on first card click
       if (!gameStarted) {
         startGame();
       }
 
-      if (flippedCards.length === 2) return;
-      if (flippedCards.includes(cardId)) return;
-      if (cards[cardId].isMatched) return;
-
+      // Add this card to flipped cards
       const newFlippedCards = [...flippedCards, cardId];
       setFlippedCards(newFlippedCards);
 
@@ -135,8 +141,10 @@ const MindGame = () => {
         card.id === cardId ? { ...card, isFlipped: true } : card
       ));
 
+      // If this is the second card flipped, check for a match
       if (newFlippedCards.length === 2) {
         setMoves(prev => prev + 1);
+        setIsProcessing(true); // Prevent further card flips during processing
         
         const [firstCard, secondCard] = newFlippedCards;
         if (cards[firstCard].value === cards[secondCard].value) {
@@ -147,20 +155,24 @@ const MindGame = () => {
                 ? { ...card, isMatched: true, isFlipped: true }
                 : card
             ));
-            setMatches(prev => prev + 1);
-            setFlippedCards([]);
-            
-            // Check if game is completed
-            if (matches + 1 === difficulties[difficulty as keyof typeof difficulties].pairs) {
-              setGameCompleted(true);
-              if (timerRef.current) {
-                clearInterval(timerRef.current);
+            setMatches(prev => {
+              const newMatches = prev + 1;
+              // Check if game is completed
+              if (newMatches === difficulties[difficulty as keyof typeof difficulties].pairs) {
+                setGameCompleted(true);
+                if (timerRef.current) {
+                  clearInterval(timerRef.current);
+                  timerRef.current = null;
+                }
+                toast({
+                  title: "Congratulations! 🎉",
+                  description: `You completed the game in ${moves + 1} moves and ${Math.floor(time / 60)}:${(time % 60).toString().padStart(2, '0')}!`,
+                });
               }
-              toast({
-                title: "Congratulations! 🎉",
-                description: `You completed the game in ${moves + 1} moves and ${Math.floor(time / 60)}:${(time % 60).toString().padStart(2, '0')}!`,
-              });
-            }
+              return newMatches;
+            });
+            setFlippedCards([]);
+            setIsProcessing(false); // Allow card flips again
           }, 500);
         } else {
           // No match
@@ -171,6 +183,7 @@ const MindGame = () => {
                 : card
             ));
             setFlippedCards([]);
+            setIsProcessing(false); // Allow card flips again
           }, 1000);
         }
       }
@@ -187,6 +200,7 @@ const MindGame = () => {
       return () => {
         if (timerRef.current) {
           clearInterval(timerRef.current);
+          timerRef.current = null;
         }
       };
     }, [difficulty]);
@@ -246,44 +260,37 @@ const MindGame = () => {
         <div 
           className={`grid gap-3 mx-auto max-w-2xl`}
           style={{ 
-            gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
+            gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`,
             aspectRatio: gridCols === 3 ? '3/4' : '1/1'
           }}
         >
           {cards.map((card) => (
             <div
               key={card.id}
-              onClick={() => handleCardClick(card.id)}
+              onClick={() => !isProcessing && handleCardClick(card.id)}
               className={`
                 relative aspect-square cursor-pointer transition-all duration-300 transform hover:scale-105
                 ${card.isMatched ? 'opacity-75' : ''}
-                ${flippedCards.includes(card.id) ? 'pointer-events-none' : ''}
+                ${isProcessing ? 'pointer-events-none' : ''}
               `}
             >
               <div className={`
-                w-full h-full rounded-xl border-2 transition-all duration-500 transform-style-preserve-3d
+                absolute inset-0 w-full h-full rounded-xl border-2 shadow-md
                 ${card.isFlipped || card.isMatched 
-                  ? 'rotate-y-180 bg-gradient-to-br from-green-400 to-blue-500 border-green-300' 
+                  ? 'bg-gradient-to-br from-green-400 to-blue-500 border-green-300' 
                   : 'bg-gradient-to-br from-slate-200 to-slate-300 border-slate-300 hover:from-slate-300 hover:to-slate-400'
                 }
                 ${card.isMatched ? 'ring-2 ring-green-400 ring-opacity-50' : ''}
               `}>
-                {/* Card Back */}
-                <div className={`
-                  absolute inset-0 w-full h-full rounded-xl flex items-center justify-center backface-hidden
-                  ${card.isFlipped || card.isMatched ? 'opacity-0' : 'opacity-100'}
-                `}>
-                  <div className="w-8 h-8 bg-gradient-to-br from-primary to-purple-600 rounded-lg flex items-center justify-center">
-                    <Sparkles className="w-5 h-5 text-white" />
-                  </div>
-                </div>
-                
-                {/* Card Front */}
-                <div className={`
-                  absolute inset-0 w-full h-full rounded-xl flex items-center justify-center backface-hidden rotate-y-180
-                  ${card.isFlipped || card.isMatched ? 'opacity-100' : 'opacity-0'}
-                `}>
-                  <span className="text-3xl sm:text-4xl">{card.value}</span>
+                {/* Card content */}
+                <div className="absolute inset-0 w-full h-full flex items-center justify-center">
+                  {card.isFlipped || card.isMatched ? (
+                    <span className="text-3xl sm:text-4xl">{card.value}</span>
+                  ) : (
+                    <div className="w-8 h-8 bg-gradient-to-br from-primary to-purple-600 rounded-lg flex items-center justify-center">
+                      <Sparkles className="w-5 h-5 text-white" />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

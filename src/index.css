@@ -116,6 +116,16 @@
   transform: rotateY(180deg);
 }
 
+/* Preserve 3D for card flipping */
+.transform-style-preserve-3d {
+  transform-style: preserve-3d;
+}
+
+/* Hide backface of elements */
+.backface-hidden {
+  backface-visibility: hidden;
+}
+
 /* Shake animation for Focus Flow game */
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
