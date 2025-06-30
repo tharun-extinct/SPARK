@@ -1,1198 +1,881 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
+  SelectValue,
+} from '@/components/ui/select';
 import { 
-  ArrowLeft, 
   Brain, 
-  Trophy, 
-  Star, 
-  Clock, 
   Target, 
   Zap, 
-  Heart, 
-  Sparkles,
+  Trophy, 
+  RotateCcw, 
+  Play, 
+  Pause, 
   RefreshCw,
-  Check,
-  X,
+  Timer,
+  Star,
+  Award,
+  CheckCircle,
+  Lightbulb,
   Gamepad2,
-  Flower,
-  Leaf,
-  Sun
+  Sparkles,
+  Heart,
+  Clock,
+  TrendingUp
 } from 'lucide-react';
-import { useAuth } from '@/services/firebaseAuth';
 import { useToast } from '@/components/ui/use-toast';
 
-// Memory Game Component
-const MemoryGame = () => {
+const MindGame = () => {
   const { toast } = useToast();
-  const [cards, setCards] = useState<Array<{id: number, emoji: string, flipped: boolean, matched: boolean}>>([]);
-  const [flippedCards, setFlippedCards] = useState<number[]>([]);
-  const [matchedPairs, setMatchedPairs] = useState<number>(0);
-  const [moves, setMoves] = useState<number>(0);
-  const [gameStarted, setGameStarted] = useState<boolean>(false);
-  const [gameCompleted, setGameCompleted] = useState<boolean>(false);
-  const [timer, setTimer] = useState<number>(0);
-  const [difficulty, setDifficulty] = useState<string>('medium');
-  const [bestScore, setBestScore] = useState<{easy: number, medium: number, hard: number}>({
-    easy: Infinity,
-    medium: Infinity,
-    hard: Infinity
-  });
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [activeGame, setActiveGame] = useState('memory');
+  const [visibleElements, setVisibleElements] = useState(new Set());
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
-  // Emoji sets for different difficulties
-  const emojiSets = {
-    easy: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊'],
-    medium: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼'],
-    hard: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮']
-  };
-
-  // Initialize game
-  const initializeGame = () => {
-    const emojis = emojiSets[difficulty as keyof typeof emojiSets];
-    let gameCards = [...emojis, ...emojis]
-      .map((emoji, index) => ({
-        id: index,
-        emoji,
-        flipped: false,
-        matched: false
-      }))
-      .sort(() => Math.random() - 0.5);
-    
-    setCards(gameCards);
-    setFlippedCards([]);
-    setMatchedPairs(0);
-    setMoves(0);
-    setTimer(0);
-    setGameStarted(false);
-    setGameCompleted(false);
-    setIsProcessing(false);
-    
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  };
-
-  // Start game timer
-  const startTimer = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-    
-    timerRef.current = setInterval(() => {
-      setTimer(prev => prev + 1);
-    }, 1000);
-  };
-
-  // Handle card click
-  const handleCardClick = (id: number) => {
-    // Prevent clicks during processing
-    if (isProcessing) return;
-    
-    // Start game on first card click
-    if (!gameStarted) {
-      setGameStarted(true);
-      startTimer();
-    }
-    
-    // Ignore click if card is already flipped or matched
-    if (cards[id].flipped || cards[id].matched) return;
-    
-    // Ignore if two cards are already flipped
-    if (flippedCards.length === 2) return;
-    
-    // Flip the card
-    const newCards = [...cards];
-    newCards[id].flipped = true;
-    setCards(newCards);
-    
-    // Add to flipped cards
-    const newFlippedCards = [...flippedCards, id];
-    setFlippedCards(newFlippedCards);
-    
-    // Check for match if two cards are flipped
-    if (newFlippedCards.length === 2) {
-      setMoves(prev => prev + 1);
-      setIsProcessing(true);
-      
-      const [firstId, secondId] = newFlippedCards;
-      if (cards[firstId].emoji === cards[secondId].emoji) {
-        // Match found
-        setTimeout(() => {
-          const matchedCards = [...cards];
-          matchedCards[firstId].matched = true;
-          matchedCards[secondId].matched = true;
-          setCards(matchedCards);
-          setFlippedCards([]);
-          setMatchedPairs(prev => prev + 1);
-          setIsProcessing(false);
-          
-          // Check if game is completed
-          const totalPairs = matchedCards.length / 2;
-          if (matchedPairs + 1 === totalPairs) {
-            setGameCompleted(true);
-            if (timerRef.current) {
-              clearInterval(timerRef.current);
-              timerRef.current = null;
-            }
-            
-            // Update best score
-            if (moves + 1 < bestScore[difficulty as keyof typeof bestScore]) {
-              const newBestScore = {...bestScore};
-              newBestScore[difficulty as keyof typeof bestScore] = moves + 1;
-              setBestScore(newBestScore);
-              
-              toast({
-                title: "New Best Score!",
-                description: `You've set a new record for ${difficulty} difficulty: ${moves + 1} moves.`,
-              });
-            }
-          }
-        }, 500);
-      } else {
-        // No match
-        setTimeout(() => {
-          const unflippedCards = [...cards];
-          unflippedCards[firstId].flipped = false;
-          unflippedCards[secondId].flipped = false;
-          setCards(unflippedCards);
-          setFlippedCards([]);
-          setIsProcessing(false);
-        }, 1000);
-      }
-    }
-  };
-
-  // Change difficulty
-  const changeDifficulty = (newDifficulty: string) => {
-    setDifficulty(newDifficulty);
-    initializeGame();
-  };
-
-  // Initialize game on mount and when difficulty changes
+  // Intersection Observer for animations
   useEffect(() => {
-    initializeGame();
-    
-    // Load best scores from localStorage
-    const savedScores = localStorage.getItem('memoryGameBestScores');
-    if (savedScores) {
-      setBestScore(JSON.parse(savedScores));
-    }
-    
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setVisibleElements(prev => new Set(prev).add(entry.target.id));
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '50px' }
+    );
+
+    const animatedElements = document.querySelectorAll('[data-animate]');
+    animatedElements.forEach(el => {
+      if (observerRef.current) {
+        observerRef.current.observe(el);
+      }
+    });
+
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
+      if (observerRef.current) {
+        observerRef.current.disconnect();
       }
     };
-  }, [difficulty]);
-
-  // Save best scores to localStorage when they change
-  useEffect(() => {
-    localStorage.setItem('memoryGameBestScores', JSON.stringify(bestScore));
-  }, [bestScore]);
-
-  // Format time
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
-  };
-
-  // Get grid columns based on difficulty
-  const getGridColumns = () => {
-    if (difficulty === 'easy') return 'grid-cols-3 sm:grid-cols-4';
-    if (difficulty === 'medium') return 'grid-cols-4';
-    return 'grid-cols-4 sm:grid-cols-6';
-  };
-
-  return (
-    <div className="space-y-4">
-      {/* Game Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-xl font-bold">Memory Mosaic</h2>
-          <p className="text-muted-foreground">Match pairs of cards to test your memory</p>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Select value={difficulty} onValueChange={changeDifficulty}>
-            <SelectTrigger className="w-[120px]">
-              <SelectValue placeholder="Difficulty" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="easy">Easy</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="hard">Hard</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          <Button 
-            variant="outline" 
-            size="icon" 
-            onClick={initializeGame}
-            title="Restart Game"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-      
-      {/* Game Stats */}
-      <div className="grid grid-cols-3 gap-2">
-        <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="p-3 text-center">
-            <div className="text-sm text-blue-600 font-medium">Moves</div>
-            <div className="text-2xl font-bold text-blue-700">{moves}</div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-green-50 border-green-200">
-          <CardContent className="p-3 text-center">
-            <div className="text-sm text-green-600 font-medium">Pairs</div>
-            <div className="text-2xl font-bold text-green-700">{matchedPairs}/{cards.length / 2}</div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-purple-50 border-purple-200">
-          <CardContent className="p-3 text-center">
-            <div className="text-sm text-purple-600 font-medium">Time</div>
-            <div className="text-2xl font-bold text-purple-700">{formatTime(timer)}</div>
-          </CardContent>
-        </Card>
-      </div>
-      
-      {/* Game Board */}
-      <div className={`grid gap-2 ${getGridColumns()}`}>
-        {cards.map((card) => (
-          <div 
-            key={card.id}
-            className={`aspect-square bg-white rounded-lg border-2 cursor-pointer transition-all duration-300 ${
-              card.matched ? 'border-green-300 bg-green-50' : 'border-gray-200 hover:border-primary/50'
-            }`}
-            onClick={() => handleCardClick(card.id)}
-          >
-            <div className="h-full w-full flex items-center justify-center text-3xl sm:text-4xl">
-              {(card.flipped || card.matched) ? (
-                <div>{card.emoji}</div>
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-indigo-100 to-purple-100 rounded-md"></div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-      
-      {/* Game Completion */}
-      {gameCompleted && (
-        <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
-          <CardContent className="p-4 text-center">
-            <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-2">
-              <Trophy className="h-6 w-6 text-white" />
-            </div>
-            <h3 className="text-xl font-bold text-green-800 mb-1">Congratulations!</h3>
-            <p className="text-green-700 mb-3">You completed the game in {moves} moves and {formatTime(timer)}.</p>
-            <div className="flex justify-center gap-2">
-              <Button 
-                variant="outline" 
-                onClick={initializeGame}
-                className="border-green-300 text-green-700 hover:bg-green-100"
-              >
-                Play Again
-              </Button>
-              <Button 
-                onClick={() => changeDifficulty(
-                  difficulty === 'easy' ? 'medium' : 
-                  difficulty === 'medium' ? 'hard' : 'easy'
-                )}
-                className="bg-gradient-to-r from-green-500 to-emerald-600 text-white"
-              >
-                {difficulty === 'easy' ? 'Try Medium' : 
-                 difficulty === 'medium' ? 'Try Hard' : 'Try Easy'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-      
-      {/* Game Info */}
-      <Card>
-        <CardContent className="p-4 text-sm text-muted-foreground">
-          <h3 className="font-medium text-foreground mb-2">Benefits of Memory Games:</h3>
-          <ul className="list-disc pl-5 space-y-1">
-            <li>Improves concentration and attention to detail</li>
-            <li>Enhances short-term memory and recall</li>
-            <li>Reduces stress and provides mental relaxation</li>
-            <li>Helps maintain cognitive function as we age</li>
-          </ul>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
-
-// Focus Flow Game Component
-const FocusFlowGame = () => {
-  const { toast } = useToast();
-  const [gameStarted, setGameStarted] = useState(false);
-  const [gameCompleted, setGameCompleted] = useState(false);
-  const [level, setLevel] = useState(1);
-  const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(30);
-  const [grid, setGrid] = useState<string[][]>([]);
-  const [targetEmoji, setTargetEmoji] = useState('');
-  const [found, setFound] = useState(0);
-  const [total, setTotal] = useState(0);
-  const [highScore, setHighScore] = useState(0);
-  const [difficulty, setDifficulty] = useState('medium');
-  const [shake, setShake] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Emoji sets
-  const emojiSets = [
-    // Level 1-3
-    ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼'],
-    // Level 4-6
-    ['🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈', '🍒', '🍑'],
-    // Level 7-9
-    ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃'],
-    // Level 10+
-    ['🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐', '🛻', '🚚', '🚛', '🚜', '🛵', '🏍️', '🛺', '🚲']
-  ];
-
-  // Initialize game
-  const initializeGame = () => {
-    // Load high score from localStorage
-    const savedHighScore = localStorage.getItem('focusFlowHighScore');
-    if (savedHighScore) {
-      setHighScore(parseInt(savedHighScore));
-    }
-    
-    setGameStarted(false);
-    setGameCompleted(false);
-    setLevel(1);
-    setScore(0);
-    setTimeLeft(getDifficultyTime());
-    
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  };
-
-  // Get time based on difficulty
-  const getDifficultyTime = () => {
-    switch (difficulty) {
-      case 'easy': return 45;
-      case 'hard': return 20;
-      default: return 30; // medium
-    }
-  };
-
-  // Get grid size based on level
-  const getGridSize = () => {
-    if (level <= 3) return 4;
-    if (level <= 6) return 5;
-    if (level <= 9) return 6;
-    return 7;
-  };
-
-  // Get number of targets based on level
-  const getTargetCount = () => {
-    return Math.min(5, Math.max(1, Math.floor(level / 2)));
-  };
-
-  // Generate game grid
-  const generateGrid = () => {
-    const gridSize = getGridSize();
-    const targetCount = getTargetCount();
-    
-    // Select emoji set based on level
-    const emojiSetIndex = Math.min(Math.floor(level / 4), emojiSets.length - 1);
-    const currentEmojiSet = emojiSets[emojiSetIndex];
-    
-    // Select target emoji
-    const newTargetEmoji = currentEmojiSet[Math.floor(Math.random() * currentEmojiSet.length)];
-    setTargetEmoji(newTargetEmoji);
-    
-    // Generate grid
-    const newGrid: string[][] = [];
-    let targetPositions: number[] = [];
-    
-    // Place targets
-    for (let i = 0; i < targetCount; i++) {
-      let position;
-      do {
-        position = Math.floor(Math.random() * (gridSize * gridSize));
-      } while (targetPositions.includes(position));
-      targetPositions.push(position);
-    }
-    
-    setTotal(targetCount);
-    setFound(0);
-    
-    // Fill grid
-    let cellIndex = 0;
-    for (let i = 0; i < gridSize; i++) {
-      const row: string[] = [];
-      for (let j = 0; j < gridSize; j++) {
-        if (targetPositions.includes(cellIndex)) {
-          row.push(newTargetEmoji);
-        } else {
-          // Select a different emoji for distractors
-          let distractorEmoji;
-          do {
-            distractorEmoji = currentEmojiSet[Math.floor(Math.random() * currentEmojiSet.length)];
-          } while (distractorEmoji === newTargetEmoji);
-          row.push(distractorEmoji);
-        }
-        cellIndex++;
-      }
-      newGrid.push(row);
-    }
-    
-    setGrid(newGrid);
-  };
-
-  // Start game
-  const startGame = () => {
-    generateGrid();
-    setGameStarted(true);
-    setTimeLeft(getDifficultyTime());
-    
-    // Start timer
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-    
-    timerRef.current = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          // Time's up
-          if (timerRef.current) {
-            clearInterval(timerRef.current);
-            timerRef.current = null;
-          }
-          endGame();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-
-  // End game
-  const endGame = () => {
-    setGameCompleted(true);
-    
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    
-    // Update high score
-    if (score > highScore) {
-      setHighScore(score);
-      localStorage.setItem('focusFlowHighScore', score.toString());
-      
-      toast({
-        title: "New High Score!",
-        description: `You've set a new record: ${score} points.`,
-      });
-    }
-  };
-
-  // Handle cell click
-  const handleCellClick = (rowIndex: number, colIndex: number) => {
-    if (!gameStarted || gameCompleted) return;
-    
-    const clickedEmoji = grid[rowIndex][colIndex];
-    
-    if (clickedEmoji === targetEmoji) {
-      // Correct click
-      const newGrid = [...grid];
-      newGrid[rowIndex][colIndex] = '✓';
-      setGrid(newGrid);
-      
-      setFound(prev => {
-        const newFound = prev + 1;
-        
-        // Add points
-        setScore(prevScore => prevScore + (10 * level));
-        
-        // Check if all targets found
-        if (newFound >= total) {
-          // Level completed
-          setTimeout(() => {
-            setLevel(prevLevel => prevLevel + 1);
-            generateGrid();
-            
-            // Add time bonus
-            setTimeLeft(prev => prev + 5);
-            
-            toast({
-              title: "Level Up!",
-              description: `Level ${level} completed! +5 seconds bonus.`,
-            });
-          }, 500);
-        }
-        
-        return newFound;
-      });
-    } else {
-      // Wrong click
-      setShake(true);
-      setTimeout(() => setShake(false), 500);
-      
-      // Penalty
-      setTimeLeft(prev => Math.max(1, prev - 2));
-      
-      toast({
-        title: "Wrong!",
-        description: "That's not the target emoji. -2 seconds penalty.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Change difficulty
-  const changeDifficulty = (newDifficulty: string) => {
-    setDifficulty(newDifficulty);
-    initializeGame();
-  };
-
-  // Initialize on mount
-  useEffect(() => {
-    initializeGame();
-    
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, [difficulty]);
-
-  return (
-    <div className="space-y-4">
-      {/* Game Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-xl font-bold">Focus Flow</h2>
-          <p className="text-muted-foreground">Find all the target emojis before time runs out</p>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Select value={difficulty} onValueChange={changeDifficulty}>
-            <SelectTrigger className="w-[120px]">
-              <SelectValue placeholder="Difficulty" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="easy">Easy</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="hard">Hard</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          <Button 
-            variant="outline" 
-            size="icon" 
-            onClick={initializeGame}
-            title="Restart Game"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-      
-      {/* Game Stats */}
-      <div className="grid grid-cols-4 gap-2">
-        <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="p-3 text-center">
-            <div className="text-sm text-blue-600 font-medium">Level</div>
-            <div className="text-2xl font-bold text-blue-700">{level}</div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-green-50 border-green-200">
-          <CardContent className="p-3 text-center">
-            <div className="text-sm text-green-600 font-medium">Score</div>
-            <div className="text-2xl font-bold text-green-700">{score}</div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-purple-50 border-purple-200">
-          <CardContent className="p-3 text-center">
-            <div className="text-sm text-purple-600 font-medium">Found</div>
-            <div className="text-2xl font-bold text-purple-700">{found}/{total}</div>
-          </CardContent>
-        </Card>
-        
-        <Card className={`${timeLeft <= 5 ? 'bg-red-50 border-red-200' : 'bg-orange-50 border-orange-200'}`}>
-          <CardContent className="p-3 text-center">
-            <div className={`text-sm ${timeLeft <= 5 ? 'text-red-600' : 'text-orange-600'} font-medium`}>Time</div>
-            <div className={`text-2xl font-bold ${timeLeft <= 5 ? 'text-red-700' : 'text-orange-700'}`}>{timeLeft}s</div>
-          </CardContent>
-        </Card>
-      </div>
-      
-      {/* Game Board */}
-      {!gameStarted && !gameCompleted ? (
-        <Card className="bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200">
-          <CardContent className="p-6 text-center">
-            <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Target className="h-8 w-8 text-white" />
-            </div>
-            <h3 className="text-xl font-bold text-indigo-800 mb-2">Ready to Focus?</h3>
-            <p className="text-indigo-700 mb-6">Find all instances of the target emoji as quickly as possible!</p>
-            <Button 
-              onClick={startGame}
-              className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white"
-            >
-              Start Game
-            </Button>
-          </CardContent>
-        </Card>
-      ) : gameCompleted ? (
-        <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
-          <CardContent className="p-6 text-center">
-            <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Trophy className="h-8 w-8 text-white" />
-            </div>
-            <h3 className="text-xl font-bold text-green-800 mb-2">Game Over!</h3>
-            <p className="text-green-700 mb-2">You reached level {level} and scored {score} points.</p>
-            <p className="text-green-600 mb-6">High Score: {highScore}</p>
-            <div className="flex justify-center gap-2">
-              <Button 
-                variant="outline" 
-                onClick={initializeGame}
-                className="border-green-300 text-green-700 hover:bg-green-100"
-              >
-                Play Again
-              </Button>
-              <Button 
-                onClick={() => changeDifficulty(
-                  difficulty === 'easy' ? 'medium' : 
-                  difficulty === 'medium' ? 'hard' : 'easy'
-                )}
-                className="bg-gradient-to-r from-green-500 to-emerald-600 text-white"
-              >
-                {difficulty === 'easy' ? 'Try Medium' : 
-                 difficulty === 'medium' ? 'Try Hard' : 'Try Easy'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className={`space-y-4 ${shake ? 'animate-shake' : ''}`}>
-          <div className="flex justify-center items-center gap-2 p-2 bg-gradient-to-r from-indigo-100 to-purple-100 rounded-lg">
-            <div className="text-center">
-              <p className="text-sm font-medium text-indigo-800">Find all</p>
-              <div className="text-4xl">{targetEmoji}</div>
-            </div>
-          </div>
-          
-          <div className={`grid gap-2 grid-cols-${getGridSize()}`}>
-            {grid.map((row, rowIndex) => (
-              <React.Fragment key={rowIndex}>
-                {row.map((cell, colIndex) => (
-                  <div 
-                    key={`${rowIndex}-${colIndex}`}
-                    className={`aspect-square bg-white rounded-lg border-2 cursor-pointer flex items-center justify-center text-2xl sm:text-3xl ${
-                      cell === '✓' ? 'border-green-300 bg-green-50 text-green-600' : 'border-gray-200 hover:border-primary/50'
-                    }`}
-                    onClick={() => handleCellClick(rowIndex, colIndex)}
-                  >
-                    {cell}
-                  </div>
-                ))}
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
-      )}
-      
-      {/* Game Info */}
-      <Card>
-        <CardContent className="p-4 text-sm text-muted-foreground">
-          <h3 className="font-medium text-foreground mb-2">Benefits of Focus Games:</h3>
-          <ul className="list-disc pl-5 space-y-1">
-            <li>Improves attention span and concentration</li>
-            <li>Enhances visual processing and search skills</li>
-            <li>Reduces distractibility in everyday tasks</li>
-            <li>Helps with ADHD symptoms and cognitive training</li>
-          </ul>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
-
-// Gratitude Garden Component
-const GratitudeGarden = () => {
-  const { currentUser } = useAuth();
-  const { toast } = useToast();
-  const [gratitudeText, setGratitudeText] = useState('');
-  const [gratitudeEntries, setGratitudeEntries] = useState<Array<{id: string, text: string, date: Date}>>([]);
-  const [gardenLevel, setGardenLevel] = useState(1);
-  const [streak, setStreak] = useState(0);
-  const [lastEntryDate, setLastEntryDate] = useState<string | null>(null);
-  
-  // Load saved entries on mount
-  useEffect(() => {
-    const savedEntries = localStorage.getItem('gratitudeEntries');
-    if (savedEntries) {
-      const parsedEntries = JSON.parse(savedEntries);
-      // Convert string dates back to Date objects
-      const entriesWithDates = parsedEntries.map((entry: any) => ({
-        ...entry,
-        date: new Date(entry.date)
-      }));
-      setGratitudeEntries(entriesWithDates);
-      
-      // Calculate garden level based on number of entries
-      setGardenLevel(Math.min(5, Math.max(1, Math.floor(entriesWithDates.length / 5) + 1)));
-    }
-    
-    // Load streak data
-    const savedStreak = localStorage.getItem('gratitudeStreak');
-    const savedLastEntry = localStorage.getItem('gratitudeLastEntry');
-    
-    if (savedStreak) {
-      setStreak(parseInt(savedStreak));
-    }
-    
-    if (savedLastEntry) {
-      setLastEntryDate(savedLastEntry);
-      
-      // Check if streak is still valid
-      const today = new Date().toISOString().split('T')[0];
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0];
-      
-      if (savedLastEntry !== today && savedLastEntry !== yesterdayStr) {
-        // Streak broken
-        setStreak(0);
-        localStorage.setItem('gratitudeStreak', '0');
-      }
-    }
   }, []);
 
-  // Add new gratitude entry
-  const addGratitudeEntry = () => {
-    if (!gratitudeText.trim()) {
-      toast({
-        title: "Empty Entry",
-        description: "Please enter something you're grateful for.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-    
-    // Check if already added entry today
-    if (lastEntryDate === todayStr) {
-      toast({
-        title: "Entry Already Added",
-        description: "You've already added a gratitude entry today. Come back tomorrow!",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Create new entry
-    const newEntry = {
-      id: Date.now().toString(),
-      text: gratitudeText,
-      date: today
+  const isVisible = (id: string) => visibleElements.has(id);
+
+  // Memory Game Component
+  const MemoryGame = () => {
+    const [cards, setCards] = useState<Array<{id: number, value: string, isFlipped: boolean, isMatched: boolean}>>([]);
+    const [flippedCards, setFlippedCards] = useState<number[]>([]);
+    const [moves, setMoves] = useState(0);
+    const [matches, setMatches] = useState(0);
+    const [gameStarted, setGameStarted] = useState(false);
+    const [gameCompleted, setGameCompleted] = useState(false);
+    const [time, setTime] = useState(0);
+    const [difficulty, setDifficulty] = useState('medium');
+    const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+    const difficulties = {
+      easy: { pairs: 6, gridCols: 3 },
+      medium: { pairs: 8, gridCols: 4 },
+      hard: { pairs: 12, gridCols: 4 }
     };
-    
-    // Update entries
-    const updatedEntries = [newEntry, ...gratitudeEntries];
-    setGratitudeEntries(updatedEntries);
-    localStorage.setItem('gratitudeEntries', JSON.stringify(updatedEntries));
-    
-    // Update garden level
-    const newLevel = Math.min(5, Math.max(1, Math.floor(updatedEntries.length / 5) + 1));
-    setGardenLevel(newLevel);
-    
-    // Update streak
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
-    
-    let newStreak = streak;
-    if (lastEntryDate === yesterdayStr || lastEntryDate === null) {
-      // Continuing streak or first entry
-      newStreak = streak + 1;
-    } else if (lastEntryDate !== todayStr) {
-      // Broken streak, starting new
-      newStreak = 1;
-    }
-    
-    setStreak(newStreak);
-    setLastEntryDate(todayStr);
-    localStorage.setItem('gratitudeStreak', newStreak.toString());
-    localStorage.setItem('gratitudeLastEntry', todayStr);
-    
-    // Clear input
-    setGratitudeText('');
-    
-    // Show success message
-    toast({
-      title: "Gratitude Added",
-      description: "Your garden is growing with positivity!",
-    });
-    
-    // Show level up message if applicable
-    if (newLevel > gardenLevel) {
-      toast({
-        title: "Garden Level Up!",
-        description: `Your garden has reached level ${newLevel}. Keep nurturing it!`,
-      });
-    }
-  };
 
-  // Delete entry
-  const deleteEntry = (id: string) => {
-    const updatedEntries = gratitudeEntries.filter(entry => entry.id !== id);
-    setGratitudeEntries(updatedEntries);
-    localStorage.setItem('gratitudeEntries', JSON.stringify(updatedEntries));
-    
-    // Update garden level
-    setGardenLevel(Math.min(5, Math.max(1, Math.floor(updatedEntries.length / 5) + 1)));
-    
-    toast({
-      title: "Entry Removed",
-      description: "Your gratitude entry has been removed.",
-    });
-  };
+    const emojis = ['🌟', '🎯', '🚀', '💎', '🔥', '⚡', '🌈', '🎨', '🎭', '🎪', '🎸', '🎺', '🎻', '🎹', '🎤', '🎧'];
 
-  // Format date
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString(undefined, { 
-      weekday: 'short', 
-      month: 'short', 
-      day: 'numeric' 
-    });
-  };
-
-  // Get garden elements based on level
-  const getGardenElements = () => {
-    const elements = [];
-    
-    // Add flowers based on level
-    for (let i = 0; i < Math.min(gardenLevel * 2, 10); i++) {
-      elements.push(
-        <div 
-          key={`flower-${i}`}
-          className="absolute transform transition-all duration-500"
-          style={{
-            left: `${10 + (i * 8)}%`,
-            bottom: `${10 + Math.sin(i) * 5}%`,
-            transform: `scale(${0.8 + (i % 3) * 0.2}) rotate(${(i % 2) * 5}deg)`
-          }}
-        >
-          <Flower className={`h-8 w-8 ${
-            i % 3 === 0 ? 'text-pink-500' : 
-            i % 3 === 1 ? 'text-purple-500' : 
-            'text-yellow-500'
-          }`} />
-        </div>
-      );
-    }
-    
-    // Add leaves based on level
-    for (let i = 0; i < Math.min(gardenLevel * 3, 15); i++) {
-      elements.push(
-        <div 
-          key={`leaf-${i}`}
-          className="absolute transform transition-all duration-500"
-          style={{
-            left: `${5 + (i * 6)}%`,
-            bottom: `${5 + Math.cos(i) * 3}%`,
-            transform: `scale(${0.7 + (i % 3) * 0.1}) rotate(${(i % 4) * 90}deg)`
-          }}
-        >
-          <Leaf className="h-6 w-6 text-green-500" />
-        </div>
-      );
-    }
-    
-    // Add sun if level is high enough
-    if (gardenLevel >= 3) {
-      elements.push(
-        <div 
-          key="sun"
-          className="absolute top-4 right-4 transform transition-all duration-500 animate-pulse"
-        >
-          <Sun className="h-10 w-10 text-yellow-500" />
-        </div>
-      );
-    }
-    
-    return elements;
-  };
-
-  return (
-    <div className="space-y-4">
-      {/* Garden Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-xl font-bold">Gratitude Garden</h2>
-          <p className="text-muted-foreground">Grow your garden by practicing daily gratitude</p>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="flex items-center gap-1">
-            <Zap className="h-3.5 w-3.5" />
-            {streak} Day Streak
-          </Badge>
-          
-          <Badge variant="outline" className="flex items-center gap-1">
-            <Star className="h-3.5 w-3.5" />
-            Level {gardenLevel}
-          </Badge>
-        </div>
-      </div>
+    const initializeGame = () => {
+      const { pairs } = difficulties[difficulty as keyof typeof difficulties];
+      const gameEmojis = emojis.slice(0, pairs);
+      const cardPairs = [...gameEmojis, ...gameEmojis];
       
-      {/* Garden Visualization */}
-      <Card className="overflow-hidden">
-        <div className="h-48 bg-gradient-to-b from-blue-100 to-green-100 relative">
-          {getGardenElements()}
-          
-          {/* Ground */}
-          <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-amber-200 to-amber-100"></div>
-        </div>
+      // Shuffle cards
+      const shuffledCards = cardPairs
+        .map((value, index) => ({ id: index, value, isFlipped: false, isMatched: false }))
+        .sort(() => Math.random() - 0.5);
+
+      setCards(shuffledCards);
+      setFlippedCards([]);
+      setMoves(0);
+      setMatches(0);
+      setTime(0);
+      setGameStarted(false);
+      setGameCompleted(false);
+      
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+
+    const startGame = () => {
+      setGameStarted(true);
+      timerRef.current = setInterval(() => {
+        setTime(prev => prev + 1);
+      }, 1000);
+    };
+
+    const handleCardClick = (cardId: number) => {
+      if (!gameStarted) {
+        startGame();
+      }
+
+      if (flippedCards.length === 2) return;
+      if (flippedCards.includes(cardId)) return;
+      if (cards[cardId].isMatched) return;
+
+      const newFlippedCards = [...flippedCards, cardId];
+      setFlippedCards(newFlippedCards);
+
+      // Update card state to show it's flipped
+      setCards(prev => prev.map(card => 
+        card.id === cardId ? { ...card, isFlipped: true } : card
+      ));
+
+      if (newFlippedCards.length === 2) {
+        setMoves(prev => prev + 1);
         
-        <CardContent className="p-4">
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="gratitude" className="block text-sm font-medium mb-1">
-                What are you grateful for today?
-              </label>
-              <div className="flex gap-2">
-                <Textarea
-                  id="gratitude"
-                  placeholder="I'm grateful for..."
-                  value={gratitudeText}
-                  onChange={(e) => setGratitudeText(e.target.value)}
-                  className="flex-1 min-h-[80px]"
-                />
-                <Button 
-                  onClick={addGratitudeEntry}
-                  className="bg-gradient-to-r from-green-500 to-emerald-600 text-white self-end"
-                >
-                  Add
-                </Button>
-              </div>
-              
-              {lastEntryDate === new Date().toISOString().split('T')[0] && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  You've already added an entry today. You can add another one tomorrow!
-                </p>
-              )}
-            </div>
+        const [firstCard, secondCard] = newFlippedCards;
+        if (cards[firstCard].value === cards[secondCard].value) {
+          // Match found
+          setTimeout(() => {
+            setCards(prev => prev.map(card => 
+              newFlippedCards.includes(card.id) 
+                ? { ...card, isMatched: true, isFlipped: true }
+                : card
+            ));
+            setMatches(prev => prev + 1);
+            setFlippedCards([]);
             
-            <div>
-              <h3 className="text-sm font-medium mb-2">Recent Entries</h3>
-              <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2">
-                {gratitudeEntries.length === 0 ? (
-                  <p className="text-sm text-muted-foreground italic">
-                    No entries yet. Start growing your garden by adding what you're grateful for!
-                  </p>
-                ) : (
-                  gratitudeEntries.map(entry => (
-                    <div 
-                      key={entry.id}
-                      className="p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-100 relative group"
-                    >
-                      <p className="text-sm text-green-800">{entry.text}</p>
-                      <p className="text-xs text-green-600 mt-1">{formatDate(entry.date)}</p>
-                      
-                      <button 
-                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => deleteEntry(entry.id)}
-                      >
-                        <X className="h-4 w-4 text-red-500 hover:text-red-700" />
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      
-      {/* Garden Info */}
-      <Card>
-        <CardContent className="p-4 text-sm text-muted-foreground">
-          <h3 className="font-medium text-foreground mb-2">Benefits of Gratitude Practice:</h3>
-          <ul className="list-disc pl-5 space-y-1">
-            <li>Increases positive emotions and life satisfaction</li>
-            <li>Reduces stress and improves mental resilience</li>
-            <li>Enhances empathy and reduces aggression</li>
-            <li>Improves sleep quality and physical health</li>
-          </ul>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
+            // Check if game is completed
+            if (matches + 1 === difficulties[difficulty as keyof typeof difficulties].pairs) {
+              setGameCompleted(true);
+              if (timerRef.current) {
+                clearInterval(timerRef.current);
+              }
+              toast({
+                title: "Congratulations! 🎉",
+                description: `You completed the game in ${moves + 1} moves and ${Math.floor(time / 60)}:${(time % 60).toString().padStart(2, '0')}!`,
+              });
+            }
+          }, 500);
+        } else {
+          // No match
+          setTimeout(() => {
+            setCards(prev => prev.map(card => 
+              newFlippedCards.includes(card.id) 
+                ? { ...card, isFlipped: false }
+                : card
+            ));
+            setFlippedCards([]);
+          }, 1000);
+        }
+      }
+    };
 
-// Main Mind Games Component
-const MindGame = () => {
-  const navigate = useNavigate();
-  const { currentUser } = useAuth();
-  const [activeGame, setActiveGame] = useState('memory');
-  
-  if (!currentUser) {
+    const formatTime = (seconds: number) => {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    useEffect(() => {
+      initializeGame();
+      return () => {
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+        }
+      };
+    }, [difficulty]);
+
+    const { gridCols } = difficulties[difficulty as keyof typeof difficulties];
+
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Mind Games</CardTitle>
-            <CardDescription>Please sign in to access mind games</CardDescription>
-          </CardHeader>
-          <CardFooter>
-            <Button onClick={() => navigate('/login')} className="w-full">Sign In</Button>
-          </CardFooter>
-        </Card>
-      </div>
-    );
-  }
-  
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-4 sm:p-6">
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header */}
+      <div className="space-y-6">
+        {/* Game Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="icon"
-              onClick={() => navigate('/dashboard')}
-              className="bg-white/80 backdrop-blur-sm border border-white/20 hover:bg-white/90"
-            >
-              <ArrowLeft className="h-4 w-4" />
+          <div>
+            <h3 className="text-2xl font-bold">Memory Mosaic</h3>
+            <p className="text-muted-foreground">Match pairs of cards to test your memory</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Select value={difficulty} onValueChange={setDifficulty}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="easy">Easy</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="hard">Hard</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button onClick={initializeGame} variant="outline" size="icon">
+              <RefreshCw className="w-4 h-4" />
             </Button>
-            <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
-                Mind Wellness Games
-              </h1>
-              <p className="text-muted-foreground">
-                Engage your mind with games designed for mental wellness
-              </p>
-            </div>
           </div>
         </div>
-        
-        {/* Game Selection Tabs */}
-        <Tabs value={activeGame} onValueChange={setActiveGame} className="space-y-6">
-          <TabsList className="grid grid-cols-3 bg-white/90 backdrop-blur-sm border border-white/20 shadow-lg">
-            <TabsTrigger 
-              value="memory" 
-              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white"
-            >
-              <Brain className="h-4 w-4" />
-              Memory Mosaic
-            </TabsTrigger>
-            <TabsTrigger 
-              value="focus" 
-              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-600 data-[state=active]:text-white"
-            >
-              <Target className="h-4 w-4" />
-              Focus Flow
-            </TabsTrigger>
-            <TabsTrigger 
-              value="gratitude" 
-              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white"
-            >
-              <Heart className="h-4 w-4" />
-              Gratitude Garden
-            </TabsTrigger>
-          </TabsList>
-          
-          {/* Game Content */}
-          <Card className="bg-white/90 backdrop-blur-sm border border-white/20 shadow-xl">
-            <CardContent className="p-6">
-              <TabsContent value="memory" className="mt-0">
-                <MemoryGame />
-              </TabsContent>
-              
-              <TabsContent value="focus" className="mt-0">
-                <FocusFlowGame />
-              </TabsContent>
-              
-              <TabsContent value="gratitude" className="mt-0">
-                <GratitudeGarden />
-              </TabsContent>
+
+        {/* Game Stats */}
+        <div className="grid grid-cols-3 gap-4">
+          <Card className="bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200">
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-blue-600">{moves}</div>
+              <div className="text-sm text-blue-500">Moves</div>
             </CardContent>
           </Card>
-        </Tabs>
-        
-        {/* Benefits Section */}
-        <Card className="bg-white/90 backdrop-blur-sm border border-white/20 shadow-xl">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              Benefits of Mind Wellness Games
-            </CardTitle>
-            <CardDescription>
-              How these games contribute to your mental wellbeing
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="space-y-2">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                  <Brain className="h-5 w-5 text-white" />
-                </div>
-                <h3 className="font-medium text-lg">Cognitive Benefits</h3>
-                <p className="text-sm text-muted-foreground">
-                  Regular mental exercise helps maintain cognitive function, improves memory, and enhances problem-solving abilities. These games are designed to stimulate different areas of your brain.
-                </p>
+          <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200">
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-green-600">
+                {matches}/{difficulties[difficulty as keyof typeof difficulties].pairs}
               </div>
-              
-              <div className="space-y-2">
-                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
-                  <Heart className="h-5 w-5 text-white" />
+              <div className="text-sm text-green-500">Pairs</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-purple-50 to-indigo-100 border-purple-200">
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-purple-600">{formatTime(time)}</div>
+              <div className="text-sm text-purple-500">Time</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Game Board */}
+        <div 
+          className={`grid gap-3 mx-auto max-w-2xl`}
+          style={{ 
+            gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
+            aspectRatio: gridCols === 3 ? '3/4' : '1/1'
+          }}
+        >
+          {cards.map((card) => (
+            <div
+              key={card.id}
+              onClick={() => handleCardClick(card.id)}
+              className={`
+                relative aspect-square cursor-pointer transition-all duration-300 transform hover:scale-105
+                ${card.isMatched ? 'opacity-75' : ''}
+                ${flippedCards.includes(card.id) ? 'pointer-events-none' : ''}
+              `}
+            >
+              <div className={`
+                w-full h-full rounded-xl border-2 transition-all duration-500 transform-style-preserve-3d
+                ${card.isFlipped || card.isMatched 
+                  ? 'rotate-y-180 bg-gradient-to-br from-green-400 to-blue-500 border-green-300' 
+                  : 'bg-gradient-to-br from-slate-200 to-slate-300 border-slate-300 hover:from-slate-300 hover:to-slate-400'
+                }
+                ${card.isMatched ? 'ring-2 ring-green-400 ring-opacity-50' : ''}
+              `}>
+                {/* Card Back */}
+                <div className={`
+                  absolute inset-0 w-full h-full rounded-xl flex items-center justify-center backface-hidden
+                  ${card.isFlipped || card.isMatched ? 'opacity-0' : 'opacity-100'}
+                `}>
+                  <div className="w-8 h-8 bg-gradient-to-br from-primary to-purple-600 rounded-lg flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 text-white" />
+                  </div>
                 </div>
-                <h3 className="font-medium text-lg">Emotional Benefits</h3>
-                <p className="text-sm text-muted-foreground">
-                  Mindfulness and gratitude practices have been shown to reduce stress, anxiety, and depression while increasing overall life satisfaction and emotional resilience.
-                </p>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
-                  <Zap className="h-5 w-5 text-white" />
+                
+                {/* Card Front */}
+                <div className={`
+                  absolute inset-0 w-full h-full rounded-xl flex items-center justify-center backface-hidden rotate-y-180
+                  ${card.isFlipped || card.isMatched ? 'opacity-100' : 'opacity-0'}
+                `}>
+                  <span className="text-3xl sm:text-4xl">{card.value}</span>
                 </div>
-                <h3 className="font-medium text-lg">Habit Formation</h3>
-                <p className="text-sm text-muted-foreground">
-                  Building a routine of mental wellness activities creates positive habits that contribute to long-term mental health. Just a few minutes each day can make a significant difference.
-                </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          ))}
+        </div>
+
+        {/* Game Completion */}
+        {gameCompleted && (
+          <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200">
+            <CardContent className="p-6 text-center">
+              <Trophy className="w-12 h-12 text-green-600 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-green-800 mb-2">Congratulations!</h3>
+              <p className="text-green-700 mb-4">
+                You completed the {difficulty} level in {moves} moves and {formatTime(time)}!
+              </p>
+              <Button onClick={initializeGame} className="bg-green-600 hover:bg-green-700">
+                Play Again
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  };
+
+  // Focus Training Game Component
+  const FocusGame = () => {
+    const [sequence, setSequence] = useState<number[]>([]);
+    const [userSequence, setUserSequence] = useState<number[]>([]);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [isUserTurn, setIsUserTurn] = useState(false);
+    const [score, setScore] = useState(0);
+    const [gameOver, setGameOver] = useState(false);
+    const [activeButton, setActiveButton] = useState<number | null>(null);
+
+    const colors = [
+      { id: 0, color: 'bg-red-500', activeColor: 'bg-red-300', sound: 'C' },
+      { id: 1, color: 'bg-blue-500', activeColor: 'bg-blue-300', sound: 'D' },
+      { id: 2, color: 'bg-green-500', activeColor: 'bg-green-300', sound: 'E' },
+      { id: 3, color: 'bg-yellow-500', activeColor: 'bg-yellow-300', sound: 'F' },
+    ];
+
+    const startGame = () => {
+      setSequence([]);
+      setUserSequence([]);
+      setScore(0);
+      setGameOver(false);
+      setIsPlaying(true);
+      addToSequence();
+    };
+
+    const addToSequence = () => {
+      const newNumber = Math.floor(Math.random() * 4);
+      const newSequence = [...sequence, newNumber];
+      setSequence(newSequence);
+      playSequence(newSequence);
+    };
+
+    const playSequence = async (seq: number[]) => {
+      setIsUserTurn(false);
+      for (let i = 0; i < seq.length; i++) {
+        await new Promise(resolve => setTimeout(resolve, 600));
+        setActiveButton(seq[i]);
+        await new Promise(resolve => setTimeout(resolve, 400));
+        setActiveButton(null);
+      }
+      setIsUserTurn(true);
+    };
+
+    const handleButtonClick = (buttonId: number) => {
+      if (!isUserTurn || gameOver) return;
+
+      const newUserSequence = [...userSequence, buttonId];
+      setUserSequence(newUserSequence);
+
+      // Check if the user's input is correct
+      if (newUserSequence[newUserSequence.length - 1] !== sequence[newUserSequence.length - 1]) {
+        setGameOver(true);
+        setIsPlaying(false);
+        toast({
+          title: "Game Over!",
+          description: `Your final score: ${score}`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check if the user completed the sequence
+      if (newUserSequence.length === sequence.length) {
+        setScore(score + 1);
+        setUserSequence([]);
+        setTimeout(() => {
+          addToSequence();
+        }, 1000);
+        toast({
+          title: "Great job!",
+          description: `Level ${score + 1} completed!`,
+        });
+      }
+    };
+
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <h3 className="text-2xl font-bold mb-2">Focus Training</h3>
+          <p className="text-muted-foreground mb-4">Remember and repeat the sequence</p>
+          
+          <div className="flex justify-center items-center gap-6 mb-6">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">{score}</div>
+              <div className="text-sm text-blue-500">Level</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">{sequence.length}</div>
+              <div className="text-sm text-green-500">Sequence</div>
+            </div>
+          </div>
+
+          {!isPlaying && !gameOver && (
+            <Button onClick={startGame} className="mb-6">
+              <Play className="w-4 h-4 mr-2" />
+              Start Game
+            </Button>
+          )}
+
+          {gameOver && (
+            <div className="mb-6">
+              <p className="text-red-600 mb-4">Game Over! Final Score: {score}</p>
+              <Button onClick={startGame}>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Try Again
+              </Button>
+            </div>
+          )}
+
+          {isPlaying && (
+            <div className="mb-6">
+              <p className="text-lg font-medium">
+                {isUserTurn ? "Your turn!" : "Watch the sequence..."}
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
+          {colors.map((color) => (
+            <button
+              key={color.id}
+              onClick={() => handleButtonClick(color.id)}
+              disabled={!isUserTurn}
+              className={`
+                aspect-square rounded-xl transition-all duration-200 transform hover:scale-105
+                ${activeButton === color.id ? color.activeColor : color.color}
+                ${isUserTurn ? 'cursor-pointer' : 'cursor-not-allowed opacity-75'}
+                disabled:hover:scale-100
+              `}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // Breathing Exercise Component
+  const BreathingExercise = () => {
+    const [isActive, setIsActive] = useState(false);
+    const [phase, setPhase] = useState<'inhale' | 'hold' | 'exhale'>('inhale');
+    const [timeLeft, setTimeLeft] = useState(4);
+    const [cycles, setCycles] = useState(0);
+    const [totalTime, setTotalTime] = useState(0);
+
+    const phases = {
+      inhale: { duration: 4, next: 'hold' as const, text: 'Breathe In' },
+      hold: { duration: 4, next: 'exhale' as const, text: 'Hold' },
+      exhale: { duration: 6, next: 'inhale' as const, text: 'Breathe Out' },
+    };
+
+    useEffect(() => {
+      let interval: NodeJS.Timeout;
+      
+      if (isActive) {
+        interval = setInterval(() => {
+          setTimeLeft((prev) => {
+            if (prev <= 1) {
+              const currentPhase = phases[phase];
+              const nextPhase = currentPhase.next;
+              setPhase(nextPhase);
+              
+              if (nextPhase === 'inhale') {
+                setCycles(c => c + 1);
+              }
+              
+              return phases[nextPhase].duration;
+            }
+            return prev - 1;
+          });
+          
+          setTotalTime(t => t + 1);
+        }, 1000);
+      }
+
+      return () => clearInterval(interval);
+    }, [isActive, phase]);
+
+    const startExercise = () => {
+      setIsActive(true);
+      setPhase('inhale');
+      setTimeLeft(4);
+      setCycles(0);
+      setTotalTime(0);
+    };
+
+    const stopExercise = () => {
+      setIsActive(false);
+      toast({
+        title: "Great job!",
+        description: `You completed ${cycles} breathing cycles in ${Math.floor(totalTime / 60)}:${(totalTime % 60).toString().padStart(2, '0')}`,
+      });
+    };
+
+    const getCircleScale = () => {
+      const progress = (phases[phase].duration - timeLeft) / phases[phase].duration;
+      switch (phase) {
+        case 'inhale':
+          return 0.5 + (progress * 0.5); // Scale from 0.5 to 1
+        case 'hold':
+          return 1; // Stay at full size
+        case 'exhale':
+          return 1 - (progress * 0.5); // Scale from 1 to 0.5
+        default:
+          return 0.5;
+      }
+    };
+
+    return (
+      <div className="space-y-6 text-center">
+        <div>
+          <h3 className="text-2xl font-bold mb-2">Breathing Exercise</h3>
+          <p className="text-muted-foreground">4-4-6 breathing pattern for relaxation</p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
+          <Card className="bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200">
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-blue-600">{cycles}</div>
+              <div className="text-sm text-blue-500">Cycles</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200">
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-green-600">{timeLeft}</div>
+              <div className="text-sm text-green-500">Seconds</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-purple-50 to-indigo-100 border-purple-200">
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-purple-600">
+                {Math.floor(totalTime / 60)}:{(totalTime % 60).toString().padStart(2, '0')}
+              </div>
+              <div className="text-sm text-purple-500">Time</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="relative w-64 h-64 mx-auto">
+          <div 
+            className={`
+              absolute inset-0 rounded-full transition-all duration-1000 ease-in-out
+              ${phase === 'inhale' ? 'bg-gradient-to-br from-blue-400 to-cyan-500' :
+                phase === 'hold' ? 'bg-gradient-to-br from-green-400 to-emerald-500' :
+                'bg-gradient-to-br from-purple-400 to-indigo-500'}
+            `}
+            style={{
+              transform: `scale(${getCircleScale()})`,
+            }}
+          />
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
+            <div className="text-2xl font-bold mb-2">{phases[phase].text}</div>
+            <div className="text-4xl font-bold">{timeLeft}</div>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {!isActive ? (
+            <Button onClick={startExercise} size="lg">
+              <Play className="w-5 h-5 mr-2" />
+              Start Breathing
+            </Button>
+          ) : (
+            <Button onClick={stopExercise} variant="outline" size="lg">
+              <Pause className="w-5 h-5 mr-2" />
+              Stop Exercise
+            </Button>
+          )}
+          
+          <div className="text-sm text-muted-foreground">
+            <p>Inhale for 4 seconds, hold for 4 seconds, exhale for 6 seconds</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Word Association Game Component
+  const WordAssociationGame = () => {
+    const [currentWord, setCurrentWord] = useState('');
+    const [userInput, setUserInput] = useState('');
+    const [wordChain, setWordChain] = useState<string[]>([]);
+    const [score, setScore] = useState(0);
+    const [timeLeft, setTimeLeft] = useState(60);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [gameOver, setGameOver] = useState(false);
+
+    const startWords = [
+      'Ocean', 'Mountain', 'Forest', 'River', 'Sunset', 'Garden', 'Music', 'Dance',
+      'Book', 'Journey', 'Dream', 'Star', 'Rainbow', 'Butterfly', 'Flower', 'Peace'
+    ];
+
+    const startGame = () => {
+      const randomWord = startWords[Math.floor(Math.random() * startWords.length)];
+      setCurrentWord(randomWord);
+      setWordChain([randomWord]);
+      setScore(0);
+      setTimeLeft(60);
+      setIsPlaying(true);
+      setGameOver(false);
+      setUserInput('');
+    };
+
+    const submitWord = () => {
+      if (!userInput.trim() || !isPlaying) return;
+
+      const newChain = [...wordChain, userInput.trim()];
+      setWordChain(newChain);
+      setCurrentWord(userInput.trim());
+      setScore(score + 1);
+      setUserInput('');
+
+      toast({
+        title: "Great association!",
+        description: `${currentWord} → ${userInput.trim()}`,
+      });
+    };
+
+    useEffect(() => {
+      let interval: NodeJS.Timeout;
+      
+      if (isPlaying && timeLeft > 0) {
+        interval = setInterval(() => {
+          setTimeLeft(prev => {
+            if (prev <= 1) {
+              setIsPlaying(false);
+              setGameOver(true);
+              toast({
+                title: "Time's up!",
+                description: `You created ${score} word associations!`,
+              });
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      }
+
+      return () => clearInterval(interval);
+    }, [isPlaying, timeLeft, score]);
+
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <h3 className="text-2xl font-bold mb-2">Word Association</h3>
+          <p className="text-muted-foreground">Create word associations as quickly as possible</p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
+          <Card className="bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200">
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-blue-600">{score}</div>
+              <div className="text-sm text-blue-500">Words</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200">
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-green-600">{timeLeft}</div>
+              <div className="text-sm text-green-500">Seconds</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-purple-50 to-indigo-100 border-purple-200">
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-purple-600">{wordChain.length}</div>
+              <div className="text-sm text-purple-500">Chain</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {!isPlaying && !gameOver && (
+          <div className="text-center">
+            <Button onClick={startGame} size="lg">
+              <Play className="w-5 h-5 mr-2" />
+              Start Game
+            </Button>
+          </div>
+        )}
+
+        {gameOver && (
+          <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-green-200">
+            <CardContent className="p-6 text-center">
+              <Trophy className="w-12 h-12 text-green-600 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-green-800 mb-2">Game Complete!</h3>
+              <p className="text-green-700 mb-4">You created {score} word associations!</p>
+              <Button onClick={startGame} className="bg-green-600 hover:bg-green-700">
+                Play Again
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {isPlaying && (
+          <div className="space-y-4">
+            <Card className="bg-gradient-to-br from-indigo-50 to-purple-100 border-indigo-200">
+              <CardContent className="p-6 text-center">
+                <p className="text-sm text-indigo-600 mb-2">Current word:</p>
+                <p className="text-3xl font-bold text-indigo-800">{currentWord}</p>
+              </CardContent>
+            </Card>
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={userInput}
+                onChange={(e) => setUserInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && submitWord()}
+                placeholder="Enter associated word..."
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                disabled={!isPlaying}
+              />
+              <Button onClick={submitWord} disabled={!userInput.trim() || !isPlaying}>
+                Submit
+              </Button>
+            </div>
+
+            {wordChain.length > 1 && (
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-sm text-muted-foreground mb-2">Word chain:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {wordChain.map((word, index) => (
+                      <Badge key={index} variant="outline">
+                        {word}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const games = [
+    {
+      id: 'memory',
+      title: 'Memory Mosaic',
+      description: 'Test your memory with card matching',
+      icon: Brain,
+      color: 'from-blue-500 to-cyan-500',
+      component: MemoryGame
+    },
+    {
+      id: 'focus',
+      title: 'Focus Training',
+      description: 'Improve concentration with sequence games',
+      icon: Target,
+      color: 'from-green-500 to-emerald-500',
+      component: FocusGame
+    },
+    {
+      id: 'breathing',
+      title: 'Breathing Exercise',
+      description: 'Relax with guided breathing patterns',
+      icon: Heart,
+      color: 'from-purple-500 to-indigo-500',
+      component: BreathingExercise
+    },
+    {
+      id: 'words',
+      title: 'Word Association',
+      description: 'Enhance creativity with word games',
+      icon: Lightbulb,
+      color: 'from-orange-500 to-red-500',
+      component: WordAssociationGame
+    }
+  ];
+
+  const ActiveGameComponent = games.find(game => game.id === activeGame)?.component || MemoryGame;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute w-96 h-96 bg-gradient-to-r from-blue-400/10 to-purple-400/10 rounded-full blur-3xl animate-pulse" 
+             style={{ top: '10%', left: '10%' }} />
+        <div className="absolute w-64 h-64 bg-gradient-to-r from-pink-400/10 to-red-400/10 rounded-full blur-2xl animate-pulse" 
+             style={{ bottom: '10%', right: '10%' }} />
+      </div>
+
+      <div className="container mx-auto py-6 px-4 relative z-10">
+        <div className="max-w-6xl mx-auto space-y-6">
+          {/* Header */}
+          <div 
+            id="games-header"
+            data-animate
+            className={`transition-all duration-1000 ${
+              isVisible('games-header') 
+                ? 'opacity-100 translate-y-0' 
+                : 'opacity-100 translate-y-0'
+            }`}
+          >
+            <Card className="bg-gradient-to-r from-white/90 to-blue-50/90 backdrop-blur-sm border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-500">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-gradient-to-br from-primary to-purple-600 rounded-xl shadow-lg">
+                    <Gamepad2 className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-3xl bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+                      Mind Games
+                    </CardTitle>
+                    <CardDescription className="text-lg">
+                      Enhance your cognitive abilities with fun brain training exercises
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+            </Card>
+          </div>
+
+          {/* Game Selection */}
+          <div 
+            id="game-selection"
+            data-animate
+            className={`transition-all duration-1000 delay-200 ${
+              isVisible('game-selection') 
+                ? 'opacity-100 translate-y-0' 
+                : 'opacity-0 translate-y-8'
+            }`}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {games.map((game, index) => {
+                const IconComponent = game.icon;
+                return (
+                  <Card 
+                    key={game.id}
+                    className={`cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-2 ${
+                      activeGame === game.id 
+                        ? 'ring-2 ring-primary shadow-lg bg-gradient-to-br from-primary/5 to-purple-600/5' 
+                        : 'hover:shadow-lg'
+                    }`}
+                    onClick={() => setActiveGame(game.id)}
+                  >
+                    <CardContent className="p-6 text-center">
+                      <div className={`w-12 h-12 bg-gradient-to-br ${game.color} rounded-lg flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
+                        <IconComponent className="w-6 h-6 text-white" />
+                      </div>
+                      <h3 className="font-semibold mb-2">{game.title}</h3>
+                      <p className="text-sm text-muted-foreground">{game.description}</p>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Active Game */}
+          <div 
+            id="active-game"
+            data-animate
+            className={`transition-all duration-1000 delay-400 ${
+              isVisible('active-game') 
+                ? 'opacity-100 translate-y-0' 
+                : 'opacity-0 translate-y-8'
+            }`}
+          >
+            <Card className="bg-white/90 backdrop-blur-sm border border-white/20 shadow-xl">
+              <CardContent className="p-8">
+                <ActiveGameComponent />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     </div>
   );
