@@ -52,7 +52,7 @@ export const createTavusConversation = async ({
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": '70285b696d38469bb4dd106924099ded',
+        "x-api-key": import.meta.env.VITE_TAVUS_API_KEY,
       },
       body: JSON.stringify({
         replica_id: replicaId,
@@ -100,7 +100,7 @@ export const getTavusConversationDetails = async (conversationId: string, verbos
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": '70285b696d38469bb4dd106924099ded',
+        "x-api-key": import.meta.env.VITE_TAVUS_API_KEY,
       },
     });
     
