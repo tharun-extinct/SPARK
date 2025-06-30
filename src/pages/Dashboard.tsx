@@ -23,7 +23,8 @@ import {
   X,
   LineChart,
   PieChart,
-  RefreshCw
+  RefreshCw,
+  ChevronRight
 } from "lucide-react";
 import { useAuth } from "@/services/firebaseAuth";
 import { 
@@ -215,8 +216,8 @@ const Dashboard = () => {
   // Transform recent conversations for display
   const recentSessions = recentConversations.slice(0, 3).map((conv, index) => ({
     id: conv.id,
-    agent: agentMap[conv.agentType] || agentMap.default,
-    type: typeMap[conv.agentType] || typeMap.default,
+    agent: agentMap[conv.agentType as keyof typeof agentMap] || agentMap.default,
+    type: typeMap[conv.agentType as keyof typeof typeMap] || typeMap.default,
     duration: `${conv.duration} min`,
     mood: conv.moodAfter ? (conv.moodAfter > 7 ? 'Good' : conv.moodAfter > 5 ? 'Okay' : 'Needs attention') : 'Good',
     date: conv.startTime.toLocaleDateString() === new Date().toLocaleDateString() ? 'Today' : 
@@ -476,12 +477,23 @@ const Dashboard = () => {
                   {/* Recent Sessions - Now with Real Data */}
                   <Card className="bg-white/80 backdrop-blur-sm border border-white/20 hover:shadow-2xl transition-all duration-500">
                     <CardHeader>
-                      <CardTitle className="flex items-center">
-                        <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg mr-3">
-                          <Activity className="w-5 h-5 text-white" />
-                        </div>
-                        Recent Sessions
-                      </CardTitle>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center">
+                          <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg mr-3">
+                            <Activity className="w-5 h-5 text-white" />
+                          </div>
+                          Recent Sessions
+                        </CardTitle>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => navigate('/sessions')}
+                          className="text-sm text-muted-foreground hover:text-foreground"
+                        >
+                          View All
+                          <ChevronRight className="ml-1 h-4 w-4" />
+                        </Button>
+                      </div>
                       <CardDescription>
                         Your latest AI companion interactions
                       </CardDescription>
@@ -514,7 +526,11 @@ const Dashboard = () => {
                           </div>
                         )}
                       </div>
-                      <Button variant="outline" className="w-full mt-4 hover:bg-gradient-to-r hover:from-primary hover:to-purple-600 hover:text-white transition-all duration-300">
+                      <Button 
+                        variant="outline" 
+                        className="w-full mt-4 hover:bg-gradient-to-r hover:from-primary hover:to-purple-600 hover:text-white transition-all duration-300"
+                        onClick={() => navigate('/sessions')}
+                      >
                         View All Sessions
                       </Button>
                     </CardContent>
@@ -752,7 +768,8 @@ const Dashboard = () => {
                           Your current mood score is {dashboardMetrics.moodScore}/10
                           {dashboardMetrics.moodScore >= 8 ? " - You're doing great!" : 
                            dashboardMetrics.moodScore >= 6 ? " - Room for improvement" :
-                           " - Consider reaching out for support"}
+                           dashboardMetrics.moodScore > 0 ? " - Consider reaching out for support" :
+                           " - No mood data available yet"}
                         </p>
                       </div>
                       

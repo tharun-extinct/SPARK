@@ -15,6 +15,7 @@ import Profile from "./pages/Profile";
 import Rewards from "./pages/Rewards";
 import Support from "./pages/Support";
 import Settings from "./pages/Settings";
+import AllSessions from "./pages/AllSessions";
 import NotFound from "./pages/NotFound";
 import Navigation from "./pages/Navigation";
 
@@ -28,6 +29,7 @@ const ProtectedProfile = withAuth(Profile);
 const ProtectedRewards = withAuth(Rewards);
 const ProtectedSupport = withAuth(Support);
 const ProtectedSettings = withAuth(Settings);
+const ProtectedAllSessions = withAuth(AllSessions);
 
 // Component to handle conditional navigation rendering
 const AppContent = () => {
@@ -41,13 +43,15 @@ const AppContent = () => {
       {!hideNavigation && <Navigation />}
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />        <Route path="/conversation/:agentType" element={<ProtectedConversation />} />
+        <Route path="/signup" element={<Signup />} />        
+        <Route path="/conversation/:agentType" element={<ProtectedConversation />} />
         <Route path="/dashboard" element={<ProtectedDashboard />} />
         <Route path="/onboarding" element={<ProtectedOnboarding />} />
         <Route path="/profile" element={<ProtectedProfile />} />
         <Route path="/rewards" element={<ProtectedRewards />} />
         <Route path="/support" element={<ProtectedSupport />} />
         <Route path="/settings" element={<ProtectedSettings />} />
+        <Route path="/sessions" element={<ProtectedAllSessions />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
