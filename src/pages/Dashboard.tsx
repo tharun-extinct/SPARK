@@ -185,20 +185,30 @@ const Dashboard = () => {
   }, [location, currentUser, toast]);
 
   const isVisible = (id: string) => visibleElements.has(id);
+  const agentMap = {
+    psychiatrist: 'Dr. Anna',
+    default: 'Dr. Anna',
+    tutor: 'Alex',
+    doctor:"Dr. James"
+  };
+  const colorMap: Record<string, string> = {
+    psychiatrist: "from-pink-500 to-rose-500",
+    default: "from-pink-500 to-rose-500",
+    tutor: "from-blue-500 to-cyan-500",
+    doctor: "from-green-500 to-emerald-500"
+  };
 
   // Transform recent conversations for display
   const recentSessions = recentConversations.slice(0, 3).map((conv, index) => ({
     id: conv.id,
-    agent: conv.agentType === 'psychiatrist' ? 'Dr. Anna' : conv.agentType === 'tutor' ? 'Alex' : 'Dr. James',
-    type: conv.agentType === 'psychiatrist' ? 'Mental Health' : conv.agentType === 'tutor' ? 'Learning' : 'Wellness',
+    agent:agentMap[conv.agentType], 
+    type: agentMap[conv.agentType],
     duration: `${conv.duration} min`,
     mood: conv.moodAfter ? (conv.moodAfter > 7 ? 'Good' : conv.moodAfter > 5 ? 'Okay' : 'Needs attention') : 'Good',
     date: conv.startTime.toLocaleDateString() === new Date().toLocaleDateString() ? 'Today' : 
           conv.startTime.toLocaleDateString() === new Date(Date.now() - 86400000).toLocaleDateString() ? 'Yesterday' : 
           `${Math.floor((Date.now() - conv.startTime.getTime()) / 86400000)} days ago`,
-    color: conv.agentType === 'psychiatrist' ? "from-pink-500 to-rose-500" : 
-           conv.agentType === 'tutor' ? "from-blue-500 to-cyan-500" : 
-           "from-green-500 to-emerald-500"
+    color:colorMap[conv.agentType]
   }));
   
   const upcomingGoals = [
