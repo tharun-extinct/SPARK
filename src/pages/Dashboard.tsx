@@ -96,12 +96,16 @@ const Dashboard = () => {
       const hasSeenWelcome = sessionStorage.getItem(`welcome_seen_${currentUser.uid}`);
       const fromOnboarding = location.state?.fromOnboarding === true;
       const isNewSignup = location.state?.newSignup === true;
+      const isReturningUser = location.state?.returningUser === true;
       
-      // Only show welcome popup if coming from onboarding, new signup, or first visit in session
-      if (fromOnboarding || isNewSignup || !hasSeenWelcome) {
-        setShowWelcomePopup(true);
+      // Only show welcome popup if coming from onboarding, new signup, returning user, or first visit in session
+      if (fromOnboarding || isNewSignup || isReturningUser || !hasSeenWelcome) {
+        const timer = setTimeout(() => {
+          setShowWelcomePopup(true);
+        }, 1000);
         // Mark as seen for this session
         sessionStorage.setItem(`welcome_seen_${currentUser.uid}`, 'true');
+        return () => clearTimeout(timer);
       }
     }
   }, [isLoading, currentUser, location.state]);
@@ -186,12 +190,21 @@ const Dashboard = () => {
   }, [location, currentUser, toast]);
 
   const isVisible = (id: string) => visibleElements.has(id);
+
   const agentMap = {
     psychiatrist: 'Dr. Anna',
     default: 'Dr. Anna',
     tutor: 'Alex',
-    doctor:"Dr. James"
+    doctor: 'Dr. James'
   };
+
+  const typeMap = {
+    psychiatrist: 'Mental Health',
+    default: 'Mental Health',
+    tutor: 'Learning',
+    doctor: 'Wellness'
+  };
+
   const colorMap: Record<string, string> = {
     psychiatrist: "from-pink-500 to-rose-500",
     default: "from-pink-500 to-rose-500",
@@ -202,14 +215,14 @@ const Dashboard = () => {
   // Transform recent conversations for display
   const recentSessions = recentConversations.slice(0, 3).map((conv, index) => ({
     id: conv.id,
-    agent:agentMap[conv.agentType], 
-    type: agentMap[conv.agentType],
+    agent: agentMap[conv.agentType] || agentMap.default,
+    type: typeMap[conv.agentType] || typeMap.default,
     duration: `${conv.duration} min`,
     mood: conv.moodAfter ? (conv.moodAfter > 7 ? 'Good' : conv.moodAfter > 5 ? 'Okay' : 'Needs attention') : 'Good',
     date: conv.startTime.toLocaleDateString() === new Date().toLocaleDateString() ? 'Today' : 
           conv.startTime.toLocaleDateString() === new Date(Date.now() - 86400000).toLocaleDateString() ? 'Yesterday' : 
           `${Math.floor((Date.now() - conv.startTime.getTime()) / 86400000)} days ago`,
-    color:colorMap[conv.agentType]
+    color: colorMap[conv.agentType] || colorMap.default
   }));
   
   const upcomingGoals = [
@@ -776,22 +789,28 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Detailed Analytics Modal/Overlay */}
+      {/* Detailed Analytics Modal - Mobile Friendly */}
       {showDetailedAnalytics && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-auto">
-            <div className="sticky top-0 bg-white border-b p-6 flex items-center justify-between z-10">
-              <h2 className="text-2xl font-bold">Detailed Analytics</h2>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-white rounded-lg sm:rounded-2xl shadow-2xl w-full h-full sm:max-w-7xl sm:max-h-[95vh] overflow-hidden flex flex-col">
+            {/* Fixed Header */}
+            <div className="sticky top-0 bg-white border-b p-4 sm:p-6 flex items-center justify-between z-10 shrink-0">
+              <h2 className="text-xl sm:text-2xl font-bold">Detailed Analytics</h2>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setShowDetailedAnalytics(false)}
+                className="shrink-0"
               >
                 <X className="w-5 h-5" />
               </Button>
             </div>
-            <div className="p-6">
-              <AnalyticsDashboard />
+            
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-auto">
+              <div className="p-4 sm:p-6">
+                <AnalyticsDashboard />
+              </div>
             </div>
           </div>
         </div>
