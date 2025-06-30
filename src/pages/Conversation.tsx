@@ -54,23 +54,23 @@ const Conversation = () => {
       avatar: "👩‍⚕️",
       greeting: "Hello! I'm Dr.Anna, your mental health companion. How are you feeling today?",
       replicaId: "r6ae5b6efc9d",
-      personaId: "p57b90fab974"
+      personaId: "p8f696c0eccc"
     },
     tutor: {
       name: "Alex",
       context: "You are a helpful virtual tutor called Alex providing learning assistance and educational guidance.",
       avatar: "👨‍🏫",
       greeting: "Hi there! I'm Alex, your learning companion. What would you like to explore today?",
-      replicaId: "rc2146c13e81",
-      personaId: "peebe852d86b"
+      replicaId: "rca8a38779a8",
+      personaId: "p508af2284c4"
     },
     psychiatrist: {
       name: "Dr. James",
       context: "You are a helpful virtual wellness coach called Dr. James providing physical health and wellness advice.",
       avatar: "👨‍⚕️",
       greeting: "Good day! I'm Dr. James, your wellness assistant. How can I help with your health today?",
-      replicaId: "r4d9b2288937",
-      personaId: "paf8f3186bed"
+      replicaId: "r92debe21318",
+      personaId: "p0788be1b583"
     }
   };
 
