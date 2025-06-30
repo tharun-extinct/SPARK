@@ -32,7 +32,10 @@ SPARK now includes interactive mind games designed to:
 
 - **AI Video Conversations**: Real-time face-to-face interaction with AI personas
 - **Mental Wellness Tools**: Mind games, mood tracking, and guided exercises
-- **Multiple AI Personas**: Choose from different specialist personas
+- **Multiple AI Personas**: 
+  - **Tutoring Agent**: Interactive learning and academic assistance
+  - **Mental Wellness Doctor**: Emotional support and well-being guidance
+  - **General Assistant**: Day-to-day help and information
 - **Analytics Dashboard**: Track progress and mental wellness metrics
 - **Crisis Support**: Detection and escalation for mental health emergencies
 
