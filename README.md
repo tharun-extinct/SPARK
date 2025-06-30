@@ -43,7 +43,7 @@ SPARK now includes interactive mind games designed to:
 
 - **Frontend**: Vite, React, TypeScript
 - **UI Framework**: shadcn/ui, Tailwind CSS
-- **Video Technology**: Tavus CVI Pipeline (Phoenix-3, Raven-0, Sparrow-0)
+- **Video Technology**: Tavus CVI Pipeline
 - **Authentication**: Firebase Authentication
 - **Database**: Firestore for user data and analytics
 
