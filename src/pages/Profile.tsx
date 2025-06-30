@@ -37,7 +37,11 @@ import {
   Check,
   Upload,
   Eye,
-  EyeOff
+  EyeOff,
+  MessageCircle,
+  Clock,
+  Calendar as CalendarIcon,
+  ChevronRight
 } from 'lucide-react';
 import {
   Form,
@@ -58,6 +62,8 @@ import {
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { useAnalytics } from '@/hooks/useAnalytics';
+import { useNavigate } from 'react-router-dom';
 
 const profileFormSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -80,6 +86,7 @@ type ProfileFormValues = z.infer<typeof profileFormSchema>;
 const Profile = () => {
   const { currentUser } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -91,6 +98,13 @@ const Profile = () => {
   const [visibleElements, setVisibleElements] = useState(new Set());
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
+
+  // Get analytics data for activity tab
+  const { 
+    recentConversations, 
+    dashboardMetrics, 
+    isLoading: analyticsLoading 
+  } = useAnalytics();
 
   // Settings state
   const [settings, setSettings] = useState({
@@ -358,6 +372,174 @@ const Profile = () => {
       }
     }));
   };
+
+  // Format date for display
+  const formatDate = (date: Date) => {
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    if (date.toDateString() === today.toDateString()) {
+      return `Today, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return `Yesterday, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    } else {
+      return date.toLocaleDateString([], { month: 'short', day: 'numeric' }) + 
+        `, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    }
+  };
+
+  // Agent type mapping
+  const agentMap = {
+    psychiatrist: 'Dr. Anna',
+    default: 'Dr. Anna',
+    tutor: 'Alex',
+    doctor: 'Dr. James'
+  };
+
+  // Session type mapping
+  const typeMap = {
+    psychiatrist: 'Mental Health',
+    default: 'Mental Health',
+    tutor: 'Learning',
+    doctor: 'Wellness'
+  };
+
+  // Color mapping
+  const colorMap: Record<string, string> = {
+    psychiatrist: "from-pink-500 to-rose-500",
+    default: "from-pink-500 to-rose-500",
+    tutor: "from-blue-500 to-cyan-500",
+    doctor: "from-green-500 to-emerald-500"
+  };
+
+  // Get recent sessions for activity tab
+  const recentSessions = recentConversations.slice(0, 5).map((conv) => ({
+    id: conv.id,
+    agent: agentMap[conv.agentType as keyof typeof agentMap] || 'AI Assistant',
+    type: typeMap[conv.agentType as keyof typeof typeMap] || 'Session',
+    duration: `${conv.duration} min`,
+    mood: conv.moodAfter ? (conv.moodAfter > 7 ? 'Good' : conv.moodAfter > 5 ? 'Okay' : 'Needs attention') : 'N/A',
+    date: formatDate(conv.startTime),
+    color: colorMap[conv.agentType] || colorMap.default,
+    agentType: conv.agentType
+  }));
+
+  // Generate achievements based on user data
+  const generateAchievements = () => {
+    const achievements = [];
+    
+    // Streak achievement
+    if (dashboardMetrics.streakDays >= 3) {
+      achievements.push({
+        id: 'streak-3',
+        title: 'Consistency Champion',
+        description: `${dashboardMetrics.streakDays} day streak of using SPARK`,
+        icon: '🔥',
+        unlockedDate: new Date().toISOString(),
+        rarity: dashboardMetrics.streakDays >= 7 ? 'epic' : 'rare'
+      });
+    }
+    
+    // Sessions achievement
+    if (dashboardMetrics.sessionsThisWeek >= 3) {
+      achievements.push({
+        id: 'sessions-3',
+        title: 'Conversation Master',
+        description: `Completed ${dashboardMetrics.sessionsThisWeek} sessions this week`,
+        icon: '🎯',
+        unlockedDate: new Date().toISOString(),
+        rarity: dashboardMetrics.sessionsThisWeek >= 5 ? 'epic' : 'rare'
+      });
+    }
+    
+    // Time spent achievement
+    if (dashboardMetrics.totalMinutes >= 60) {
+      achievements.push({
+        id: 'time-60',
+        title: 'Dedicated Learner',
+        description: `Spent over ${dashboardMetrics.totalMinutes} minutes with AI assistants`,
+        icon: '⏱️',
+        unlockedDate: new Date().toISOString(),
+        rarity: dashboardMetrics.totalMinutes >= 120 ? 'epic' : 'rare'
+      });
+    }
+    
+    // Profile completion achievement
+    if (profileCompletion >= 80) {
+      achievements.push({
+        id: 'profile-80',
+        title: 'Identity Established',
+        description: 'Completed 80% or more of your profile',
+        icon: '🌟',
+        unlockedDate: new Date().toISOString(),
+        rarity: profileCompletion === 100 ? 'legendary' : 'rare'
+      });
+    }
+    
+    // If no achievements, add a starter one
+    if (achievements.length === 0) {
+      achievements.push({
+        id: 'starter',
+        title: 'First Steps',
+        description: 'Started your journey with SPARK',
+        icon: '🚀',
+        unlockedDate: new Date().toISOString(),
+        rarity: 'common'
+      });
+    }
+    
+    return achievements;
+  };
+
+  // Generate milestones based on user data
+  const generateMilestones = () => {
+    return [
+      {
+        id: 'streak-7',
+        title: '7-Day Streak',
+        description: 'Use SPARK for 7 consecutive days',
+        progress: Math.min(dashboardMetrics.streakDays, 7),
+        target: 7,
+        category: 'wellness',
+        completed: dashboardMetrics.streakDays >= 7,
+        completedDate: dashboardMetrics.streakDays >= 7 ? new Date().toISOString() : undefined
+      },
+      {
+        id: 'sessions-10',
+        title: '10 Sessions',
+        description: 'Complete 10 AI assistant sessions',
+        progress: Math.min(dashboardMetrics.sessionsThisWeek * 2, 10), // Estimate total sessions
+        target: 10,
+        category: 'learning',
+        completed: dashboardMetrics.sessionsThisWeek * 2 >= 10,
+        completedDate: dashboardMetrics.sessionsThisWeek * 2 >= 10 ? new Date().toISOString() : undefined
+      },
+      {
+        id: 'profile-100',
+        title: 'Complete Profile',
+        description: 'Fill out 100% of your profile information',
+        progress: profileCompletion,
+        target: 100,
+        category: 'social',
+        completed: profileCompletion >= 100,
+        completedDate: profileCompletion >= 100 ? new Date().toISOString() : undefined
+      },
+      {
+        id: 'all-agents',
+        title: 'Meet All Agents',
+        description: 'Have a session with each type of AI assistant',
+        progress: new Set(recentConversations.map(c => c.agentType)).size,
+        target: 3,
+        category: 'learning',
+        completed: new Set(recentConversations.map(c => c.agentType)).size >= 3,
+        completedDate: new Set(recentConversations.map(c => c.agentType)).size >= 3 ? new Date().toISOString() : undefined
+      }
+    ];
+  };
+
+  const achievements = generateAchievements();
+  const milestones = generateMilestones();
 
   if (!currentUser) {
     return (
@@ -860,7 +1042,7 @@ const Profile = () => {
                             <Activity className="w-6 h-6 text-white" />
                           </div>
                           <div>
-                            <div className="text-2xl font-bold text-blue-600">42</div>
+                            <div className="text-2xl font-bold text-blue-600">{recentConversations.length}</div>
                             <div className="text-sm text-blue-500">Total Sessions</div>
                           </div>
                         </div>
@@ -874,7 +1056,7 @@ const Profile = () => {
                             <Target className="w-6 h-6 text-white" />
                           </div>
                           <div>
-                            <div className="text-2xl font-bold text-green-600">18</div>
+                            <div className="text-2xl font-bold text-green-600">{milestones.filter(m => m.completed).length}</div>
                             <div className="text-sm text-green-500">Goals Achieved</div>
                           </div>
                         </div>
@@ -888,7 +1070,7 @@ const Profile = () => {
                             <Trophy className="w-6 h-6 text-white" />
                           </div>
                           <div>
-                            <div className="text-2xl font-bold text-purple-600">7</div>
+                            <div className="text-2xl font-bold text-purple-600">{achievements.length}</div>
                             <div className="text-sm text-purple-500">Achievements</div>
                           </div>
                         </div>
@@ -899,32 +1081,197 @@ const Profile = () => {
                   {/* Recent Activity */}
                   <Card className="bg-white/90 backdrop-blur-sm border border-white/20 shadow-xl">
                     <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Activity className="w-5 h-5" />
-                        Recent Activity
-                      </CardTitle>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center gap-2">
+                          <Activity className="w-5 h-5" />
+                          Recent Activity
+                        </CardTitle>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => navigate('/sessions')}
+                          className="text-sm text-muted-foreground hover:text-foreground"
+                        >
+                          View All
+                          <ChevronRight className="ml-1 h-4 w-4" />
+                        </Button>
+                      </div>
                       <CardDescription>
                         Your latest interactions and achievements
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-4">
-                        {[
-                          { type: 'session', title: 'Completed wellness session with Dr. Anna', time: '2 hours ago', icon: Heart },
-                          { type: 'achievement', title: 'Unlocked "Consistent Learner" badge', time: '1 day ago', icon: Trophy },
-                          { type: 'goal', title: 'Reached daily mood tracking goal', time: '2 days ago', icon: Target },
-                          { type: 'session', title: 'Learning session with Alex completed', time: '3 days ago', icon: Activity },
-                        ].map((activity, index) => {
-                          const IconComponent = activity.icon;
-                          return (
-                            <div key={index} className="flex items-center gap-4 p-4 rounded-lg hover:bg-gradient-to-r hover:from-gray-50 hover:to-blue-50 transition-all duration-300">
-                              <div className="p-2 bg-gradient-to-br from-primary to-purple-600 rounded-lg">
-                                <IconComponent className="w-4 h-4 text-white" />
+                      {analyticsLoading ? (
+                        <div className="flex justify-center py-8">
+                          <div className="flex flex-col items-center space-y-4">
+                            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                            <p className="text-muted-foreground">Loading your activity...</p>
+                          </div>
+                        </div>
+                      ) : recentSessions.length === 0 ? (
+                        <div className="text-center py-8">
+                          <MessageCircle className="h-12 w-12 mx-auto text-muted-foreground opacity-20 mb-4" />
+                          <h3 className="text-lg font-medium mb-2">No activity yet</h3>
+                          <p className="text-muted-foreground mb-6">
+                            Start a conversation to see your activity here
+                          </p>
+                          <Button onClick={() => navigate('/dashboard')}>
+                            Go to Dashboard
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {recentSessions.map((session, index) => (
+                            <div 
+                              key={session.id}
+                              className="flex items-center gap-4 p-4 rounded-lg hover:bg-gradient-to-r hover:from-gray-50 hover:to-blue-50 transition-all duration-300 border"
+                            >
+                              <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${session.color} flex items-center justify-center text-white shadow-md`}>
+                                {session.agentType === 'psychiatrist' ? <Heart className="h-5 w-5" /> : 
+                                 session.agentType === 'tutor' ? <Brain className="h-5 w-5" /> : 
+                                 <Activity className="h-5 w-5" />}
                               </div>
                               <div className="flex-1">
-                                <p className="font-medium">{activity.title}</p>
-                                <p className="text-sm text-muted-foreground">{activity.time}</p>
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                                  <div>
+                                    <p className="font-medium">{session.agent} Session</p>
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                      <span>{session.type}</span>
+                                      <span>•</span>
+                                      <span>{session.duration}</span>
+                                      {session.mood !== 'N/A' && (
+                                        <>
+                                          <span>•</span>
+                                          <span>Mood: {session.mood}</span>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <span className="text-sm text-muted-foreground">{session.date}</span>
+                                </div>
                               </div>
+                            </div>
+                          ))}
+                          
+                          <Button 
+                            variant="outline" 
+                            className="w-full mt-4 hover:bg-gradient-to-r hover:from-primary hover:to-purple-600 hover:text-white transition-all duration-300"
+                            onClick={() => navigate('/sessions')}
+                          >
+                            View All Sessions
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Achievements */}
+                  <Card className="bg-white/90 backdrop-blur-sm border border-white/20 shadow-xl">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Trophy className="w-5 h-5" />
+                        Achievements
+                      </CardTitle>
+                      <CardDescription>
+                        Rewards for your progress and engagement
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {achievements.length === 0 ? (
+                        <div className="text-center py-8">
+                          <Trophy className="h-12 w-12 mx-auto text-muted-foreground opacity-20 mb-4" />
+                          <h3 className="text-lg font-medium mb-2">No achievements yet</h3>
+                          <p className="text-muted-foreground mb-6">
+                            Complete activities to earn achievements
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {achievements.map((achievement) => {
+                            const rarityColors = {
+                              common: "bg-gray-100 text-gray-800 border-gray-200",
+                              rare: "bg-blue-100 text-blue-800 border-blue-200",
+                              epic: "bg-purple-100 text-purple-800 border-purple-200",
+                              legendary: "bg-gradient-to-r from-yellow-400 to-orange-500 text-white"
+                            };
+                            
+                            return (
+                              <div 
+                                key={achievement.id}
+                                className="flex items-center gap-4 p-4 rounded-lg border hover:shadow-md transition-all duration-300"
+                              >
+                                <div className="text-2xl">{achievement.icon}</div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">{achievement.title}</span>
+                                    <Badge 
+                                      className={rarityColors[achievement.rarity as keyof typeof rarityColors]}
+                                    >
+                                      {achievement.rarity}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-sm text-muted-foreground">{achievement.description}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Unlocked {new Date(achievement.unlockedDate).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Milestones */}
+                  <Card className="bg-white/90 backdrop-blur-sm border border-white/20 shadow-xl">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Target className="w-5 h-5" />
+                        Progress Milestones
+                      </CardTitle>
+                      <CardDescription>
+                        Track your journey towards important goals
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-6">
+                        {milestones.map((milestone) => {
+                          const categoryColors = {
+                            wellness: "bg-green-100 text-green-800 border-green-200",
+                            learning: "bg-blue-100 text-blue-800 border-blue-200",
+                            social: "bg-purple-100 text-purple-800 border-purple-200"
+                          };
+                          
+                          return (
+                            <div key={milestone.id} className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">{milestone.title}</span>
+                                  <Badge 
+                                    variant="outline" 
+                                    className={categoryColors[milestone.category as keyof typeof categoryColors]}
+                                  >
+                                    {milestone.category}
+                                  </Badge>
+                                  {milestone.completed && (
+                                    <Check className="w-4 h-4 text-green-500" />
+                                  )}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {milestone.progress}/{milestone.target}
+                                </div>
+                              </div>
+                              <p className="text-sm text-muted-foreground">{milestone.description}</p>
+                              <Progress 
+                                value={(milestone.progress / milestone.target) * 100} 
+                                className="h-2"
+                              />
+                              {milestone.completed && milestone.completedDate && (
+                                <p className="text-xs text-green-600">
+                                  Completed on {new Date(milestone.completedDate).toLocaleDateString()}
+                                </p>
+                              )}
                             </div>
                           );
                         })}
