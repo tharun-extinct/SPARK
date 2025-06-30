@@ -36,43 +36,44 @@ import { useToast } from '@/components/ui/use-toast';
 // Memory Mosaic Game Component
 const MemoryGame = () => {
   const { toast } = useToast();
-  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy');
   const [gameState, setGameState] = useState<'setup' | 'playing' | 'completed'>('setup');
-  const [cards, setCards] = useState<Array<{id: number, symbol: any, isFlipped: boolean, isMatched: boolean}>>([]);
+  const [cards, setCards] = useState<Array<{id: number, symbol: string, color: string, isFlipped: boolean, isMatched: boolean}>>([]);
   const [flippedCards, setFlippedCards] = useState<number[]>([]);
   const [moves, setMoves] = useState(0);
   const [matches, setMatches] = useState(0);
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [isGameActive, setIsGameActive] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Game symbols with icons
+  // Game symbols with emojis for better compatibility
   const gameSymbols = [
-    { icon: Heart, color: 'text-red-500' },
-    { icon: Star, color: 'text-yellow-500' },
-    { icon: Diamond, color: 'text-blue-500' },
-    { icon: Circle, color: 'text-green-500' },
-    { icon: Square, color: 'text-purple-500' },
-    { icon: Triangle, color: 'text-pink-500' },
-    { icon: Hexagon, color: 'text-indigo-500' },
-    { icon: Sparkles, color: 'text-orange-500' },
-    { icon: Sun, color: 'text-amber-500' },
-    { icon: Moon, color: 'text-slate-500' },
-    { icon: Cloud, color: 'text-sky-500' },
-    { icon: Flower, color: 'text-rose-500' },
-    { icon: Leaf, color: 'text-emerald-500' },
-    { icon: Apple, color: 'text-red-600' },
-    { icon: Coffee, color: 'text-amber-700' },
-    { icon: Music, color: 'text-violet-500' },
-    { icon: Camera, color: 'text-gray-600' },
-    { icon: Gift, color: 'text-teal-500' }
+    { symbol: '❤️', color: 'text-red-500' },
+    { symbol: '⭐', color: 'text-yellow-500' },
+    { symbol: '💎', color: 'text-blue-500' },
+    { symbol: '🟢', color: 'text-green-500' },
+    { symbol: '🟪', color: 'text-purple-500' },
+    { symbol: '🌸', color: 'text-pink-500' },
+    { symbol: '🔷', color: 'text-indigo-500' },
+    { symbol: '✨', color: 'text-orange-500' },
+    { symbol: '☀️', color: 'text-amber-500' },
+    { symbol: '🌙', color: 'text-slate-500' },
+    { symbol: '☁️', color: 'text-sky-500' },
+    { symbol: '🌺', color: 'text-rose-500' },
+    { symbol: '🍃', color: 'text-emerald-500' },
+    { symbol: '🍎', color: 'text-red-600' },
+    { symbol: '☕', color: 'text-amber-700' },
+    { symbol: '🎵', color: 'text-violet-500' },
+    { symbol: '📷', color: 'text-gray-600' },
+    { symbol: '🎁', color: 'text-teal-500' }
   ];
 
   // Difficulty settings
   const difficultySettings = {
-    easy: { pairs: 6, gridCols: 3 },
-    medium: { pairs: 8, gridCols: 4 },
-    hard: { pairs: 12, gridCols: 4 }
+    easy: { pairs: 6, cols: 3, rows: 4 },
+    medium: { pairs: 8, cols: 4, rows: 4 },
+    hard: { pairs: 12, cols: 4, rows: 6 }
   };
 
   // Initialize game
@@ -82,10 +83,22 @@ const MemoryGame = () => {
     
     // Create pairs of cards
     const gameCards = [];
-    selectedSymbols.forEach((symbol, index) => {
+    selectedSymbols.forEach((symbolData, index) => {
       gameCards.push(
-        { id: index * 2, symbol, isFlipped: false, isMatched: false },
-        { id: index * 2 + 1, symbol, isFlipped: false, isMatched: false }
+        { 
+          id: index * 2, 
+          symbol: symbolData.symbol, 
+          color: symbolData.color, 
+          isFlipped: false, 
+          isMatched: false 
+        },
+        { 
+          id: index * 2 + 1, 
+          symbol: symbolData.symbol, 
+          color: symbolData.color, 
+          isFlipped: false, 
+          isMatched: false 
+        }
       );
     });
 
@@ -98,6 +111,7 @@ const MemoryGame = () => {
     setTimeElapsed(0);
     setGameState('playing');
     setIsGameActive(true);
+    setIsProcessing(false);
   };
 
   // Start timer
@@ -121,7 +135,7 @@ const MemoryGame = () => {
 
   // Handle card click
   const handleCardClick = (cardId: number) => {
-    if (!isGameActive || flippedCards.length >= 2) return;
+    if (!isGameActive || isProcessing || flippedCards.length >= 2) return;
     
     const card = cards.find(c => c.id === cardId);
     if (!card || card.isFlipped || card.isMatched) return;
@@ -129,20 +143,21 @@ const MemoryGame = () => {
     const newFlippedCards = [...flippedCards, cardId];
     setFlippedCards(newFlippedCards);
 
-    // Update card state
+    // Update card state to show it's flipped
     setCards(prev => prev.map(c => 
       c.id === cardId ? { ...c, isFlipped: true } : c
     ));
 
     // Check for match when two cards are flipped
     if (newFlippedCards.length === 2) {
+      setIsProcessing(true);
       setMoves(prev => prev + 1);
       
       const [firstId, secondId] = newFlippedCards;
       const firstCard = cards.find(c => c.id === firstId);
       const secondCard = cards.find(c => c.id === secondId);
 
-      if (firstCard && secondCard && firstCard.symbol.icon === secondCard.symbol.icon) {
+      if (firstCard && secondCard && firstCard.symbol === secondCard.symbol) {
         // Match found
         setTimeout(() => {
           setCards(prev => prev.map(c => 
@@ -152,6 +167,7 @@ const MemoryGame = () => {
           ));
           setMatches(prev => prev + 1);
           setFlippedCards([]);
+          setIsProcessing(false);
           
           // Check if game is completed
           const newMatches = matches + 1;
@@ -160,7 +176,7 @@ const MemoryGame = () => {
             setIsGameActive(false);
             toast({
               title: "Congratulations! 🎉",
-              description: `You completed the game in ${moves + 1} moves and ${formatTime(timeElapsed)} seconds!`,
+              description: `You completed the game in ${moves + 1} moves and ${formatTime(timeElapsed)}!`,
             });
           }
         }, 1000);
@@ -173,6 +189,7 @@ const MemoryGame = () => {
               : c
           ));
           setFlippedCards([]);
+          setIsProcessing(false);
         }, 1000);
       }
     }
@@ -194,6 +211,7 @@ const MemoryGame = () => {
     setMoves(0);
     setMatches(0);
     setTimeElapsed(0);
+    setIsProcessing(false);
   };
 
   return (
@@ -266,41 +284,39 @@ const MemoryGame = () => {
       {gameState !== 'setup' && (
         <div className="flex justify-center">
           <div 
-            className={`grid gap-3 max-w-2xl mx-auto`}
+            className="grid gap-2 sm:gap-3 w-full max-w-2xl mx-auto"
             style={{
-              gridTemplateColumns: `repeat(${difficultySettings[difficulty].gridCols}, 1fr)`,
+              gridTemplateColumns: `repeat(${difficultySettings[difficulty].cols}, 1fr)`,
             }}
           >
-            {cards.map((card) => {
-              const IconComponent = card.symbol.icon;
-              return (
-                <button
-                  key={card.id}
-                  onClick={() => handleCardClick(card.id)}
-                  disabled={card.isMatched || card.isFlipped || flippedCards.length >= 2}
-                  className={`
-                    aspect-square w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28
-                    rounded-xl border-2 transition-all duration-300
-                    flex items-center justify-center
-                    ${card.isMatched 
-                      ? 'bg-green-100 border-green-300 scale-95 opacity-75' 
-                      : card.isFlipped 
-                        ? 'bg-white border-gray-300 shadow-lg' 
-                        : 'bg-gradient-to-br from-purple-100 to-blue-100 border-purple-200 hover:border-purple-300 hover:shadow-md active:scale-95'
-                    }
-                    ${!card.isMatched && !card.isFlipped ? 'cursor-pointer' : 'cursor-default'}
-                  `}
-                >
-                  {card.isFlipped || card.isMatched ? (
-                    <IconComponent className={`w-8 h-8 sm:w-10 sm:h-10 ${card.symbol.color}`} />
-                  ) : (
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-200 rounded-lg flex items-center justify-center">
-                      <Sparkles className="w-5 h-5 text-purple-500" />
-                    </div>
-                  )}
-                </button>
-              );
-            })}
+            {cards.map((card) => (
+              <button
+                key={card.id}
+                onClick={() => handleCardClick(card.id)}
+                disabled={card.isMatched || card.isFlipped || isProcessing}
+                className={`
+                  aspect-square w-full h-16 sm:h-20 md:h-24 lg:h-28
+                  rounded-xl border-2 transition-all duration-300
+                  flex items-center justify-center text-2xl sm:text-3xl
+                  ${card.isMatched 
+                    ? 'bg-green-100 border-green-400 scale-95 opacity-75' 
+                    : card.isFlipped 
+                      ? 'bg-white border-gray-300 shadow-lg' 
+                      : 'bg-gradient-to-br from-purple-100 to-blue-100 border-purple-200 hover:border-purple-300 hover:shadow-md active:scale-95'
+                  }
+                  ${!card.isMatched && !card.isFlipped && !isProcessing ? 'cursor-pointer' : 'cursor-default'}
+                  ${isProcessing ? 'pointer-events-none' : ''}
+                `}
+              >
+                {card.isFlipped || card.isMatched ? (
+                  <span className="text-2xl sm:text-3xl">{card.symbol}</span>
+                ) : (
+                  <div className="w-6 h-6 sm:w-8 sm:h-8 bg-purple-200 rounded-lg flex items-center justify-center">
+                    <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-purple-500" />
+                  </div>
+                )}
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -335,15 +351,15 @@ const MemoryGame = () => {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
               <div className="p-4 bg-white rounded-lg border">
                 <h4 className="font-semibold text-green-600">Easy</h4>
-                <p className="text-sm text-gray-600">6 pairs • 3x4 grid</p>
+                <p className="text-sm text-gray-600">6 pairs • 3×4 grid</p>
               </div>
               <div className="p-4 bg-white rounded-lg border">
                 <h4 className="font-semibold text-blue-600">Medium</h4>
-                <p className="text-sm text-gray-600">8 pairs • 4x4 grid</p>
+                <p className="text-sm text-gray-600">8 pairs • 4×4 grid</p>
               </div>
               <div className="p-4 bg-white rounded-lg border">
                 <h4 className="font-semibold text-red-600">Hard</h4>
-                <p className="text-sm text-gray-600">12 pairs • 4x6 grid</p>
+                <p className="text-sm text-gray-600">12 pairs • 4×6 grid</p>
               </div>
             </div>
           </CardContent>
