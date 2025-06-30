@@ -67,7 +67,8 @@ const Signup = () => {
       });
       
       // Navigate directly to dashboard instead of onboarding
-      navigate("/dashboard");
+      // Pass newSignup flag to show welcome popup
+      navigate("/dashboard", { state: { newSignup: true } });
     } catch (error: any) {
       console.error("Signup error:", error);
       setError(error.message || "Failed to create account. Please try again.");
@@ -94,8 +95,8 @@ const Signup = () => {
         description: "Welcome to SPARK.",
       });
       
-      // Navigate directly to dashboard
-      navigate("/dashboard");
+      // Navigate directly to dashboard with newSignup flag
+      navigate("/dashboard", { state: { newSignup: true } });
     } catch (error: any) {
       console.error("Google signup error:", error);
       setError(error.message || "Failed to create account with Google. Please try again.");

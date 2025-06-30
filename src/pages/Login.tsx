@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -18,12 +17,15 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  
   // Redirect to dashboard if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
       navigate('/dashboard');
     }
-  }, [isAuthenticated, navigate]);const handleLogin = async (e: React.FormEvent) => {
+  }, [isAuthenticated, navigate]);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
@@ -34,9 +36,10 @@ const Login = () => {
         title: "Login successful!",
         description: "Welcome back to SPARK",
       });
-      navigate("/dashboard");
+      // Navigate to dashboard with a flag to show welcome popup
+      navigate("/dashboard", { state: { returningUser: true } });
     } catch (error: any) {
-      console.error("Login error:", error);
+      console.error("Login error:", error.code, error.message);
       setError(error.message || "Failed to log in. Please check your credentials.");
       toast({
         title: "Login failed",
@@ -58,7 +61,8 @@ const Login = () => {
         title: "Login successful!",
         description: "Welcome to SPARK",
       });
-      navigate("/dashboard");
+      // Navigate to dashboard with a flag to show welcome popup
+      navigate("/dashboard", { state: { returningUser: true } });
     } catch (error: any) {
       console.error("Google login error:", error);
       setError(error.message || "Failed to log in with Google.");
@@ -66,10 +70,12 @@ const Login = () => {
         title: "Login failed",
         description: error.message || "Failed to log in with Google.",
         variant: "destructive",
-      });    } finally {
+      });    
+    } finally {
       setIsLoading(false);
     }
   };
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4">
       <Card className="w-full max-w-md">
