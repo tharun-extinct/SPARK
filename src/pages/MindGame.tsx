@@ -51,6 +51,7 @@ const MemoryGame = () => {
     medium: Infinity,
     hard: Infinity
   });
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Emoji sets for different difficulties
@@ -79,6 +80,7 @@ const MemoryGame = () => {
     setTimer(0);
     setGameStarted(false);
     setGameCompleted(false);
+    setIsProcessing(false);
     
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -99,6 +101,9 @@ const MemoryGame = () => {
 
   // Handle card click
   const handleCardClick = (id: number) => {
+    // Prevent clicks during processing
+    if (isProcessing) return;
+    
     // Start game on first card click
     if (!gameStarted) {
       setGameStarted(true);
@@ -123,6 +128,7 @@ const MemoryGame = () => {
     // Check for match if two cards are flipped
     if (newFlippedCards.length === 2) {
       setMoves(prev => prev + 1);
+      setIsProcessing(true);
       
       const [firstId, secondId] = newFlippedCards;
       if (cards[firstId].emoji === cards[secondId].emoji) {
@@ -134,6 +140,7 @@ const MemoryGame = () => {
           setCards(matchedCards);
           setFlippedCards([]);
           setMatchedPairs(prev => prev + 1);
+          setIsProcessing(false);
           
           // Check if game is completed
           const totalPairs = matchedCards.length / 2;
@@ -165,6 +172,7 @@ const MemoryGame = () => {
           unflippedCards[secondId].flipped = false;
           setCards(unflippedCards);
           setFlippedCards([]);
+          setIsProcessing(false);
         }, 1000);
       }
     }
@@ -203,6 +211,13 @@ const MemoryGame = () => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
+  };
+
+  // Get grid columns based on difficulty
+  const getGridColumns = () => {
+    if (difficulty === 'easy') return 'grid-cols-3 sm:grid-cols-4';
+    if (difficulty === 'medium') return 'grid-cols-4';
+    return 'grid-cols-4 sm:grid-cols-6';
   };
 
   return (
@@ -262,24 +277,18 @@ const MemoryGame = () => {
       </div>
       
       {/* Game Board */}
-      <div className={`grid gap-2 ${
-        difficulty === 'easy' ? 'grid-cols-3 sm:grid-cols-4' : 
-        difficulty === 'medium' ? 'grid-cols-4' : 
-        'grid-cols-4 sm:grid-cols-6'
-      }`}>
+      <div className={`grid gap-2 ${getGridColumns()}`}>
         {cards.map((card) => (
           <div 
             key={card.id}
-            className={`aspect-square bg-white rounded-lg border-2 cursor-pointer transition-all duration-300 transform ${
-              card.flipped || card.matched ? 'rotate-y-180' : ''
-            } ${
+            className={`aspect-square bg-white rounded-lg border-2 cursor-pointer transition-all duration-300 ${
               card.matched ? 'border-green-300 bg-green-50' : 'border-gray-200 hover:border-primary/50'
             }`}
             onClick={() => handleCardClick(card.id)}
           >
             <div className="h-full w-full flex items-center justify-center text-3xl sm:text-4xl">
               {(card.flipped || card.matched) ? (
-                <div className="rotate-y-180">{card.emoji}</div>
+                <div>{card.emoji}</div>
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-indigo-100 to-purple-100 rounded-md"></div>
               )}
