@@ -1,69 +1,78 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/components/ui/use-toast";
-import { useAuth } from "@/services/firebaseAuth";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
 import { 
   ArrowLeft, 
   Brain, 
-  Sparkles, 
+  Trophy, 
+  Star, 
+  Clock, 
+  Target, 
   Zap, 
   Heart, 
-  Trophy, 
-  Target, 
-  Clock, 
-  Lightbulb,
+  Sparkles,
   RefreshCw,
   Check,
   X,
-  HelpCircle,
-  Info
+  Gamepad2,
+  Flower,
+  Leaf,
+  Sun
 } from 'lucide-react';
+import { useAuth } from '@/services/firebaseAuth';
+import { useToast } from '@/components/ui/use-toast';
 
-// Memory Card Game
+// Memory Game Component
 const MemoryGame = () => {
   const { toast } = useToast();
-  const [cards, setCards] = useState<Array<{id: number, value: string, flipped: boolean, matched: boolean}>>([]);
+  const [cards, setCards] = useState<Array<{id: number, emoji: string, flipped: boolean, matched: boolean}>>([]);
   const [flippedCards, setFlippedCards] = useState<number[]>([]);
   const [matchedPairs, setMatchedPairs] = useState<number>(0);
   const [moves, setMoves] = useState<number>(0);
   const [gameStarted, setGameStarted] = useState<boolean>(false);
   const [gameCompleted, setGameCompleted] = useState<boolean>(false);
   const [timer, setTimer] = useState<number>(0);
-  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy');
+  const [difficulty, setDifficulty] = useState<string>('medium');
+  const [bestScore, setBestScore] = useState<{easy: number, medium: number, hard: number}>({
+    easy: Infinity,
+    medium: Infinity,
+    hard: Infinity
+  });
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Emoji sets for different difficulty levels
+  // Emoji sets for different difficulties
   const emojiSets = {
-    easy: ['🌟', '🌈', '🌺', '🌻', '🦋', '🐬', '🍎', '🍓'],
-    medium: ['🌟', '🌈', '🌺', '🌻', '🦋', '🐬', '🍎', '🍓', '🍕', '🎸', '🚀', '🎮'],
-    hard: ['🌟', '🌈', '🌺', '🌻', '🦋', '🐬', '🍎', '🍓', '🍕', '🎸', '🚀', '🎮', '🏀', '🎨', '🎭', '🎯', '🎪', '🎡']
+    easy: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊'],
+    medium: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼'],
+    hard: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮']
   };
 
   // Initialize game
   const initializeGame = () => {
-    const pairCount = difficulty === 'easy' ? 8 : difficulty === 'medium' ? 12 : 18;
-    const emojis = emojiSets[difficulty].slice(0, pairCount);
+    const emojis = emojiSets[difficulty as keyof typeof emojiSets];
+    let gameCards = [...emojis, ...emojis]
+      .map((emoji, index) => ({
+        id: index,
+        emoji,
+        flipped: false,
+        matched: false
+      }))
+      .sort(() => Math.random() - 0.5);
     
-    // Create pairs of cards
-    let cardPairs = [...emojis, ...emojis];
-    
-    // Shuffle cards
-    cardPairs = cardPairs.sort(() => Math.random() - 0.5);
-    
-    // Create card objects
-    const newCards = cardPairs.map((value, index) => ({
-      id: index,
-      value,
-      flipped: false,
-      matched: false
-    }));
-    
-    setCards(newCards);
+    setCards(gameCards);
     setFlippedCards([]);
     setMatchedPairs(0);
     setMoves(0);
@@ -90,21 +99,17 @@ const MemoryGame = () => {
 
   // Handle card click
   const handleCardClick = (id: number) => {
-    // Ignore if game is completed or card is already flipped/matched
-    if (gameCompleted || cards[id].flipped || cards[id].matched) {
-      return;
-    }
-    
     // Start game on first card click
     if (!gameStarted) {
       setGameStarted(true);
       startTimer();
     }
     
-    // Don't allow more than 2 cards to be flipped at once
-    if (flippedCards.length === 2) {
-      return;
-    }
+    // Ignore click if card is already flipped or matched
+    if (cards[id].flipped || cards[id].matched) return;
+    
+    // Ignore if two cards are already flipped
+    if (flippedCards.length === 2) return;
     
     // Flip the card
     const newCards = [...cards];
@@ -120,7 +125,7 @@ const MemoryGame = () => {
       setMoves(prev => prev + 1);
       
       const [firstId, secondId] = newFlippedCards;
-      if (cards[firstId].value === cards[secondId].value) {
+      if (cards[firstId].emoji === cards[secondId].emoji) {
         // Match found
         setTimeout(() => {
           const matchedCards = [...cards];
@@ -130,18 +135,26 @@ const MemoryGame = () => {
           setFlippedCards([]);
           setMatchedPairs(prev => prev + 1);
           
-          // Check if all pairs are matched
-          if (matchedPairs + 1 === cards.length / 2) {
+          // Check if game is completed
+          const totalPairs = matchedCards.length / 2;
+          if (matchedPairs + 1 === totalPairs) {
             setGameCompleted(true);
             if (timerRef.current) {
               clearInterval(timerRef.current);
               timerRef.current = null;
             }
             
-            toast({
-              title: "Congratulations!",
-              description: `You completed the game in ${moves + 1} moves and ${timer} seconds!`,
-            });
+            // Update best score
+            if (moves + 1 < bestScore[difficulty as keyof typeof bestScore]) {
+              const newBestScore = {...bestScore};
+              newBestScore[difficulty as keyof typeof bestScore] = moves + 1;
+              setBestScore(newBestScore);
+              
+              toast({
+                title: "New Best Score!",
+                description: `You've set a new record for ${difficulty} difficulty: ${moves + 1} moves.`,
+              });
+            }
           }
         }, 500);
       } else {
@@ -158,19 +171,21 @@ const MemoryGame = () => {
   };
 
   // Change difficulty
-  const changeDifficulty = (newDifficulty: 'easy' | 'medium' | 'hard') => {
+  const changeDifficulty = (newDifficulty: string) => {
     setDifficulty(newDifficulty);
-    // Reset game with new difficulty
-    setTimeout(() => {
-      initializeGame();
-    }, 0);
+    initializeGame();
   };
 
   // Initialize game on mount and when difficulty changes
   useEffect(() => {
     initializeGame();
     
-    // Cleanup timer on unmount
+    // Load best scores from localStorage
+    const savedScores = localStorage.getItem('memoryGameBestScores');
+    if (savedScores) {
+      setBestScore(JSON.parse(savedScores));
+    }
+    
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -178,129 +193,277 @@ const MemoryGame = () => {
     };
   }, [difficulty]);
 
+  // Save best scores to localStorage when they change
+  useEffect(() => {
+    localStorage.setItem('memoryGameBestScores', JSON.stringify(bestScore));
+  }, [bestScore]);
+
+  // Format time
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
+  };
+
   return (
     <div className="space-y-4">
-      {/* Game Controls */}
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="flex items-center gap-1 px-3 py-1 text-sm">
-            <Clock className="w-3.5 h-3.5" />
-            {Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')}
-          </Badge>
-          <Badge variant="outline" className="flex items-center gap-1 px-3 py-1 text-sm">
-            <Zap className="w-3.5 h-3.5" />
-            {moves} Moves
-          </Badge>
-          <Badge variant="outline" className="flex items-center gap-1 px-3 py-1 text-sm">
-            <Target className="w-3.5 h-3.5" />
-            {matchedPairs}/{cards.length / 2} Pairs
-          </Badge>
+      {/* Game Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-xl font-bold">Memory Mosaic</h2>
+          <p className="text-muted-foreground">Match pairs of cards to test your memory</p>
         </div>
         
         <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => initializeGame()}
-            className="flex items-center gap-1"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Reset
-          </Button>
-          
-          <Select value={difficulty} onValueChange={(value) => changeDifficulty(value as 'easy' | 'medium' | 'hard')}>
-            <SelectTrigger className="w-[130px]">
+          <Select value={difficulty} onValueChange={changeDifficulty}>
+            <SelectTrigger className="w-[120px]">
               <SelectValue placeholder="Difficulty" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="easy">Easy (8 pairs)</SelectItem>
-              <SelectItem value="medium">Medium (12 pairs)</SelectItem>
-              <SelectItem value="hard">Hard (18 pairs)</SelectItem>
+              <SelectItem value="easy">Easy</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="hard">Hard</SelectItem>
             </SelectContent>
           </Select>
+          
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={initializeGame}
+            title="Restart Game"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
         </div>
       </div>
       
+      {/* Game Stats */}
+      <div className="grid grid-cols-3 gap-2">
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="p-3 text-center">
+            <div className="text-sm text-blue-600 font-medium">Moves</div>
+            <div className="text-2xl font-bold text-blue-700">{moves}</div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-green-50 border-green-200">
+          <CardContent className="p-3 text-center">
+            <div className="text-sm text-green-600 font-medium">Pairs</div>
+            <div className="text-2xl font-bold text-green-700">{matchedPairs}/{cards.length / 2}</div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-purple-50 border-purple-200">
+          <CardContent className="p-3 text-center">
+            <div className="text-sm text-purple-600 font-medium">Time</div>
+            <div className="text-2xl font-bold text-purple-700">{formatTime(timer)}</div>
+          </CardContent>
+        </Card>
+      </div>
+      
       {/* Game Board */}
-      <div className={`grid gap-3 mx-auto ${
-        difficulty === 'easy' ? 'grid-cols-4' : 
-        difficulty === 'medium' ? 'grid-cols-4 sm:grid-cols-6' : 
+      <div className={`grid gap-2 ${
+        difficulty === 'easy' ? 'grid-cols-3 sm:grid-cols-4' : 
+        difficulty === 'medium' ? 'grid-cols-4' : 
         'grid-cols-4 sm:grid-cols-6'
       }`}>
         {cards.map((card) => (
-          <div
+          <div 
             key={card.id}
-            className={`aspect-square flex items-center justify-center rounded-lg text-3xl sm:text-4xl cursor-pointer transition-all duration-300 transform ${
-              card.flipped || card.matched 
-                ? 'bg-white shadow-md rotate-0' 
-                : 'bg-gradient-to-br from-primary/90 to-purple-600/90 text-transparent rotate-y-180'
+            className={`aspect-square bg-white rounded-lg border-2 cursor-pointer transition-all duration-300 transform ${
+              card.flipped || card.matched ? 'rotate-y-180' : ''
             } ${
-              card.matched ? 'bg-green-50 border-2 border-green-200' : ''
+              card.matched ? 'border-green-300 bg-green-50' : 'border-gray-200 hover:border-primary/50'
             }`}
             onClick={() => handleCardClick(card.id)}
           >
-            {(card.flipped || card.matched) ? card.value : ''}
+            <div className="h-full w-full flex items-center justify-center text-3xl sm:text-4xl">
+              {(card.flipped || card.matched) ? (
+                <div className="rotate-y-180">{card.emoji}</div>
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-indigo-100 to-purple-100 rounded-md"></div>
+              )}
+            </div>
           </div>
         ))}
       </div>
       
-      {/* Game Status */}
+      {/* Game Completion */}
       {gameCompleted && (
-        <Card className="bg-green-50 border-green-200 mt-4">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full">
-                <Trophy className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-green-800">Game Completed!</h3>
-                <p className="text-sm text-green-700">
-                  You matched all pairs in {moves} moves and {timer} seconds.
-                </p>
-              </div>
+        <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+          <CardContent className="p-4 text-center">
+            <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-2">
+              <Trophy className="h-6 w-6 text-white" />
+            </div>
+            <h3 className="text-xl font-bold text-green-800 mb-1">Congratulations!</h3>
+            <p className="text-green-700 mb-3">You completed the game in {moves} moves and {formatTime(timer)}.</p>
+            <div className="flex justify-center gap-2">
+              <Button 
+                variant="outline" 
+                onClick={initializeGame}
+                className="border-green-300 text-green-700 hover:bg-green-100"
+              >
+                Play Again
+              </Button>
+              <Button 
+                onClick={() => changeDifficulty(
+                  difficulty === 'easy' ? 'medium' : 
+                  difficulty === 'medium' ? 'hard' : 'easy'
+                )}
+                className="bg-gradient-to-r from-green-500 to-emerald-600 text-white"
+              >
+                {difficulty === 'easy' ? 'Try Medium' : 
+                 difficulty === 'medium' ? 'Try Hard' : 'Try Easy'}
+              </Button>
             </div>
           </CardContent>
         </Card>
       )}
+      
+      {/* Game Info */}
+      <Card>
+        <CardContent className="p-4 text-sm text-muted-foreground">
+          <h3 className="font-medium text-foreground mb-2">Benefits of Memory Games:</h3>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>Improves concentration and attention to detail</li>
+            <li>Enhances short-term memory and recall</li>
+            <li>Reduces stress and provides mental relaxation</li>
+            <li>Helps maintain cognitive function as we age</li>
+          </ul>
+        </CardContent>
+      </Card>
     </div>
   );
 };
 
-// Focus Flow Game
+// Focus Flow Game Component
 const FocusFlowGame = () => {
   const { toast } = useToast();
   const [gameStarted, setGameStarted] = useState(false);
-  const [gameOver, setGameOver] = useState(false);
-  const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(60);
-  const [target, setTarget] = useState<string>('');
-  const [distractions, setDistractions] = useState<string[]>([]);
+  const [gameCompleted, setGameCompleted] = useState(false);
   const [level, setLevel] = useState(1);
-  const [showInstructions, setShowInstructions] = useState(true);
+  const [score, setScore] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(30);
+  const [grid, setGrid] = useState<string[][]>([]);
+  const [targetEmoji, setTargetEmoji] = useState('');
+  const [found, setFound] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [highScore, setHighScore] = useState(0);
+  const [difficulty, setDifficulty] = useState('medium');
+  const [shake, setShake] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const gameAreaRef = useRef<HTMLDivElement>(null);
 
   // Emoji sets
-  const emojiSets = {
-    fruits: ['🍎', '🍌', '🍇', '🍊', '🍓', '🍑', '🍍', '🥝'],
-    animals: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼'],
-    faces: ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣'],
-    objects: ['⚽', '🏀', '🏈', '⚾', '🎾', '🏐', '🏉', '🎱']
+  const emojiSets = [
+    // Level 1-3
+    ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼'],
+    // Level 4-6
+    ['🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈', '🍒', '🍑'],
+    // Level 7-9
+    ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃'],
+    // Level 10+
+    ['🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐', '🛻', '🚚', '🚛', '🚜', '🛵', '🏍️', '🛺', '🚲']
+  ];
+
+  // Initialize game
+  const initializeGame = () => {
+    // Load high score from localStorage
+    const savedHighScore = localStorage.getItem('focusFlowHighScore');
+    if (savedHighScore) {
+      setHighScore(parseInt(savedHighScore));
+    }
+    
+    setGameStarted(false);
+    setGameCompleted(false);
+    setLevel(1);
+    setScore(0);
+    setTimeLeft(getDifficultyTime());
+    
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  // Get time based on difficulty
+  const getDifficultyTime = () => {
+    switch (difficulty) {
+      case 'easy': return 45;
+      case 'hard': return 20;
+      default: return 30; // medium
+    }
+  };
+
+  // Get grid size based on level
+  const getGridSize = () => {
+    if (level <= 3) return 4;
+    if (level <= 6) return 5;
+    if (level <= 9) return 6;
+    return 7;
+  };
+
+  // Get number of targets based on level
+  const getTargetCount = () => {
+    return Math.min(5, Math.max(1, Math.floor(level / 2)));
+  };
+
+  // Generate game grid
+  const generateGrid = () => {
+    const gridSize = getGridSize();
+    const targetCount = getTargetCount();
+    
+    // Select emoji set based on level
+    const emojiSetIndex = Math.min(Math.floor(level / 4), emojiSets.length - 1);
+    const currentEmojiSet = emojiSets[emojiSetIndex];
+    
+    // Select target emoji
+    const newTargetEmoji = currentEmojiSet[Math.floor(Math.random() * currentEmojiSet.length)];
+    setTargetEmoji(newTargetEmoji);
+    
+    // Generate grid
+    const newGrid: string[][] = [];
+    let targetPositions: number[] = [];
+    
+    // Place targets
+    for (let i = 0; i < targetCount; i++) {
+      let position;
+      do {
+        position = Math.floor(Math.random() * (gridSize * gridSize));
+      } while (targetPositions.includes(position));
+      targetPositions.push(position);
+    }
+    
+    setTotal(targetCount);
+    setFound(0);
+    
+    // Fill grid
+    let cellIndex = 0;
+    for (let i = 0; i < gridSize; i++) {
+      const row: string[] = [];
+      for (let j = 0; j < gridSize; j++) {
+        if (targetPositions.includes(cellIndex)) {
+          row.push(newTargetEmoji);
+        } else {
+          // Select a different emoji for distractors
+          let distractorEmoji;
+          do {
+            distractorEmoji = currentEmojiSet[Math.floor(Math.random() * currentEmojiSet.length)];
+          } while (distractorEmoji === newTargetEmoji);
+          row.push(distractorEmoji);
+        }
+        cellIndex++;
+      }
+      newGrid.push(row);
+    }
+    
+    setGrid(newGrid);
   };
 
   // Start game
   const startGame = () => {
+    generateGrid();
     setGameStarted(true);
-    setGameOver(false);
-    setScore(0);
-    setTimeLeft(60);
-    setLevel(1);
-    setShowInstructions(false);
-    
-    // Set initial target
-    const randomSet = Object.values(emojiSets)[Math.floor(Math.random() * Object.values(emojiSets).length)];
-    const randomTarget = randomSet[Math.floor(Math.random() * randomSet.length)];
-    setTarget(randomTarget);
+    setTimeLeft(getDifficultyTime());
     
     // Start timer
     if (timerRef.current) {
@@ -310,762 +473,122 @@ const FocusFlowGame = () => {
     timerRef.current = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
-          // Game over
+          // Time's up
           if (timerRef.current) {
             clearInterval(timerRef.current);
+            timerRef.current = null;
           }
-          setGameOver(true);
+          endGame();
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
-    
-    // Generate initial distractions
-    generateDistractions();
   };
 
-  // Generate distractions
-  const generateDistractions = () => {
-    const allEmojis = Object.values(emojiSets).flat();
-    const distractionCount = Math.min(5 + level * 2, 20); // Increase distractions with level
+  // End game
+  const endGame = () => {
+    setGameCompleted(true);
     
-    const newDistractions = [];
-    for (let i = 0; i < distractionCount; i++) {
-      let distraction;
-      do {
-        distraction = allEmojis[Math.floor(Math.random() * allEmojis.length)];
-      } while (distraction === target);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    
+    // Update high score
+    if (score > highScore) {
+      setHighScore(score);
+      localStorage.setItem('focusFlowHighScore', score.toString());
       
-      newDistractions.push(distraction);
+      toast({
+        title: "New High Score!",
+        description: `You've set a new record: ${score} points.`,
+      });
     }
-    
-    // Add the target a random number of times (1-3)
-    const targetCount = Math.min(1 + Math.floor(Math.random() * 3), 5);
-    for (let i = 0; i < targetCount; i++) {
-      const insertPosition = Math.floor(Math.random() * (newDistractions.length + 1));
-      newDistractions.splice(insertPosition, 0, target);
-    }
-    
-    setDistractions(newDistractions);
   };
 
-  // Handle clicking on a distraction
-  const handleDistractionClick = (emoji: string) => {
-    if (!gameStarted || gameOver) return;
+  // Handle cell click
+  const handleCellClick = (rowIndex: number, colIndex: number) => {
+    if (!gameStarted || gameCompleted) return;
     
-    if (emoji === target) {
+    const clickedEmoji = grid[rowIndex][colIndex];
+    
+    if (clickedEmoji === targetEmoji) {
       // Correct click
-      setScore(prev => prev + 10 * level);
+      const newGrid = [...grid];
+      newGrid[rowIndex][colIndex] = '✓';
+      setGrid(newGrid);
       
-      // Increase level every 5 correct clicks
-      if (score > 0 && score % (50 * level) === 0) {
-        setLevel(prev => prev + 1);
-        toast({
-          title: "Level Up!",
-          description: `You've reached level ${level + 1}!`,
-        });
-      }
-      
-      // Add some time as reward
-      setTimeLeft(prev => Math.min(prev + 2, 60));
-      
-      // Generate new distractions
-      generateDistractions();
-      
-      // Change target occasionally
-      if (Math.random() < 0.3) {
-        const randomSet = Object.values(emojiSets)[Math.floor(Math.random() * Object.values(emojiSets).length)];
-        const randomTarget = randomSet[Math.floor(Math.random() * randomSet.length)];
-        setTarget(randomTarget);
-      }
+      setFound(prev => {
+        const newFound = prev + 1;
+        
+        // Add points
+        setScore(prevScore => prevScore + (10 * level));
+        
+        // Check if all targets found
+        if (newFound >= total) {
+          // Level completed
+          setTimeout(() => {
+            setLevel(prevLevel => prevLevel + 1);
+            generateGrid();
+            
+            // Add time bonus
+            setTimeLeft(prev => prev + 5);
+            
+            toast({
+              title: "Level Up!",
+              description: `Level ${level} completed! +5 seconds bonus.`,
+            });
+          }, 500);
+        }
+        
+        return newFound;
+      });
     } else {
-      // Incorrect click
-      setScore(prev => Math.max(0, prev - 5));
-      setTimeLeft(prev => Math.max(0, prev - 3)); // Penalty
+      // Wrong click
+      setShake(true);
+      setTimeout(() => setShake(false), 500);
       
-      // Shake the game area
-      if (gameAreaRef.current) {
-        gameAreaRef.current.classList.add('animate-shake');
-        setTimeout(() => {
-          if (gameAreaRef.current) {
-            gameAreaRef.current.classList.remove('animate-shake');
-          }
-        }, 500);
-      }
+      // Penalty
+      setTimeLeft(prev => Math.max(1, prev - 2));
+      
+      toast({
+        title: "Wrong!",
+        description: "That's not the target emoji. -2 seconds penalty.",
+        variant: "destructive",
+      });
     }
   };
 
-  // Cleanup on unmount
+  // Change difficulty
+  const changeDifficulty = (newDifficulty: string) => {
+    setDifficulty(newDifficulty);
+    initializeGame();
+  };
+
+  // Initialize on mount
   useEffect(() => {
+    initializeGame();
+    
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
     };
-  }, []);
+  }, [difficulty]);
 
   return (
     <div className="space-y-4">
-      {/* Instructions */}
-      {showInstructions && (
-        <Card className="bg-blue-50 border-blue-200 mb-4">
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              <Info className="w-5 h-5 text-blue-600 mt-0.5" />
-              <div>
-                <h3 className="font-semibold text-blue-800 mb-1">How to Play</h3>
-                <p className="text-sm text-blue-700 mb-2">
-                  Focus Flow tests your concentration and attention skills. Click on the target emoji while ignoring distractions.
-                </p>
-                <ul className="text-sm text-blue-700 space-y-1 list-disc pl-4">
-                  <li>Your target emoji is shown at the top</li>
-                  <li>Click ONLY on that emoji when it appears</li>
-                  <li>Avoid clicking on other emojis</li>
-                  <li>Each correct click earns points and adds time</li>
-                  <li>Each wrong click loses points and time</li>
-                </ul>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-      
-      {/* Game Controls */}
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="flex items-center gap-1 px-3 py-1 text-sm">
-            <Clock className="w-3.5 h-3.5" />
-            {timeLeft}s
-          </Badge>
-          <Badge variant="outline" className="flex items-center gap-1 px-3 py-1 text-sm">
-            <Trophy className="w-3.5 h-3.5" />
-            {score} Points
-          </Badge>
-          <Badge variant="outline" className="flex items-center gap-1 px-3 py-1 text-sm">
-            <Zap className="w-3.5 h-3.5" />
-            Level {level}
-          </Badge>
+      {/* Game Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-xl font-bold">Focus Flow</h2>
+          <p className="text-muted-foreground">Find all the target emojis before time runs out</p>
         </div>
         
         <div className="flex items-center gap-2">
-          {!gameStarted || gameOver ? (
-            <Button 
-              onClick={startGame}
-              className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 text-white"
-            >
-              {gameOver ? 'Play Again' : 'Start Game'}
-            </Button>
-          ) : (
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                if (timerRef.current) {
-                  clearInterval(timerRef.current);
-                }
-                setGameOver(true);
-              }}
-            >
-              End Game
-            </Button>
-          )}
-          
-          <Button 
-            variant="outline" 
-            size="icon"
-            onClick={() => setShowInstructions(prev => !prev)}
-          >
-            <HelpCircle className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-      
-      {/* Target Display */}
-      {gameStarted && !gameOver && (
-        <div className="text-center mb-4">
-          <div className="inline-block bg-white p-3 rounded-lg shadow-md">
-            <div className="text-sm font-medium text-gray-500 mb-1">Find this emoji:</div>
-            <div className="text-5xl">{target}</div>
-          </div>
-        </div>
-      )}
-      
-      {/* Game Area */}
-      <div 
-        ref={gameAreaRef}
-        className={`relative bg-white rounded-lg p-4 min-h-[300px] ${gameStarted && !gameOver ? 'border-2 border-primary' : 'border'}`}
-      >
-        {!gameStarted && !gameOver ? (
-          <div className="flex flex-col items-center justify-center h-[300px] text-center">
-            <Brain className="w-16 h-16 text-primary/20 mb-4" />
-            <h3 className="text-xl font-semibold mb-2">Focus Flow</h3>
-            <p className="text-muted-foreground mb-6 max-w-md">
-              Test and improve your concentration by finding target emojis while ignoring distractions.
-            </p>
-            <Button 
-              onClick={startGame}
-              className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 text-white"
-            >
-              Start Game
-            </Button>
-          </div>
-        ) : gameOver ? (
-          <div className="flex flex-col items-center justify-center h-[300px] text-center">
-            <Trophy className="w-16 h-16 text-yellow-500 mb-4" />
-            <h3 className="text-xl font-semibold mb-2">Game Over!</h3>
-            <p className="text-lg font-medium mb-1">Your Score: {score}</p>
-            <p className="text-muted-foreground mb-6">You reached level {level}</p>
-            <Button 
-              onClick={startGame}
-              className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 text-white"
-            >
-              Play Again
-            </Button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4">
-            {distractions.map((emoji, index) => (
-              <div
-                key={index}
-                className={`aspect-square flex items-center justify-center text-3xl sm:text-4xl bg-gray-50 hover:bg-gray-100 rounded-lg cursor-pointer transition-transform hover:scale-105 ${
-                  emoji === target ? 'hover:bg-green-50' : 'hover:bg-red-50'
-                }`}
-                onClick={() => handleDistractionClick(emoji)}
-              >
-                {emoji}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-      
-      {/* Progress Bar */}
-      {gameStarted && !gameOver && (
-        <Progress value={(timeLeft / 60) * 100} className="h-2" />
-      )}
-    </div>
-  );
-};
-
-// Gratitude Garden Game
-const GratitudeGarden = () => {
-  const { currentUser } = useAuth();
-  const { toast } = useToast();
-  const [gratitudeText, setGratitudeText] = useState('');
-  const [gratitudeList, setGratitudeList] = useState<Array<{id: string, text: string, date: Date, category: string}>>([]);
-  const [gardenLevel, setGardenLevel] = useState(1);
-  const [showForm, setShowForm] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('general');
-  
-  // Categories for gratitude entries
-  const categories = [
-    { id: 'general', name: 'General', emoji: '🌱' },
-    { id: 'relationships', name: 'Relationships', emoji: '❤️' },
-    { id: 'health', name: 'Health & Wellness', emoji: '🧘' },
-    { id: 'achievements', name: 'Achievements', emoji: '🏆' },
-    { id: 'nature', name: 'Nature', emoji: '🌳' },
-    { id: 'experiences', name: 'Experiences', emoji: '✨' }
-  ];
-  
-  // Plant emojis for garden visualization
-  const plantEmojis = ['🌱', '🌿', '🌵', '🌴', '🌲', '🌳', '🌺', '🌻', '🌹', '🌷', '🌸', '🍀'];
-  
-  // Load saved gratitude entries
-  useEffect(() => {
-    // In a real implementation, this would load from Firestore
-    // For now, we'll use mock data
-    const mockEntries = [
-      { id: '1', text: 'I am grateful for my health', date: new Date(Date.now() - 86400000 * 2), category: 'health' },
-      { id: '2', text: 'I am grateful for my family', date: new Date(Date.now() - 86400000), category: 'relationships' },
-      { id: '3', text: 'I am grateful for this beautiful day', date: new Date(), category: 'nature' }
-    ];
-    
-    setGratitudeList(mockEntries);
-    
-    // Set garden level based on number of entries
-    const level = Math.min(Math.floor(mockEntries.length / 3) + 1, 5);
-    setGardenLevel(level);
-  }, []);
-  
-  // Add new gratitude entry
-  const addGratitude = () => {
-    if (!gratitudeText.trim()) {
-      toast({
-        title: "Empty Entry",
-        description: "Please enter something you're grateful for.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    const newEntry = {
-      id: Date.now().toString(),
-      text: gratitudeText,
-      date: new Date(),
-      category: selectedCategory
-    };
-    
-    const updatedList = [newEntry, ...gratitudeList];
-    setGratitudeList(updatedList);
-    setGratitudeText('');
-    setShowForm(false);
-    
-    // Update garden level
-    const newLevel = Math.min(Math.floor(updatedList.length / 3) + 1, 5);
-    
-    if (newLevel > gardenLevel) {
-      setGardenLevel(newLevel);
-      toast({
-        title: "Garden Level Up!",
-        description: `Your gratitude garden has grown to level ${newLevel}!`,
-      });
-    } else {
-      toast({
-        title: "Gratitude Added",
-        description: "Your garden is growing with positivity!",
-      });
-    }
-  };
-  
-  // Format date for display
-  const formatDate = (date: Date) => {
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    
-    if (date.toDateString() === today.toDateString()) {
-      return 'Today';
-    } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday';
-    } else {
-      return date.toLocaleDateString();
-    }
-  };
-  
-  // Get random position for garden elements
-  const getRandomPosition = (index: number) => {
-    // Create a deterministic but seemingly random position based on the index
-    const row = Math.floor(index / 4);
-    const col = index % 4;
-    
-    // Add some randomness within the grid cell
-    const xOffset = Math.sin(index * 7919) * 10; // Using prime numbers for pseudo-randomness
-    const yOffset = Math.cos(index * 7907) * 10;
-    
-    return {
-      left: `${col * 25 + 5 + xOffset}%`,
-      top: `${row * 33 + 10 + yOffset}%`
-    };
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Garden Visualization */}
-      <Card className="bg-gradient-to-b from-blue-50 to-green-50 border-green-200 overflow-hidden">
-        <CardContent className="p-6">
-          <div className="relative h-[300px] rounded-lg bg-gradient-to-b from-sky-100 to-green-100 border border-green-200 overflow-hidden">
-            {/* Sun */}
-            <div className="absolute top-4 right-4 text-4xl animate-pulse">☀️</div>
-            
-            {/* Clouds */}
-            <div className="absolute top-6 left-[10%] text-3xl animate-bounce" style={{animationDuration: '8s'}}>☁️</div>
-            <div className="absolute top-10 left-[60%] text-2xl animate-bounce" style={{animationDuration: '10s'}}>☁️</div>
-            
-            {/* Ground */}
-            <div className="absolute bottom-0 left-0 right-0 h-1/4 bg-gradient-to-t from-green-200 to-green-100"></div>
-            
-            {/* Plants based on gratitude entries */}
-            {gratitudeList.map((entry, index) => {
-              // Only show the most recent entries based on garden level
-              if (index >= gardenLevel * 5) return null;
-              
-              const position = getRandomPosition(index);
-              const categoryInfo = categories.find(c => c.id === entry.category) || categories[0];
-              
-              // Choose plant emoji based on category and index
-              const plantIndex = (index + categories.indexOf(categoryInfo)) % plantEmojis.length;
-              const plantEmoji = index === 0 ? categoryInfo.emoji : plantEmojis[plantIndex];
-              
-              return (
-                <div 
-                  key={entry.id}
-                  className="absolute text-3xl sm:text-4xl transform hover:scale-125 transition-transform cursor-help"
-                  style={{
-                    left: position.left,
-                    top: position.top,
-                    zIndex: 10 - Math.min(index, 9) // Higher z-index for more recent entries
-                  }}
-                  title={entry.text}
-                >
-                  {plantEmoji}
-                </div>
-              );
-            })}
-            
-            {/* Garden level indicator */}
-            <div className="absolute top-2 left-2 bg-white/80 backdrop-blur-sm rounded-full px-3 py-1 text-sm font-medium flex items-center gap-1">
-              <Sparkles className="w-4 h-4 text-yellow-500" />
-              Garden Level {gardenLevel}
-            </div>
-            
-            {/* Empty state */}
-            {gratitudeList.length === 0 && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
-                <Sparkles className="w-12 h-12 text-green-300 mb-2" />
-                <h3 className="text-lg font-medium text-green-800">Your Garden Awaits</h3>
-                <p className="text-sm text-green-600 max-w-md">
-                  Add things you're grateful for to watch your garden grow and flourish.
-                </p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-      
-      {/* Add Gratitude Button */}
-      {!showForm ? (
-        <Button 
-          onClick={() => setShowForm(true)}
-          className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white"
-        >
-          <Heart className="w-4 h-4 mr-2" />
-          Add Something You're Grateful For
-        </Button>
-      ) : (
-        <Card className="border-green-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Heart className="w-5 h-5 text-rose-500" />
-              What are you grateful for today?
-            </CardTitle>
-            <CardDescription>
-              Expressing gratitude has been shown to improve mental wellbeing
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <textarea
-              value={gratitudeText}
-              onChange={(e) => setGratitudeText(e.target.value)}
-              placeholder="I am grateful for..."
-              className="w-full p-3 border rounded-md focus:ring-2 focus:ring-primary focus:outline-none min-h-[100px]"
-            />
-            
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {categories.map(category => (
-                <div
-                  key={category.id}
-                  className={`flex items-center gap-2 p-2 rounded-md cursor-pointer border ${
-                    selectedCategory === category.id 
-                      ? 'bg-primary/10 border-primary' 
-                      : 'hover:bg-gray-50 border-transparent'
-                  }`}
-                  onClick={() => setSelectedCategory(category.id)}
-                >
-                  <div className="text-xl">{category.emoji}</div>
-                  <div className="text-sm font-medium">{category.name}</div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowForm(false)}>
-              Cancel
-            </Button>
-            <Button onClick={addGratitude}>
-              Add to Garden
-            </Button>
-          </CardFooter>
-        </Card>
-      )}
-      
-      {/* Gratitude List */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2">
-            <Lightbulb className="w-5 h-5 text-yellow-500" />
-            Your Gratitude Journal
-          </CardTitle>
-          <CardDescription>
-            Review the things you've been grateful for
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {gratitudeList.length === 0 ? (
-            <div className="text-center py-6 text-muted-foreground">
-              <p>Your gratitude journal is empty. Add your first entry to start growing your garden!</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {gratitudeList.map((entry) => {
-                const categoryInfo = categories.find(c => c.id === entry.category) || categories[0];
-                
-                return (
-                  <div key={entry.id} className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                    <div className="flex items-start gap-3">
-                      <div className="text-2xl">{categoryInfo.emoji}</div>
-                      <div className="flex-1">
-                        <p className="text-gray-800">{entry.text}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline" className="text-xs">
-                            {categoryInfo.name}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            {formatDate(entry.date)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
-
-// Emotion Explorer Game
-const EmotionExplorer = () => {
-  const { toast } = useToast();
-  const [gameStarted, setGameStarted] = useState(false);
-  const [currentScenario, setCurrentScenario] = useState<{
-    id: number;
-    scenario: string;
-    emotion: string;
-    options: string[];
-    correctIndex: number;
-  } | null>(null);
-  const [score, setScore] = useState(0);
-  const [round, setRound] = useState(0);
-  const [feedback, setFeedback] = useState<{
-    show: boolean;
-    correct: boolean;
-    message: string;
-  }>({ show: false, correct: false, message: '' });
-  const [gameOver, setGameOver] = useState(false);
-  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy');
-  
-  // Scenarios database
-  const scenarios = {
-    easy: [
-      {
-        id: 1,
-        scenario: "Your friend just gave you a surprise birthday gift.",
-        emotion: "Joy",
-        options: ["Joy", "Anger", "Fear", "Sadness"],
-        correctIndex: 0
-      },
-      {
-        id: 2,
-        scenario: "You lost your favorite possession.",
-        emotion: "Sadness",
-        options: ["Disgust", "Sadness", "Surprise", "Joy"],
-        correctIndex: 1
-      },
-      {
-        id: 3,
-        scenario: "Someone jumps out from behind a door to scare you.",
-        emotion: "Fear",
-        options: ["Anger", "Joy", "Fear", "Disgust"],
-        correctIndex: 2
-      },
-      {
-        id: 4,
-        scenario: "Someone cuts in front of you in a long line.",
-        emotion: "Anger",
-        options: ["Sadness", "Anger", "Surprise", "Fear"],
-        correctIndex: 1
-      },
-      {
-        id: 5,
-        scenario: "You find out you won a contest you entered.",
-        emotion: "Surprise",
-        options: ["Joy", "Surprise", "Pride", "Hope"],
-        correctIndex: 1
-      }
-    ],
-    medium: [
-      {
-        id: 6,
-        scenario: "You worked hard on a project and it turned out well.",
-        emotion: "Pride",
-        options: ["Joy", "Relief", "Pride", "Contentment"],
-        correctIndex: 2
-      },
-      {
-        id: 7,
-        scenario: "You're about to give an important presentation to a large audience.",
-        emotion: "Anxiety",
-        options: ["Fear", "Anxiety", "Shame", "Anticipation"],
-        correctIndex: 1
-      },
-      {
-        id: 8,
-        scenario: "You made a mistake that affected others negatively.",
-        emotion: "Guilt",
-        options: ["Shame", "Sadness", "Guilt", "Embarrassment"],
-        correctIndex: 2
-      },
-      {
-        id: 9,
-        scenario: "You're looking forward to an upcoming vacation.",
-        emotion: "Anticipation",
-        options: ["Hope", "Joy", "Anticipation", "Contentment"],
-        correctIndex: 2
-      },
-      {
-        id: 10,
-        scenario: "You narrowly avoided a car accident.",
-        emotion: "Relief",
-        options: ["Surprise", "Fear", "Gratitude", "Relief"],
-        correctIndex: 3
-      }
-    ],
-    hard: [
-      {
-        id: 11,
-        scenario: "You see someone being praised for work that you actually did.",
-        emotion: "Resentment",
-        options: ["Jealousy", "Anger", "Resentment", "Contempt"],
-        correctIndex: 2
-      },
-      {
-        id: 12,
-        scenario: "You're experiencing both happiness and sadness about a major life change.",
-        emotion: "Bittersweet",
-        options: ["Nostalgia", "Bittersweet", "Melancholy", "Ambivalence"],
-        correctIndex: 1
-      },
-      {
-        id: 13,
-        scenario: "You feel a deep sense of wonder looking at the night sky.",
-        emotion: "Awe",
-        options: ["Surprise", "Joy", "Awe", "Curiosity"],
-        correctIndex: 2
-      },
-      {
-        id: 14,
-        scenario: "You feel a warm connection to your ancestors and cultural heritage.",
-        emotion: "Nostalgia",
-        options: ["Pride", "Nostalgia", "Belonging", "Reverence"],
-        correctIndex: 1
-      },
-      {
-        id: 15,
-        scenario: "You feel peaceful and satisfied with your current life situation.",
-        emotion: "Contentment",
-        options: ["Joy", "Serenity", "Contentment", "Satisfaction"],
-        correctIndex: 2
-      }
-    ]
-  };
-  
-  // Start game
-  const startGame = () => {
-    setGameStarted(true);
-    setGameOver(false);
-    setScore(0);
-    setRound(0);
-    setFeedback({ show: false, correct: false, message: '' });
-    
-    // Select first scenario
-    nextScenario();
-  };
-  
-  // Get next scenario
-  const nextScenario = () => {
-    // Get scenarios for current difficulty
-    const currentScenarios = scenarios[difficulty];
-    
-    // Check if we've gone through all scenarios
-    if (round >= currentScenarios.length) {
-      setGameOver(true);
-      return;
-    }
-    
-    // Get next scenario
-    const scenario = currentScenarios[round];
-    setCurrentScenario(scenario);
-    setRound(prev => prev + 1);
-  };
-  
-  // Handle answer selection
-  const handleAnswer = (selectedIndex: number) => {
-    if (!currentScenario) return;
-    
-    const isCorrect = selectedIndex === currentScenario.correctIndex;
-    
-    if (isCorrect) {
-      setScore(prev => prev + (difficulty === 'easy' ? 10 : difficulty === 'medium' ? 20 : 30));
-      setFeedback({
-        show: true,
-        correct: true,
-        message: `Correct! ${currentScenario.scenario} would typically evoke ${currentScenario.emotion}.`
-      });
-    } else {
-      setFeedback({
-        show: true,
-        correct: false,
-        message: `Not quite. ${currentScenario.scenario} would typically evoke ${currentScenario.emotion}.`
-      });
-    }
-    
-    // Show feedback for a moment, then move to next scenario
-    setTimeout(() => {
-      setFeedback({ show: false, correct: false, message: '' });
-      nextScenario();
-    }, 2000);
-  };
-  
-  // Change difficulty
-  const changeDifficulty = (newDifficulty: 'easy' | 'medium' | 'hard') => {
-    setDifficulty(newDifficulty);
-    if (gameStarted) {
-      // Restart game with new difficulty
-      setGameStarted(false);
-      setGameOver(false);
-      setScore(0);
-      setRound(0);
-      setFeedback({ show: false, correct: false, message: '' });
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Game Controls */}
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="flex items-center gap-1 px-3 py-1 text-sm">
-            <Trophy className="w-3.5 h-3.5" />
-            {score} Points
-          </Badge>
-          <Badge variant="outline" className="flex items-center gap-1 px-3 py-1 text-sm">
-            <Target className="w-3.5 h-3.5" />
-            {round}/{scenarios[difficulty].length} Rounds
-          </Badge>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          {!gameStarted || gameOver ? (
-            <Button 
-              onClick={startGame}
-              className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700 text-white"
-            >
-              {gameOver ? 'Play Again' : 'Start Game'}
-            </Button>
-          ) : (
-            <Button 
-              variant="outline" 
-              onClick={() => setGameOver(true)}
-            >
-              End Game
-            </Button>
-          )}
-          
-          <Select value={difficulty} onValueChange={(value) => changeDifficulty(value as 'easy' | 'medium' | 'hard')}>
-            <SelectTrigger className="w-[130px]">
+          <Select value={difficulty} onValueChange={changeDifficulty}>
+            <SelectTrigger className="w-[120px]">
               <SelectValue placeholder="Difficulty" />
             </SelectTrigger>
             <SelectContent>
@@ -1074,108 +597,482 @@ const EmotionExplorer = () => {
               <SelectItem value="hard">Hard</SelectItem>
             </SelectContent>
           </Select>
+          
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={initializeGame}
+            title="Restart Game"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
         </div>
       </div>
       
-      {/* Game Area */}
-      <Card className="bg-white overflow-hidden">
-        <CardContent className="p-6">
-          {!gameStarted && !gameOver ? (
-            <div className="flex flex-col items-center justify-center h-[300px] text-center">
-              <Heart className="w-16 h-16 text-rose-500/20 mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Emotion Explorer</h3>
-              <p className="text-muted-foreground mb-6 max-w-md">
-                Improve your emotional intelligence by matching emotions to different scenarios.
-              </p>
-              <Button 
-                onClick={startGame}
-                className="bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white"
-              >
-                Start Game
-              </Button>
+      {/* Game Stats */}
+      <div className="grid grid-cols-4 gap-2">
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="p-3 text-center">
+            <div className="text-sm text-blue-600 font-medium">Level</div>
+            <div className="text-2xl font-bold text-blue-700">{level}</div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-green-50 border-green-200">
+          <CardContent className="p-3 text-center">
+            <div className="text-sm text-green-600 font-medium">Score</div>
+            <div className="text-2xl font-bold text-green-700">{score}</div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-purple-50 border-purple-200">
+          <CardContent className="p-3 text-center">
+            <div className="text-sm text-purple-600 font-medium">Found</div>
+            <div className="text-2xl font-bold text-purple-700">{found}/{total}</div>
+          </CardContent>
+        </Card>
+        
+        <Card className={`${timeLeft <= 5 ? 'bg-red-50 border-red-200' : 'bg-orange-50 border-orange-200'}`}>
+          <CardContent className="p-3 text-center">
+            <div className={`text-sm ${timeLeft <= 5 ? 'text-red-600' : 'text-orange-600'} font-medium`}>Time</div>
+            <div className={`text-2xl font-bold ${timeLeft <= 5 ? 'text-red-700' : 'text-orange-700'}`}>{timeLeft}s</div>
+          </CardContent>
+        </Card>
+      </div>
+      
+      {/* Game Board */}
+      {!gameStarted && !gameCompleted ? (
+        <Card className="bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200">
+          <CardContent className="p-6 text-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Target className="h-8 w-8 text-white" />
             </div>
-          ) : gameOver ? (
-            <div className="flex flex-col items-center justify-center h-[300px] text-center">
-              <Trophy className="w-16 h-16 text-yellow-500 mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Game Complete!</h3>
-              <p className="text-lg font-medium mb-1">Your Score: {score}</p>
-              <p className="text-muted-foreground mb-6">
-                {score >= (scenarios[difficulty].length * (difficulty === 'easy' ? 8 : difficulty === 'medium' ? 15 : 25)) 
-                  ? "Excellent! You have great emotional intelligence!" 
-                  : score >= (scenarios[difficulty].length * (difficulty === 'easy' ? 5 : difficulty === 'medium' ? 10 : 15)) 
-                    ? "Good job! You're developing your emotional awareness." 
-                    : "Keep practicing to improve your emotional intelligence."}
-              </p>
+            <h3 className="text-xl font-bold text-indigo-800 mb-2">Ready to Focus?</h3>
+            <p className="text-indigo-700 mb-6">Find all instances of the target emoji as quickly as possible!</p>
+            <Button 
+              onClick={startGame}
+              className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white"
+            >
+              Start Game
+            </Button>
+          </CardContent>
+        </Card>
+      ) : gameCompleted ? (
+        <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+          <CardContent className="p-6 text-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trophy className="h-8 w-8 text-white" />
+            </div>
+            <h3 className="text-xl font-bold text-green-800 mb-2">Game Over!</h3>
+            <p className="text-green-700 mb-2">You reached level {level} and scored {score} points.</p>
+            <p className="text-green-600 mb-6">High Score: {highScore}</p>
+            <div className="flex justify-center gap-2">
               <Button 
-                onClick={startGame}
-                className="bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white"
+                variant="outline" 
+                onClick={initializeGame}
+                className="border-green-300 text-green-700 hover:bg-green-100"
               >
                 Play Again
               </Button>
+              <Button 
+                onClick={() => changeDifficulty(
+                  difficulty === 'easy' ? 'medium' : 
+                  difficulty === 'medium' ? 'hard' : 'easy'
+                )}
+                className="bg-gradient-to-r from-green-500 to-emerald-600 text-white"
+              >
+                {difficulty === 'easy' ? 'Try Medium' : 
+                 difficulty === 'medium' ? 'Try Hard' : 'Try Easy'}
+              </Button>
             </div>
-          ) : currentScenario ? (
-            <div className="space-y-6">
-              {/* Scenario */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="text-lg font-medium mb-2">Scenario:</h3>
-                <p className="text-gray-800">{currentScenario.scenario}</p>
-              </div>
-              
-              {/* Question */}
-              <div>
-                <h3 className="text-lg font-medium mb-3">What emotion would someone likely feel?</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {currentScenario.options.map((option, index) => (
-                    <Button
-                      key={index}
-                      variant="outline"
-                      className={`h-auto py-3 justify-start text-left ${
-                        feedback.show && index === currentScenario.correctIndex
-                          ? 'bg-green-50 border-green-300 text-green-700'
-                          : ''
-                      }`}
-                      disabled={feedback.show}
-                      onClick={() => handleAnswer(index)}
-                    >
-                      {option}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Feedback */}
-              {feedback.show && (
-                <div className={`p-4 rounded-lg ${
-                  feedback.correct ? 'bg-green-50 border border-green-200' : 'bg-amber-50 border border-amber-200'
-                }`}>
-                  <div className="flex items-start gap-3">
-                    {feedback.correct ? (
-                      <Check className="w-5 h-5 text-green-600 mt-0.5" />
-                    ) : (
-                      <X className="w-5 h-5 text-amber-600 mt-0.5" />
-                    )}
-                    <p className={feedback.correct ? 'text-green-700' : 'text-amber-700'}>
-                      {feedback.message}
-                    </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className={`space-y-4 ${shake ? 'animate-shake' : ''}`}>
+          <div className="flex justify-center items-center gap-2 p-2 bg-gradient-to-r from-indigo-100 to-purple-100 rounded-lg">
+            <div className="text-center">
+              <p className="text-sm font-medium text-indigo-800">Find all</p>
+              <div className="text-4xl">{targetEmoji}</div>
+            </div>
+          </div>
+          
+          <div className={`grid gap-2 grid-cols-${getGridSize()}`}>
+            {grid.map((row, rowIndex) => (
+              <React.Fragment key={rowIndex}>
+                {row.map((cell, colIndex) => (
+                  <div 
+                    key={`${rowIndex}-${colIndex}`}
+                    className={`aspect-square bg-white rounded-lg border-2 cursor-pointer flex items-center justify-center text-2xl sm:text-3xl ${
+                      cell === '✓' ? 'border-green-300 bg-green-50 text-green-600' : 'border-gray-200 hover:border-primary/50'
+                    }`}
+                    onClick={() => handleCellClick(rowIndex, colIndex)}
+                  >
+                    {cell}
                   </div>
-                </div>
-              )}
-            </div>
-          ) : null}
+                ))}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      {/* Game Info */}
+      <Card>
+        <CardContent className="p-4 text-sm text-muted-foreground">
+          <h3 className="font-medium text-foreground mb-2">Benefits of Focus Games:</h3>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>Improves attention span and concentration</li>
+            <li>Enhances visual processing and search skills</li>
+            <li>Reduces distractibility in everyday tasks</li>
+            <li>Helps with ADHD symptoms and cognitive training</li>
+          </ul>
         </CardContent>
       </Card>
     </div>
   );
 };
 
-// Main Mind Game Page
+// Gratitude Garden Component
+const GratitudeGarden = () => {
+  const { currentUser } = useAuth();
+  const { toast } = useToast();
+  const [gratitudeText, setGratitudeText] = useState('');
+  const [gratitudeEntries, setGratitudeEntries] = useState<Array<{id: string, text: string, date: Date}>>([]);
+  const [gardenLevel, setGardenLevel] = useState(1);
+  const [streak, setStreak] = useState(0);
+  const [lastEntryDate, setLastEntryDate] = useState<string | null>(null);
+  
+  // Load saved entries on mount
+  useEffect(() => {
+    const savedEntries = localStorage.getItem('gratitudeEntries');
+    if (savedEntries) {
+      const parsedEntries = JSON.parse(savedEntries);
+      // Convert string dates back to Date objects
+      const entriesWithDates = parsedEntries.map((entry: any) => ({
+        ...entry,
+        date: new Date(entry.date)
+      }));
+      setGratitudeEntries(entriesWithDates);
+      
+      // Calculate garden level based on number of entries
+      setGardenLevel(Math.min(5, Math.max(1, Math.floor(entriesWithDates.length / 5) + 1)));
+    }
+    
+    // Load streak data
+    const savedStreak = localStorage.getItem('gratitudeStreak');
+    const savedLastEntry = localStorage.getItem('gratitudeLastEntry');
+    
+    if (savedStreak) {
+      setStreak(parseInt(savedStreak));
+    }
+    
+    if (savedLastEntry) {
+      setLastEntryDate(savedLastEntry);
+      
+      // Check if streak is still valid
+      const today = new Date().toISOString().split('T')[0];
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+      
+      if (savedLastEntry !== today && savedLastEntry !== yesterdayStr) {
+        // Streak broken
+        setStreak(0);
+        localStorage.setItem('gratitudeStreak', '0');
+      }
+    }
+  }, []);
+
+  // Add new gratitude entry
+  const addGratitudeEntry = () => {
+    if (!gratitudeText.trim()) {
+      toast({
+        title: "Empty Entry",
+        description: "Please enter something you're grateful for.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    
+    // Check if already added entry today
+    if (lastEntryDate === todayStr) {
+      toast({
+        title: "Entry Already Added",
+        description: "You've already added a gratitude entry today. Come back tomorrow!",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Create new entry
+    const newEntry = {
+      id: Date.now().toString(),
+      text: gratitudeText,
+      date: today
+    };
+    
+    // Update entries
+    const updatedEntries = [newEntry, ...gratitudeEntries];
+    setGratitudeEntries(updatedEntries);
+    localStorage.setItem('gratitudeEntries', JSON.stringify(updatedEntries));
+    
+    // Update garden level
+    const newLevel = Math.min(5, Math.max(1, Math.floor(updatedEntries.length / 5) + 1));
+    setGardenLevel(newLevel);
+    
+    // Update streak
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    
+    let newStreak = streak;
+    if (lastEntryDate === yesterdayStr || lastEntryDate === null) {
+      // Continuing streak or first entry
+      newStreak = streak + 1;
+    } else if (lastEntryDate !== todayStr) {
+      // Broken streak, starting new
+      newStreak = 1;
+    }
+    
+    setStreak(newStreak);
+    setLastEntryDate(todayStr);
+    localStorage.setItem('gratitudeStreak', newStreak.toString());
+    localStorage.setItem('gratitudeLastEntry', todayStr);
+    
+    // Clear input
+    setGratitudeText('');
+    
+    // Show success message
+    toast({
+      title: "Gratitude Added",
+      description: "Your garden is growing with positivity!",
+    });
+    
+    // Show level up message if applicable
+    if (newLevel > gardenLevel) {
+      toast({
+        title: "Garden Level Up!",
+        description: `Your garden has reached level ${newLevel}. Keep nurturing it!`,
+      });
+    }
+  };
+
+  // Delete entry
+  const deleteEntry = (id: string) => {
+    const updatedEntries = gratitudeEntries.filter(entry => entry.id !== id);
+    setGratitudeEntries(updatedEntries);
+    localStorage.setItem('gratitudeEntries', JSON.stringify(updatedEntries));
+    
+    // Update garden level
+    setGardenLevel(Math.min(5, Math.max(1, Math.floor(updatedEntries.length / 5) + 1)));
+    
+    toast({
+      title: "Entry Removed",
+      description: "Your gratitude entry has been removed.",
+    });
+  };
+
+  // Format date
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString(undefined, { 
+      weekday: 'short', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  };
+
+  // Get garden elements based on level
+  const getGardenElements = () => {
+    const elements = [];
+    
+    // Add flowers based on level
+    for (let i = 0; i < Math.min(gardenLevel * 2, 10); i++) {
+      elements.push(
+        <div 
+          key={`flower-${i}`}
+          className="absolute transform transition-all duration-500"
+          style={{
+            left: `${10 + (i * 8)}%`,
+            bottom: `${10 + Math.sin(i) * 5}%`,
+            transform: `scale(${0.8 + (i % 3) * 0.2}) rotate(${(i % 2) * 5}deg)`
+          }}
+        >
+          <Flower className={`h-8 w-8 ${
+            i % 3 === 0 ? 'text-pink-500' : 
+            i % 3 === 1 ? 'text-purple-500' : 
+            'text-yellow-500'
+          }`} />
+        </div>
+      );
+    }
+    
+    // Add leaves based on level
+    for (let i = 0; i < Math.min(gardenLevel * 3, 15); i++) {
+      elements.push(
+        <div 
+          key={`leaf-${i}`}
+          className="absolute transform transition-all duration-500"
+          style={{
+            left: `${5 + (i * 6)}%`,
+            bottom: `${5 + Math.cos(i) * 3}%`,
+            transform: `scale(${0.7 + (i % 3) * 0.1}) rotate(${(i % 4) * 90}deg)`
+          }}
+        >
+          <Leaf className="h-6 w-6 text-green-500" />
+        </div>
+      );
+    }
+    
+    // Add sun if level is high enough
+    if (gardenLevel >= 3) {
+      elements.push(
+        <div 
+          key="sun"
+          className="absolute top-4 right-4 transform transition-all duration-500 animate-pulse"
+        >
+          <Sun className="h-10 w-10 text-yellow-500" />
+        </div>
+      );
+    }
+    
+    return elements;
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Garden Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-xl font-bold">Gratitude Garden</h2>
+          <p className="text-muted-foreground">Grow your garden by practicing daily gratitude</p>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="flex items-center gap-1">
+            <Zap className="h-3.5 w-3.5" />
+            {streak} Day Streak
+          </Badge>
+          
+          <Badge variant="outline" className="flex items-center gap-1">
+            <Star className="h-3.5 w-3.5" />
+            Level {gardenLevel}
+          </Badge>
+        </div>
+      </div>
+      
+      {/* Garden Visualization */}
+      <Card className="overflow-hidden">
+        <div className="h-48 bg-gradient-to-b from-blue-100 to-green-100 relative">
+          {getGardenElements()}
+          
+          {/* Ground */}
+          <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-amber-200 to-amber-100"></div>
+        </div>
+        
+        <CardContent className="p-4">
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="gratitude" className="block text-sm font-medium mb-1">
+                What are you grateful for today?
+              </label>
+              <div className="flex gap-2">
+                <Textarea
+                  id="gratitude"
+                  placeholder="I'm grateful for..."
+                  value={gratitudeText}
+                  onChange={(e) => setGratitudeText(e.target.value)}
+                  className="flex-1 min-h-[80px]"
+                />
+                <Button 
+                  onClick={addGratitudeEntry}
+                  className="bg-gradient-to-r from-green-500 to-emerald-600 text-white self-end"
+                >
+                  Add
+                </Button>
+              </div>
+              
+              {lastEntryDate === new Date().toISOString().split('T')[0] && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  You've already added an entry today. You can add another one tomorrow!
+                </p>
+              )}
+            </div>
+            
+            <div>
+              <h3 className="text-sm font-medium mb-2">Recent Entries</h3>
+              <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2">
+                {gratitudeEntries.length === 0 ? (
+                  <p className="text-sm text-muted-foreground italic">
+                    No entries yet. Start growing your garden by adding what you're grateful for!
+                  </p>
+                ) : (
+                  gratitudeEntries.map(entry => (
+                    <div 
+                      key={entry.id}
+                      className="p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-100 relative group"
+                    >
+                      <p className="text-sm text-green-800">{entry.text}</p>
+                      <p className="text-xs text-green-600 mt-1">{formatDate(entry.date)}</p>
+                      
+                      <button 
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => deleteEntry(entry.id)}
+                      >
+                        <X className="h-4 w-4 text-red-500 hover:text-red-700" />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Garden Info */}
+      <Card>
+        <CardContent className="p-4 text-sm text-muted-foreground">
+          <h3 className="font-medium text-foreground mb-2">Benefits of Gratitude Practice:</h3>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>Increases positive emotions and life satisfaction</li>
+            <li>Reduces stress and improves mental resilience</li>
+            <li>Enhances empathy and reduces aggression</li>
+            <li>Improves sleep quality and physical health</li>
+          </ul>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// Main Mind Games Component
 const MindGame = () => {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [activeGame, setActiveGame] = useState('memory');
+  
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Mind Games</CardTitle>
+            <CardDescription>Please sign in to access mind games</CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button onClick={() => navigate('/login')} className="w-full">Sign In</Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-4 sm:p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center gap-2">
@@ -1192,7 +1089,7 @@ const MindGame = () => {
                 Mind Wellness Games
               </h1>
               <p className="text-muted-foreground">
-                Engage your mind and improve your mental wellbeing
+                Engage your mind with games designed for mental wellness
               </p>
             </div>
           </div>
@@ -1200,181 +1097,93 @@ const MindGame = () => {
         
         {/* Game Selection Tabs */}
         <Tabs value={activeGame} onValueChange={setActiveGame} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 bg-white/90 backdrop-blur-sm border border-white/20 shadow-lg">
+          <TabsList className="grid grid-cols-3 bg-white/90 backdrop-blur-sm border border-white/20 shadow-lg">
             <TabsTrigger 
               value="memory" 
-              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-purple-600 data-[state=active]:text-white transition-all duration-300 hover:scale-105"
+              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white"
             >
-              <Brain className="w-4 h-4" />
+              <Brain className="h-4 w-4" />
               Memory Mosaic
             </TabsTrigger>
             <TabsTrigger 
               value="focus" 
-              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-purple-600 data-[state=active]:text-white transition-all duration-300 hover:scale-105"
+              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-600 data-[state=active]:text-white"
             >
-              <Target className="w-4 h-4" />
+              <Target className="h-4 w-4" />
               Focus Flow
             </TabsTrigger>
             <TabsTrigger 
               value="gratitude" 
-              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-purple-600 data-[state=active]:text-white transition-all duration-300 hover:scale-105"
+              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white"
             >
-              <Heart className="w-4 h-4" />
+              <Heart className="h-4 w-4" />
               Gratitude Garden
             </TabsTrigger>
           </TabsList>
           
           {/* Game Content */}
           <Card className="bg-white/90 backdrop-blur-sm border border-white/20 shadow-xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                {activeGame === 'memory' && (
-                  <>
-                    <div className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg">
-                      <Brain className="w-5 h-5 text-white" />
-                    </div>
-                    Memory Mosaic
-                  </>
-                )}
-                {activeGame === 'focus' && (
-                  <>
-                    <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg">
-                      <Target className="w-5 h-5 text-white" />
-                    </div>
-                    Focus Flow
-                  </>
-                )}
-                {activeGame === 'gratitude' && (
-                  <>
-                    <div className="p-2 bg-gradient-to-br from-rose-500 to-pink-600 rounded-lg">
-                      <Heart className="w-5 h-5 text-white" />
-                    </div>
-                    Gratitude Garden
-                  </>
-                )}
-              </CardTitle>
-              <CardDescription>
-                {activeGame === 'memory' && "Improve your memory by matching pairs of cards"}
-                {activeGame === 'focus' && "Enhance your concentration by focusing on specific targets"}
-                {activeGame === 'gratitude' && "Cultivate positivity by growing your garden of gratitude"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {activeGame === 'memory' && <MemoryGame />}
-              {activeGame === 'focus' && <FocusFlowGame />}
-              {activeGame === 'gratitude' && <GratitudeGarden />}
-            </CardContent>
-          </Card>
-          
-          {/* Benefits Section */}
-          <Card className="bg-white/90 backdrop-blur-sm border border-white/20 shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Lightbulb className="w-5 h-5 text-yellow-500" />
-                Mental Wellness Benefits
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {activeGame === 'memory' && (
-                  <>
-                    <div className="p-4 bg-purple-50 rounded-lg border border-purple-100">
-                      <h3 className="font-medium text-purple-800 mb-1 flex items-center gap-2">
-                        <Brain className="w-4 h-4" />
-                        Cognitive Enhancement
-                      </h3>
-                      <p className="text-sm text-purple-700">
-                        Improves working memory, pattern recognition, and visual-spatial awareness.
-                      </p>
-                    </div>
-                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
-                      <h3 className="font-medium text-blue-800 mb-1 flex items-center gap-2">
-                        <Zap className="w-4 h-4" />
-                        Stress Reduction
-                      </h3>
-                      <p className="text-sm text-blue-700">
-                        Provides a mindful activity that can help reduce stress and anxiety.
-                      </p>
-                    </div>
-                    <div className="p-4 bg-green-50 rounded-lg border border-green-100">
-                      <h3 className="font-medium text-green-800 mb-1 flex items-center gap-2">
-                        <Target className="w-4 h-4" />
-                        Brain Health
-                      </h3>
-                      <p className="text-sm text-green-700">
-                        Regular memory exercises may help maintain cognitive function as you age.
-                      </p>
-                    </div>
-                  </>
-                )}
-                
-                {activeGame === 'focus' && (
-                  <>
-                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
-                      <h3 className="font-medium text-blue-800 mb-1 flex items-center gap-2">
-                        <Target className="w-4 h-4" />
-                        Improved Concentration
-                      </h3>
-                      <p className="text-sm text-blue-700">
-                        Enhances your ability to focus on specific tasks while filtering out distractions.
-                      </p>
-                    </div>
-                    <div className="p-4 bg-purple-50 rounded-lg border border-purple-100">
-                      <h3 className="font-medium text-purple-800 mb-1 flex items-center gap-2">
-                        <Brain className="w-4 h-4" />
-                        Cognitive Flexibility
-                      </h3>
-                      <p className="text-sm text-purple-700">
-                        Trains your brain to switch between tasks and adapt to changing requirements.
-                      </p>
-                    </div>
-                    <div className="p-4 bg-green-50 rounded-lg border border-green-100">
-                      <h3 className="font-medium text-green-800 mb-1 flex items-center gap-2">
-                        <Clock className="w-4 h-4" />
-                        Reaction Time
-                      </h3>
-                      <p className="text-sm text-green-700">
-                        Improves processing speed and reaction time through regular practice.
-                      </p>
-                    </div>
-                  </>
-                )}
-                
-                {activeGame === 'gratitude' && (
-                  <>
-                    <div className="p-4 bg-rose-50 rounded-lg border border-rose-100">
-                      <h3 className="font-medium text-rose-800 mb-1 flex items-center gap-2">
-                        <Heart className="w-4 h-4" />
-                        Positive Mindset
-                      </h3>
-                      <p className="text-sm text-rose-700">
-                        Regular gratitude practice helps shift focus to positive aspects of life.
-                      </p>
-                    </div>
-                    <div className="p-4 bg-amber-50 rounded-lg border border-amber-100">
-                      <h3 className="font-medium text-amber-800 mb-1 flex items-center gap-2">
-                        <Zap className="w-4 h-4" />
-                        Stress Reduction
-                      </h3>
-                      <p className="text-sm text-amber-700">
-                        Gratitude has been shown to lower stress hormones and increase wellbeing.
-                      </p>
-                    </div>
-                    <div className="p-4 bg-green-50 rounded-lg border border-green-100">
-                      <h3 className="font-medium text-green-800 mb-1 flex items-center gap-2">
-                        <Sparkles className="w-4 h-4" />
-                        Improved Relationships
-                      </h3>
-                      <p className="text-sm text-green-700">
-                        Recognizing things to be thankful for strengthens social connections.
-                      </p>
-                    </div>
-                  </>
-                )}
-              </div>
+            <CardContent className="p-6">
+              <TabsContent value="memory" className="mt-0">
+                <MemoryGame />
+              </TabsContent>
+              
+              <TabsContent value="focus" className="mt-0">
+                <FocusFlowGame />
+              </TabsContent>
+              
+              <TabsContent value="gratitude" className="mt-0">
+                <GratitudeGarden />
+              </TabsContent>
             </CardContent>
           </Card>
         </Tabs>
+        
+        {/* Benefits Section */}
+        <Card className="bg-white/90 backdrop-blur-sm border border-white/20 shadow-xl">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Benefits of Mind Wellness Games
+            </CardTitle>
+            <CardDescription>
+              How these games contribute to your mental wellbeing
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                  <Brain className="h-5 w-5 text-white" />
+                </div>
+                <h3 className="font-medium text-lg">Cognitive Benefits</h3>
+                <p className="text-sm text-muted-foreground">
+                  Regular mental exercise helps maintain cognitive function, improves memory, and enhances problem-solving abilities. These games are designed to stimulate different areas of your brain.
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
+                  <Heart className="h-5 w-5 text-white" />
+                </div>
+                <h3 className="font-medium text-lg">Emotional Benefits</h3>
+                <p className="text-sm text-muted-foreground">
+                  Mindfulness and gratitude practices have been shown to reduce stress, anxiety, and depression while increasing overall life satisfaction and emotional resilience.
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+                  <Zap className="h-5 w-5 text-white" />
+                </div>
+                <h3 className="font-medium text-lg">Habit Formation</h3>
+                <p className="text-sm text-muted-foreground">
+                  Building a routine of mental wellness activities creates positive habits that contribute to long-term mental health. Just a few minutes each day can make a significant difference.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
